@@ -1,0 +1,222 @@
+import React from 'react';
+import { X, ShoppingCart, Trash2, Minus } from 'lucide-react';
+import { useApp, NutritionPoint } from '../context/AppContext';
+import { ProductProps } from './NutritionCard';
+
+interface CartModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+interface CartItem {
+  product: ProductProps;
+  quantity: number;
+  points: NutritionPoint[];
+}
+
+export function CartModal({ isOpen, onClose }: CartModalProps) {
+  const { routeData, removeNutritionPoint } = useApp();
+
+  // Group nutrition points by product - must be before early return!
+  const cartItems: CartItem[] = React.useMemo(() => {
+    const grouped = new Map<string, CartItem>();
+
+    routeData.nutritionPoints.forEach((point) => {
+      const key = point.product.id;
+      if (grouped.has(key)) {
+        const item = grouped.get(key)!;
+        item.quantity++;
+        item.points.push(point);
+      } else {
+        grouped.set(key, {
+          product: point.product,
+          quantity: 1,
+          points: [point],
+        });
+      }
+    });
+
+    return Array.from(grouped.values());
+  }, [routeData.nutritionPoints]);
+
+  const totalCost = cartItems.reduce(
+    (sum, item) => sum + item.product.priceZAR * item.quantity,
+    0
+  );
+
+  const totalCarbs = cartItems.reduce(
+    (sum, item) => sum + item.product.carbs * item.quantity,
+    0
+  );
+
+  const totalCalories = cartItems.reduce(
+    (sum, item) => sum + item.product.calories * item.quantity,
+    0
+  );
+
+  const removeOne = (item: CartItem) => {
+    if (item.points.length > 0) {
+      removeNutritionPoint(item.points[item.points.length - 1].id);
+    }
+  };
+
+  const removeAll = (item: CartItem) => {
+    item.points.forEach((point) => removeNutritionPoint(point.id));
+  };
+
+  // Early return after all hooks
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="relative bg-surface border border-white/10 w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-surfaceHighlight">
+          <div className="flex items-center gap-3">
+            <ShoppingCart className="w-5 h-5 text-neon-orange" />
+            <h2 className="text-lg font-bold text-white">Nutrition Kit</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-white/10 transition-colors text-text-muted hover:text-white"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Route Info */}
+        {routeData.loaded && (
+          <div className="px-4 py-3 bg-black/30 border-b border-white/10">
+            <div className="text-xs text-text-muted uppercase tracking-wider">
+              Kit for route
+            </div>
+            <div className="text-sm font-bold text-white">
+              {routeData.name} ({routeData.distanceKm.toFixed(1)}km)
+            </div>
+          </div>
+        )}
+
+        {/* Cart Items */}
+        <div className="flex-1 overflow-y-auto p-4">
+          {cartItems.length === 0 ? (
+            <div className="text-center py-12">
+              <ShoppingCart className="w-12 h-12 text-text-muted mx-auto mb-4" />
+              <p className="text-text-muted">Your nutrition kit is empty</p>
+              <p className="text-xs text-text-secondary mt-1">
+                Drag products onto the route to add them
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {cartItems.map((item) => (
+                <div
+                  key={item.product.id}
+                  className="flex gap-3 p-3 bg-surfaceHighlight border border-white/5"
+                >
+                  {/* Product Image */}
+                  <div className="w-14 h-14 flex-shrink-0 bg-white/5 rounded overflow-hidden">
+                    <img
+                      src={item.product.image}
+                      alt={item.product.name}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+
+                  {/* Product Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[10px] text-text-muted uppercase">
+                      {item.product.brand}
+                    </div>
+                    <div className="text-sm font-bold text-white truncate">
+                      {item.product.name}
+                    </div>
+                    <div className="text-xs text-text-secondary">
+                      {item.product.carbs}g carbs &middot; {item.product.calories} cal
+                    </div>
+                  </div>
+
+                  {/* Quantity & Price */}
+                  <div className="flex flex-col items-end justify-between">
+                    <div className="text-sm font-mono font-bold text-neon-green">
+                      R{(item.product.priceZAR * item.quantity).toFixed(2)}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => removeOne(item)}
+                        className="p-1 hover:bg-white/10 text-text-muted hover:text-white transition-colors"
+                        title="Remove one"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-6 text-center text-sm font-mono text-white">
+                        {item.quantity}
+                      </span>
+                      <button
+                        onClick={() => removeAll(item)}
+                        className="p-1 hover:bg-red-500/20 text-text-muted hover:text-red-400 transition-colors"
+                        title="Remove all"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Summary */}
+        {cartItems.length > 0 && (
+          <div className="p-4 border-t border-white/10 bg-surfaceHighlight space-y-3">
+            {/* Nutrition Summary */}
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div className="p-2 bg-black/30 rounded">
+                <div className="text-[10px] text-text-muted uppercase">Items</div>
+                <div className="text-lg font-mono font-bold text-white">
+                  {routeData.nutritionPoints.length}
+                </div>
+              </div>
+              <div className="p-2 bg-black/30 rounded">
+                <div className="text-[10px] text-text-muted uppercase">Total Carbs</div>
+                <div className="text-lg font-mono font-bold text-neon-orange">
+                  {totalCarbs}g
+                </div>
+              </div>
+              <div className="p-2 bg-black/30 rounded">
+                <div className="text-[10px] text-text-muted uppercase">Calories</div>
+                <div className="text-lg font-mono font-bold text-white">
+                  {totalCalories}
+                </div>
+              </div>
+            </div>
+
+            {/* Total */}
+            <div className="flex items-center justify-between py-3 border-t border-white/10">
+              <span className="text-sm text-text-secondary uppercase">Total</span>
+              <span className="text-2xl font-mono font-bold text-neon-green">
+                R{totalCost.toFixed(2)}
+              </span>
+            </div>
+
+            {/* Checkout Button */}
+            <button
+              className="w-full py-4 bg-neon-orange text-black text-sm font-bold uppercase tracking-wider hover:bg-neon-orange/90 transition-colors flex items-center justify-center gap-2"
+              onClick={() => alert('Checkout coming soon!')}
+            >
+              <ShoppingCart className="w-4 h-4" />
+              Checkout - R{totalCost.toFixed(2)}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
