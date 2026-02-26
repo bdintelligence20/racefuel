@@ -1,9 +1,10 @@
 import React from 'react';
-import { X, FileText, Table, MapPin, Download } from 'lucide-react';
+import { X, FileText, Table, MapPin, Download, Image } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { downloadGpx } from '../../services/export/gpxExporter';
 import { downloadCsv } from '../../services/export/csvExporter';
 import { downloadPdf } from '../../services/export/pdfExporter';
+import { exportMapImage } from '../../services/export/mapImageExporter';
 import { toast } from 'sonner';
 
 interface ExportModalProps {
@@ -60,6 +61,22 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
         downloadCsv(routeData);
         toast.success('CSV exported successfully');
         onClose();
+      },
+    },
+    {
+      id: 'map-image',
+      name: 'Map Image (PNG)',
+      description: 'High-res map screenshot with route stats overlay. Great for social sharing.',
+      icon: Image,
+      color: 'text-yellow-400',
+      action: async () => {
+        try {
+          await exportMapImage(routeData, 'landscape');
+          toast.success('Map image exported');
+          onClose();
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'Failed to export map image');
+        }
       },
     },
   ];

@@ -8,9 +8,10 @@ import { ProductProps } from './NutritionCard';
 import { NutritionMarker } from './NutritionMarker';
 
 function ElevationProfile() {
-  const { routeData, routeAnalysis, addNutritionPoint } = useApp();
+  const { routeData, routeAnalysis, addNutritionPoint, moveNutritionPoint } = useApp();
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ x: number; km: number; elev: number } | null>(null);
+  const [draggingPointId, setDraggingPointId] = useState<string | null>(null);
 
   const { pathD, areaD, elevations, minElev, maxElev } = useMemo(() => {
     const gpsPath = routeData.gpsPath;
@@ -74,14 +75,26 @@ function ElevationProfile() {
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     if (!svgRef.current || !elevations.length) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const km = x * routeData.distanceKm;
     const idx = Math.floor(x * (elevations.length - 1));
     const elev = elevations[Math.min(idx, elevations.length - 1)] || 0;
     setHover({ x: x * 1000, km, elev });
-  }, [elevations, routeData.distanceKm]);
 
-  const handleMouseLeave = useCallback(() => setHover(null), []);
+    // Handle dragging a nutrition point
+    if (draggingPointId) {
+      moveNutritionPoint(draggingPointId, km);
+    }
+  }, [elevations, routeData.distanceKm, draggingPointId, moveNutritionPoint]);
+
+  const handleMouseLeave = useCallback(() => {
+    setHover(null);
+    setDraggingPointId(null);
+  }, []);
+
+  const handleMouseUp = useCallback(() => {
+    setDraggingPointId(null);
+  }, []);
 
   const handleElevationDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -116,9 +129,10 @@ function ElevationProfile() {
           ref={svgRef}
           viewBox="0 0 1000 150"
           preserveAspectRatio="none"
-          className="w-full h-full cursor-crosshair"
+          className={`w-full h-full ${draggingPointId ? 'cursor-grabbing' : 'cursor-crosshair'}`}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
         >
           <defs>
             <linearGradient id="elevGradient" x1="0" y1="0" x2="0" y2="1">
@@ -169,15 +183,47 @@ function ElevationProfile() {
             </>
           )}
 
-          {/* Nutrition point markers */}
+          {/* Nutrition point markers (draggable) */}
           {routeData.nutritionPoints.map((point) => {
             const x = (point.distanceKm / routeData.distanceKm) * 1000;
+            const isDragging = draggingPointId === point.id;
+            const colorMap: Record<string, string> = {
+              orange: '#ff6b00', blue: '#00d4ff', white: '#ffffff',
+              green: '#00ff88', red: '#ef4444', yellow: '#eab308',
+            };
+            const markerColor = colorMap[point.product.color] || '#ff6b00';
             return (
-              <line
-                key={`seg-${point.id}`}
-                x1={x} y1="0" x2={x} y2="150"
-                stroke="rgba(255,107,0,0.3)" strokeWidth="1"
-              />
+              <g key={`seg-${point.id}`}>
+                <line
+                  x1={x} y1="0" x2={x} y2="150"
+                  stroke={isDragging ? markerColor : 'rgba(255,107,0,0.3)'}
+                  strokeWidth={isDragging ? 2 : 1}
+                />
+                {/* Draggable handle */}
+                <circle
+                  cx={x} cy="12" r={isDragging ? 8 : 6}
+                  fill={markerColor}
+                  stroke={isDragging ? '#fff' : 'rgba(0,0,0,0.5)'}
+                  strokeWidth={isDragging ? 2 : 1}
+                  className="cursor-grab active:cursor-grabbing"
+                  style={{ filter: isDragging ? 'drop-shadow(0 0 4px rgba(255,107,0,0.6))' : undefined }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    setDraggingPointId(point.id);
+                  }}
+                />
+                {/* Label on marker */}
+                <text
+                  x={x} y="30"
+                  textAnchor="middle"
+                  fill="rgba(255,255,255,0.6)"
+                  fontSize="8"
+                  fontFamily="JetBrains Mono, monospace"
+                  pointerEvents="none"
+                >
+                  {point.product.carbs}g
+                </text>
+              </g>
             );
           })}
         </svg>

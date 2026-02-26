@@ -1,11 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { Activity, Calendar, Mountain, ArrowRight, Loader2, X, RefreshCw } from 'lucide-react';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Activity, Calendar, Mountain, ArrowRight, Loader2, X, RefreshCw, Search, ArrowUpDown } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { StravaActivitySummary, formatDistance, formatDuration, formatDate } from '../../services/strava';
 
 interface StravaActivityListProps {
   onClose: () => void;
 }
+
+type SortKey = 'date' | 'distance' | 'elevation' | 'name';
+type SortDir = 'asc' | 'desc';
 
 export function StravaActivityList({ onClose }: StravaActivityListProps) {
   const {
@@ -17,6 +20,10 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
   } = useApp();
 
   const [importingId, setImportingId] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('date');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [minDistance, setMinDistance] = useState(0);
 
   useEffect(() => {
     if (strava.isConnected && stravaActivities.length === 0) {
@@ -36,6 +43,52 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
     }
   };
 
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'date' ? 'desc' : 'desc');
+    }
+  };
+
+  const filteredActivities = useMemo(() => {
+    let result = [...stravaActivities];
+
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(a => a.name.toLowerCase().includes(q));
+    }
+
+    // Distance filter
+    if (minDistance > 0) {
+      result = result.filter(a => a.distance / 1000 >= minDistance);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'date':
+          cmp = new Date(a.start_date_local).getTime() - new Date(b.start_date_local).getTime();
+          break;
+        case 'distance':
+          cmp = a.distance - b.distance;
+          break;
+        case 'elevation':
+          cmp = a.total_elevation_gain - b.total_elevation_gain;
+          break;
+        case 'name':
+          cmp = a.name.localeCompare(b.name);
+          break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+
+    return result;
+  }, [stravaActivities, searchQuery, sortKey, sortDir, minDistance]);
+
   if (!strava.isConnected) {
     return (
       <div className="text-center py-8">
@@ -54,7 +107,7 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
               IMPORT FROM <span className="text-[#FC4C02]">STRAVA</span>
             </h2>
             <p className="text-text-secondary text-sm font-mono mt-1">
-              Select a recent ride to import
+              Select a ride to import
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -75,6 +128,65 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
           </div>
         </div>
 
+        {/* Search & Filters */}
+        <div className="px-4 py-3 border-b border-white/10 bg-black/30 space-y-3">
+          {/* Search */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search activities..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full bg-black/50 border border-white/10 text-white text-xs font-mono p-2.5 pl-8 focus:outline-none focus:border-[#FC4C02] transition-colors placeholder:text-text-muted"
+            />
+            <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-2.5" />
+          </div>
+
+          {/* Filters Row */}
+          <div className="flex items-center gap-3">
+            {/* Min Distance */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-text-muted uppercase">Min km:</span>
+              <div className="flex gap-1">
+                {[0, 20, 50, 100].map(d => (
+                  <button
+                    key={d}
+                    onClick={() => setMinDistance(d)}
+                    className={`px-2 py-0.5 text-[10px] font-mono transition-colors ${
+                      minDistance === d
+                        ? 'bg-[#FC4C02]/20 text-[#FC4C02] border border-[#FC4C02]/50'
+                        : 'bg-white/5 text-text-muted border border-transparent hover:bg-white/10'
+                    }`}
+                  >
+                    {d === 0 ? 'Any' : `${d}+`}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex-1" />
+
+            {/* Sort */}
+            <div className="flex items-center gap-1">
+              <ArrowUpDown className="w-3 h-3 text-text-muted" />
+              {(['date', 'distance', 'elevation', 'name'] as SortKey[]).map(key => (
+                <button
+                  key={key}
+                  onClick={() => toggleSort(key)}
+                  className={`px-2 py-0.5 text-[10px] font-mono uppercase transition-colors ${
+                    sortKey === key
+                      ? 'bg-white/10 text-white border border-white/20'
+                      : 'text-text-muted hover:text-white'
+                  }`}
+                >
+                  {key}
+                  {sortKey === key && (sortDir === 'asc' ? ' ↑' : ' ↓')}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
         {/* Activity List */}
         <div className="flex-1 overflow-y-auto p-4">
           {stravaActivitiesLoading && stravaActivities.length === 0 ? (
@@ -82,15 +194,19 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
               <Loader2 className="w-8 h-8 text-[#FC4C02] animate-spin mb-4" />
               <p className="text-text-secondary font-mono text-sm">Loading activities...</p>
             </div>
-          ) : stravaActivities.length === 0 ? (
+          ) : filteredActivities.length === 0 ? (
             <div className="text-center py-12">
               <Activity className="w-12 h-12 text-text-muted mx-auto mb-4" />
-              <p className="text-text-secondary">No cycling activities found</p>
-              <p className="text-text-muted text-sm mt-1">Go for a ride and come back!</p>
+              <p className="text-text-secondary">
+                {stravaActivities.length === 0 ? 'No cycling activities found' : 'No matching activities'}
+              </p>
+              <p className="text-text-muted text-sm mt-1">
+                {stravaActivities.length === 0 ? 'Go for a ride and come back!' : 'Try adjusting your filters'}
+              </p>
             </div>
           ) : (
             <div className="space-y-2">
-              {stravaActivities.map((activity) => (
+              {filteredActivities.map((activity) => (
                 <div
                   key={activity.id}
                   className="group p-4 bg-black/40 border border-white/5 hover:border-[#FC4C02]/50 transition-all"
@@ -100,12 +216,12 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
                       <h3 className="font-bold text-white truncate group-hover:text-[#FC4C02] transition-colors">
                         {activity.name}
                       </h3>
-                      <div className="flex items-center gap-4 mt-2 text-sm text-text-secondary font-mono">
+                      <div className="flex items-center gap-4 mt-2 text-sm text-text-secondary font-mono flex-wrap">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
                           {formatDate(activity.start_date_local)}
                         </span>
-                        <span>{formatDistance(activity.distance)}</span>
+                        <span className="text-white font-bold">{formatDistance(activity.distance)}</span>
                         <span className="flex items-center gap-1">
                           <Mountain className="w-3 h-3" />
                           {Math.round(activity.total_elevation_gain)}m
@@ -116,7 +232,7 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
                     <button
                       onClick={() => handleImport(activity)}
                       disabled={importingId !== null}
-                      className="ml-4 px-4 py-2 bg-[#FC4C02]/10 border border-[#FC4C02]/50 text-[#FC4C02] font-bold uppercase text-xs tracking-wider hover:bg-[#FC4C02] hover:text-white transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="ml-4 px-4 py-2 bg-[#FC4C02]/10 border border-[#FC4C02]/50 text-[#FC4C02] font-bold uppercase text-xs tracking-wider hover:bg-[#FC4C02] hover:text-white transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
                     >
                       {importingId === activity.id ? (
                         <>
@@ -138,14 +254,16 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
         </div>
 
         {/* Footer */}
-        {strava.athlete && (
-          <div className="p-4 border-t border-white/10 flex items-center justify-between text-xs text-text-muted font-mono">
-            <span>
-              Connected as {strava.athlete.firstname} {strava.athlete.lastname}
-            </span>
-            <span>{stravaActivities.length} activities</span>
-          </div>
-        )}
+        <div className="p-4 border-t border-white/10 flex items-center justify-between text-xs text-text-muted font-mono">
+          <span>
+            {strava.athlete && `${strava.athlete.firstname} ${strava.athlete.lastname}`}
+          </span>
+          <span>
+            {filteredActivities.length}
+            {filteredActivities.length !== stravaActivities.length && ` / ${stravaActivities.length}`}
+            {' '}activities
+          </span>
+        </div>
       </div>
     </div>
   );

@@ -90,6 +90,7 @@ interface AppContextType {
   loadRoute: (file: File) => void;
   addNutritionPoint: (product: ProductProps, distanceKm: number) => void;
   removeNutritionPoint: (id: string) => void;
+  moveNutritionPoint: (id: string, newDistanceKm: number) => void;
   autoGeneratePlan: () => void;
   resetRoute: () => void;
 
@@ -531,6 +532,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const moveNutritionPoint = (id: string, newDistanceKm: number) => {
+    pushHistory(routeData.nutritionPoints);
+    setRouteData((prev) => ({
+      ...prev,
+      nutritionPoints: prev.nutritionPoints
+        .map((p) => p.id === id ? { ...p, distanceKm: Math.max(0, Math.min(prev.distanceKm, newDistanceKm)) } : p)
+        .sort((a, b) => a.distanceKm - b.distanceKm),
+    }));
+  };
+
   const autoGeneratePlan = () => {
     if (!routeData.loaded) return;
 
@@ -615,6 +626,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         loadRoute,
         addNutritionPoint,
         removeNutritionPoint,
+        moveNutritionPoint,
         autoGeneratePlan,
         resetRoute,
 

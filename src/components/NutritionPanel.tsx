@@ -1,10 +1,12 @@
 import React, { useState, useMemo } from 'react';
 import { NutritionCard, ProductProps, ProductCategory } from './NutritionCard';
-import { Search, ShoppingCart, Droplets, Coffee, Zap } from 'lucide-react';
+import { Search, ShoppingCart, Droplets, Coffee, Zap, ClipboardList, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { products, searchProducts } from '../data/products';
 import { CartModal } from './CartModal';
 import { ProductDetailModal } from './ProductDetailModal';
+import { RaceDayChecklist } from './RaceDayChecklist';
+import { CustomProductModal, loadCustomProducts } from './CustomProductModal';
 
 type FilterTab = 'all' | ProductCategory;
 
@@ -13,6 +15,9 @@ export function NutritionPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [cartOpen, setCartOpen] = useState(false);
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [customProductOpen, setCustomProductOpen] = useState(false);
+  const [customProducts, setCustomProducts] = useState<ProductProps[]>(loadCustomProducts);
   const [selectedProduct, setSelectedProduct] = useState<ProductProps | null>(null);
 
   const handleDragStart = (e: React.DragEvent, product: ProductProps) => {
@@ -20,13 +25,18 @@ export function NutritionPanel() {
     e.dataTransfer.effectAllowed = 'copy';
   };
 
+  const allProducts = useMemo(() => [...products, ...customProducts], [customProducts]);
+
   const filteredProducts = useMemo(() => {
-    let result = searchQuery ? searchProducts(searchQuery) : products;
+    const query = searchQuery.toLowerCase();
+    let result = query
+      ? allProducts.filter(p => p.name.toLowerCase().includes(query) || p.brand.toLowerCase().includes(query))
+      : allProducts;
     if (activeFilter !== 'all') {
       result = result.filter(p => p.category === activeFilter);
     }
     return result;
-  }, [searchQuery, activeFilter]);
+  }, [searchQuery, activeFilter, allProducts]);
 
   // Calculate totals
   const totalCarbs = routeData.nutritionPoints.reduce(
@@ -62,14 +72,23 @@ export function NutritionPanel() {
     { key: 'gel', label: 'Gels' },
     { key: 'drink', label: 'Drinks' },
     { key: 'bar', label: 'Bars' },
+    { key: 'chew', label: 'Chews' },
   ];
 
   return (
-    <aside className="w-80 bg-surface border-l border-white/10 flex flex-col h-full z-30 shadow-xl">
+    <aside className="w-full lg:w-80 bg-surface border-l border-white/10 flex flex-col h-full z-30 shadow-xl">
       <div className="p-6 border-b border-white/10 bg-surfaceHighlight/20">
-        <h2 className="text-sm font-bold text-white uppercase tracking-wider mb-4">
-          Nutrition Plan
-        </h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+            Nutrition Plan
+          </h2>
+          <button
+            onClick={() => setCustomProductOpen(true)}
+            className="text-[10px] font-mono text-neon-blue hover:text-white transition-colors flex items-center gap-1"
+          >
+            <Plus className="w-3 h-3" /> Custom
+          </button>
+        </div>
 
         {/* Search Bar */}
         <div className="relative">
@@ -191,19 +210,38 @@ export function NutritionPanel() {
                 R{totalCost.toFixed(2)}
               </span>
             </div>
-            <button
-              onClick={() => setCartOpen(true)}
-              className="w-full mt-3 py-2 bg-neon-orange text-black font-bold uppercase tracking-wider hover:bg-neon-orange/90 transition-colors flex items-center justify-center gap-2"
-            >
-              <ShoppingCart className="w-4 h-4" />
-              View Kit
-            </button>
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => setCartOpen(true)}
+                className="flex-1 py-2 bg-neon-orange text-black font-bold uppercase tracking-wider hover:bg-neon-orange/90 transition-colors flex items-center justify-center gap-2 text-xs"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                View Kit
+              </button>
+              <button
+                onClick={() => setChecklistOpen(true)}
+                className="py-2 px-3 bg-white/5 border border-white/10 text-white font-bold uppercase tracking-wider hover:bg-white/10 transition-colors flex items-center justify-center gap-1 text-xs"
+                title="Race Day Checklist"
+              >
+                <ClipboardList className="w-4 h-4" />
+              </button>
+            </div>
           </>
         )}
       </div>
 
       {/* Cart Modal */}
       <CartModal isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+
+      {/* Race Day Checklist */}
+      <RaceDayChecklist isOpen={checklistOpen} onClose={() => setChecklistOpen(false)} />
+
+      {/* Custom Product Modal */}
+      <CustomProductModal
+        isOpen={customProductOpen}
+        onClose={() => setCustomProductOpen(false)}
+        onAdd={(product) => setCustomProducts(prev => [...prev, product])}
+      />
 
       {/* Product Detail Modal */}
       <ProductDetailModal
