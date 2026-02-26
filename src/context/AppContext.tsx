@@ -1,7 +1,12 @@
-import React, { useState, createContext, useContext, useEffect, useCallback, ReactNode } from 'react';
+import React, { useState, createContext, useContext, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { nanoid } from 'nanoid';
 import { ProductProps } from '../components/NutritionCard';
+import { parseGpx } from '../services/route/gpxParser';
+import { analyzeRoute, RouteAnalysis } from '../services/route/routeAnalyzer';
+import { generatePlan, GeneratedPlan } from '../services/nutrition/planGenerator';
+import { validatePlan, ValidationResult } from '../services/nutrition/planValidator';
+import { autoSavePlan, loadAutoSavedPlan, clearAutoSave } from '../persistence/db';
 import {
-  StravaAthlete,
   StravaActivitySummary,
   StravaAuthState,
   initiateOAuth,
@@ -62,10 +67,21 @@ interface AppContextType {
   routeData: RouteData;
   sportType: SportType;
 
+  // New: analysis & validation
+  routeAnalysis: RouteAnalysis | null;
+  planValidation: ValidationResult | null;
+  lastGeneratedPlan: GeneratedPlan | null;
+
   // Strava state
   strava: StravaAuthState;
   stravaActivities: StravaActivitySummary[];
   stravaActivitiesLoading: boolean;
+
+  // Undo/redo
+  canUndo: boolean;
+  canRedo: boolean;
+  undo: () => void;
+  redo: () => void;
 
   // Existing methods
   completeOnboarding: () => void;
@@ -84,7 +100,7 @@ interface AppContextType {
   importStravaActivity: (activity: StravaActivitySummary) => Promise<void>;
   syncProfileFromStrava: () => Promise<void>;
 
-  // Reset everything for demo
+  // Reset everything
   resetAll: () => void;
 }
 
@@ -116,7 +132,6 @@ const defaultStravaState: StravaAuthState = {
 // Storage keys
 const PROFILE_STORAGE_KEY = 'racefuel_profile';
 
-// Load profile from localStorage
 function loadStoredProfile(): UserProfile {
   try {
     const stored = localStorage.getItem(PROFILE_STORAGE_KEY);
@@ -129,7 +144,6 @@ function loadStoredProfile(): UserProfile {
   return defaultProfile;
 }
 
-// Save profile to localStorage
 function saveProfile(profile: UserProfile): void {
   try {
     localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
@@ -138,9 +152,13 @@ function saveProfile(profile: UserProfile): void {
   }
 }
 
-// Clear stored profile
 function clearStoredProfile(): void {
   localStorage.removeItem(PROFILE_STORAGE_KEY);
+}
+
+// Undo/redo history
+interface HistoryEntry {
+  nutritionPoints: NutritionPoint[];
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -151,15 +169,142 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [routeData, setRouteData] = useState<RouteData>(defaultRoute);
   const [sportType, setSportType] = useState<SportType>('cycling');
 
+  // Analysis & validation
+  const [routeAnalysis, setRouteAnalysis] = useState<RouteAnalysis | null>(null);
+  const [planValidation, setPlanValidation] = useState<ValidationResult | null>(null);
+  const [lastGeneratedPlan, setLastGeneratedPlan] = useState<GeneratedPlan | null>(null);
+
   // Strava state
   const [strava, setStrava] = useState<StravaAuthState>(defaultStravaState);
   const [stravaActivities, setStravaActivities] = useState<StravaActivitySummary[]>([]);
   const [stravaActivitiesLoading, setStravaActivitiesLoading] = useState(false);
 
+  // Undo/redo
+  const undoStack = useRef<HistoryEntry[]>([]);
+  const redoStack = useRef<HistoryEntry[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+
+  const pushHistory = useCallback((points: NutritionPoint[]) => {
+    undoStack.current.push({ nutritionPoints: [...points] });
+    if (undoStack.current.length > 50) undoStack.current.shift();
+    redoStack.current = [];
+    setCanUndo(undoStack.current.length > 0);
+    setCanRedo(false);
+  }, []);
+
+  const undo = useCallback(() => {
+    if (undoStack.current.length === 0) return;
+    const entry = undoStack.current.pop()!;
+    setRouteData(prev => {
+      redoStack.current.push({ nutritionPoints: [...prev.nutritionPoints] });
+      setCanRedo(true);
+      setCanUndo(undoStack.current.length > 0);
+      return { ...prev, nutritionPoints: entry.nutritionPoints };
+    });
+  }, []);
+
+  const redo = useCallback(() => {
+    if (redoStack.current.length === 0) return;
+    const entry = redoStack.current.pop()!;
+    setRouteData(prev => {
+      undoStack.current.push({ nutritionPoints: [...prev.nutritionPoints] });
+      setCanUndo(true);
+      setCanRedo(redoStack.current.length > 0);
+      return { ...prev, nutritionPoints: entry.nutritionPoints };
+    });
+  }, []);
+
+  // Keyboard shortcuts for undo/redo
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [undo, redo]);
+
+  // Run route analysis when route changes
+  useEffect(() => {
+    if (routeData.loaded && routeData.gpsPath && routeData.gpsPath.length > 0) {
+      const analysis = analyzeRoute(routeData.gpsPath, routeData.distanceKm);
+      setRouteAnalysis(analysis);
+    } else {
+      setRouteAnalysis(null);
+    }
+  }, [routeData.loaded, routeData.gpsPath, routeData.distanceKm]);
+
+  // Validate plan when nutrition points change
+  useEffect(() => {
+    if (!routeData.loaded || routeData.nutritionPoints.length === 0) {
+      setPlanValidation(null);
+      return;
+    }
+
+    const timeParts = (routeData.estimatedTime || '3:00:00').split(':').map(Number);
+    const durationHours = timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600;
+
+    const validation = validatePlan(
+      routeData.nutritionPoints,
+      routeData.distanceKm,
+      durationHours,
+      lastGeneratedPlan?.carbTarget,
+      lastGeneratedPlan?.hydrationTarget,
+      lastGeneratedPlan?.caffeineStrategy,
+      userProfile.weight
+    );
+
+    setPlanValidation(validation);
+  }, [routeData.nutritionPoints, routeData.loaded, routeData.distanceKm, routeData.estimatedTime, lastGeneratedPlan, userProfile.weight]);
+
+  // Auto-save plan (debounced)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => {
+    if (!routeData.loaded) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      autoSavePlan(
+        JSON.stringify(routeData),
+        routeData.name,
+        routeData.distanceKm,
+        routeData.elevationGain,
+        routeData.estimatedTime,
+        routeData.source
+      ).catch(console.error);
+    }, 1000);
+
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [routeData]);
+
+  // Restore auto-saved plan on mount
+  useEffect(() => {
+    loadAutoSavedPlan().then(saved => {
+      if (saved) {
+        try {
+          const restored = JSON.parse(saved.routeDataJson) as RouteData;
+          if (restored.loaded && restored.nutritionPoints.length > 0) {
+            setRouteData(restored);
+          }
+        } catch (e) {
+          console.error('Failed to restore autosave:', e);
+        }
+      }
+    }).catch(console.error);
+  }, []);
+
   // Check for stored tokens and OAuth callback on mount
   useEffect(() => {
     const initializeStrava = async () => {
-      // Check for OAuth callback first
       if (hasOAuthCallback()) {
         const { code, error } = parseOAuthCallback();
 
@@ -183,7 +328,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
               tokens: response,
               error: null,
             });
-            // Complete onboarding when connected via OAuth
             setOnboardingComplete(true);
           } catch (err) {
             setStrava({
@@ -195,7 +339,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Check for existing tokens
       const storedTokens = getStoredTokens();
       if (storedTokens) {
         setStrava((prev) => ({ ...prev, isLoading: true }));
@@ -209,8 +352,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             error: null,
           });
           setOnboardingComplete(true);
-        } catch (err) {
-          // Tokens might be invalid, clear them
+        } catch {
           clearStoredTokens();
           setStrava(defaultStravaState);
         }
@@ -260,7 +402,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const importStravaActivity = useCallback(async (activity: StravaActivitySummary) => {
     try {
-      // Fetch detailed streams for better route data
       const streams = await getActivityStreams(activity.id, ['latlng', 'altitude', 'distance']);
       const routeInfo = transformActivityToRoute(activity, streams);
 
@@ -270,8 +411,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         source: 'strava',
         stravaActivityId: activity.id,
       });
-    } catch (err) {
-      // Fallback to activity summary polyline
+    } catch {
       const routeInfo = transformActivityToRoute(activity);
       setRouteData({
         ...routeInfo,
@@ -304,7 +444,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [strava.athlete]);
 
-  // Existing methods
   const completeOnboarding = () => setOnboardingComplete(true);
 
   const updateProfile = (data: Partial<UserProfile>) => {
@@ -318,92 +457,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const loadRoute = async (file: File) => {
     try {
       const text = await file.text();
-      const parser = new DOMParser();
-      const xml = parser.parseFromString(text, 'application/xml');
-
-      // Extract track points from GPX
-      const trackPoints = xml.querySelectorAll('trkpt');
-      const routePoints = xml.querySelectorAll('rtept');
-      const points = trackPoints.length > 0 ? trackPoints : routePoints;
-
-      if (points.length === 0) {
-        // No GPS data found, load demo route
-        loadDemoRoute(file.name.replace('.gpx', ''));
-        return;
-      }
-
-      const gpsPath: GpsPoint[] = [];
-      let totalDistance = 0;
-      let totalElevationGain = 0;
-      let prevLat: number | null = null;
-      let prevLng: number | null = null;
-      let prevEle: number | null = null;
-
-      points.forEach((point) => {
-        const lat = parseFloat(point.getAttribute('lat') || '0');
-        const lng = parseFloat(point.getAttribute('lon') || '0');
-        const eleNode = point.querySelector('ele');
-        const elevation = eleNode ? parseFloat(eleNode.textContent || '0') : undefined;
-
-        gpsPath.push({ lat, lng, elevation });
-
-        // Calculate distance (haversine)
-        if (prevLat !== null && prevLng !== null) {
-          const R = 6371; // Earth's radius in km
-          const dLat = ((lat - prevLat) * Math.PI) / 180;
-          const dLng = ((lng - prevLng) * Math.PI) / 180;
-          const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos((prevLat * Math.PI) / 180) *
-              Math.cos((lat * Math.PI) / 180) *
-              Math.sin(dLng / 2) *
-              Math.sin(dLng / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          totalDistance += R * c;
-        }
-
-        // Calculate elevation gain
-        if (elevation !== undefined && prevEle !== null && elevation > prevEle) {
-          totalElevationGain += elevation - prevEle;
-        }
-
-        prevLat = lat;
-        prevLng = lng;
-        if (elevation !== undefined) prevEle = elevation;
-      });
-
-      // Estimate time based on distance (assuming ~25km/h average)
-      const hours = totalDistance / 25;
-      const h = Math.floor(hours);
-      const m = Math.floor((hours - h) * 60);
-      const estimatedTime = `${h}:${m.toString().padStart(2, '0')}:00`;
-
-      // Create path for elevation profile (x = distance, y = elevation)
-      const path = gpsPath.map((p, i) => ({
-        x: (i / (gpsPath.length - 1)) * 1000,
-        y: p.elevation || 0,
-      }));
+      const parsed = parseGpx(text, file.name);
 
       setRouteData({
         loaded: true,
-        name: file.name.replace('.gpx', '').replace(/_/g, ' '),
-        distanceKm: Math.round(totalDistance * 10) / 10,
-        elevationGain: Math.round(totalElevationGain),
-        estimatedTime,
-        path,
-        gpsPath,
+        name: parsed.name,
+        distanceKm: parsed.distanceKm,
+        elevationGain: parsed.elevationGain,
+        estimatedTime: parsed.estimatedTime,
+        path: parsed.path,
+        gpsPath: parsed.gpsPath,
         nutritionPoints: [],
         source: 'gpx',
       });
     } catch (err) {
       console.error('Failed to parse GPX file:', err);
-      // Fallback to demo route
       loadDemoRoute(file.name.replace('.gpx', ''));
     }
   };
 
   const loadDemoRoute = (name: string = 'Demo Route') => {
-    // Generate demo route centered on Cape Town, South Africa
     const gpsPath: GpsPoint[] = [];
     const numPoints = 100;
     const baseLat = -33.9249;
@@ -436,8 +509,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const addNutritionPoint = (product: ProductProps, distanceKm: number) => {
+    pushHistory(routeData.nutritionPoints);
     const newPoint: NutritionPoint = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: nanoid(),
       distanceKm,
       product,
     };
@@ -450,6 +524,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const removeNutritionPoint = (id: string) => {
+    pushHistory(routeData.nutritionPoints);
     setRouteData((prev) => ({
       ...prev,
       nutritionPoints: prev.nutritionPoints.filter((p) => p.id !== id),
@@ -458,76 +533,82 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const autoGeneratePlan = () => {
     if (!routeData.loaded) return;
-    // Simple algorithm: Hydration every 30min (~15km), Gel every 45min (~22km)
-    const points: NutritionPoint[] = [];
-    // Mock products
-    const gel: ProductProps = {
-      brand: 'GU',
-      name: 'Energy Gel',
-      calories: 100,
-      carbs: 22,
-      sodium: 60,
-      caffeine: 20,
-      color: 'orange',
-    };
-    const drink: ProductProps = {
-      brand: 'SIS',
-      name: 'Beta Fuel',
-      calories: 320,
-      carbs: 80,
-      sodium: 500,
-      caffeine: 0,
-      color: 'blue',
-    };
-    // Add points
-    for (let km = 15; km < routeData.distanceKm; km += 15) {
-      points.push({
-        id: Math.random().toString(36).substr(2, 9),
-        distanceKm: km,
-        product: km % 30 === 0 ? drink : gel,
-      });
-    }
+
+    pushHistory(routeData.nutritionPoints);
+
+    const timeParts = (routeData.estimatedTime || '3:00:00').split(':').map(Number);
+    const durationHours = timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600;
+
+    const plan = generatePlan({
+      distanceKm: routeData.distanceKm,
+      durationHours,
+      gpsPath: routeData.gpsPath,
+      routeAnalysis: routeAnalysis || undefined,
+      profile: userProfile,
+      isCompetition: false,
+      temperatureCelsius: 22,
+      humidity: 50,
+    });
+
+    setLastGeneratedPlan(plan);
     setRouteData((prev) => ({
       ...prev,
-      nutritionPoints: points,
+      nutritionPoints: plan.nutritionPoints,
     }));
   };
 
   const resetRoute = () => {
     setRouteData(defaultRoute);
+    setRouteAnalysis(null);
+    setPlanValidation(null);
+    setLastGeneratedPlan(null);
+    undoStack.current = [];
+    redoStack.current = [];
+    setCanUndo(false);
+    setCanRedo(false);
+    clearAutoSave().catch(console.error);
   };
 
   const resetAll = () => {
-    // Clear Strava tokens and state
     clearStoredTokens();
     setStrava(defaultStravaState);
     setStravaActivities([]);
-
-    // Clear stored profile
     clearStoredProfile();
-
-    // Reset all app state
     setOnboardingComplete(false);
     setUserProfile(defaultProfile);
     setRouteData(defaultRoute);
     setSportType('cycling');
+    setRouteAnalysis(null);
+    setPlanValidation(null);
+    setLastGeneratedPlan(null);
+    undoStack.current = [];
+    redoStack.current = [];
+    setCanUndo(false);
+    setCanRedo(false);
+    clearAutoSave().catch(console.error);
   };
 
   return (
     <AppContext.Provider
       value={{
-        // Existing state
         onboardingComplete,
         userProfile,
         routeData,
         sportType,
 
-        // Strava state
+        routeAnalysis,
+        planValidation,
+        lastGeneratedPlan,
+
         strava,
         stravaActivities,
         stravaActivitiesLoading,
 
-        // Existing methods
+        canUndo,
+        canRedo,
+        undo,
+        redo,
+
         completeOnboarding,
         updateProfile,
         setSportType,
@@ -537,14 +618,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         autoGeneratePlan,
         resetRoute,
 
-        // Strava methods
         connectStrava,
         disconnectStrava,
         fetchStravaActivities,
         importStravaActivity,
         syncProfileFromStrava,
 
-        // Reset
         resetAll,
       }}
     >

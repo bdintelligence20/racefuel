@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState, useCallback } from 'react';
 import { GpxDropZone } from './GpxDropZone';
 import { AutoGenerateButton } from './AutoGenerateButton';
 import { MapView } from './MapView';
@@ -7,72 +7,90 @@ import { useApp } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { NutritionMarker } from './NutritionMarker';
 
-function ElevationChart() {
-  const { routeData } = useApp();
+function ElevationProfile() {
+  const { routeData, routeAnalysis, addNutritionPoint } = useApp();
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [hover, setHover] = useState<{ x: number; km: number; elev: number } | null>(null);
 
-  // Sample elevation data into bars
-  const elevationBars = useMemo(() => {
-    const numBars = 40;
+  const { pathD, areaD, elevations, minElev, maxElev } = useMemo(() => {
     const gpsPath = routeData.gpsPath;
-
-    // If we have real elevation data
-    if (gpsPath && gpsPath.length > 0 && gpsPath.some((p) => p.elevation !== undefined)) {
-      const elevations = gpsPath
-        .filter((p) => p.elevation !== undefined)
-        .map((p) => p.elevation as number);
-
-      if (elevations.length === 0) {
-        return Array.from({ length: numBars }, () => 30 + Math.random() * 40);
-      }
-
-      const minElev = Math.min(...elevations);
-      const maxElev = Math.max(...elevations);
-      const range = maxElev - minElev || 1;
-
-      // Sample into bars
-      const bars: number[] = [];
-      for (let i = 0; i < numBars; i++) {
-        const idx = Math.floor((i / numBars) * elevations.length);
-        const normalized = ((elevations[idx] - minElev) / range) * 60 + 20; // 20-80%
-        bars.push(normalized);
-      }
-      return bars;
+    if (!gpsPath || gpsPath.length === 0) {
+      return { pathD: '', areaD: '', elevations: [], minElev: 0, maxElev: 100 };
     }
 
-    // Fallback to random bars
-    return Array.from({ length: numBars }, () => 20 + Math.random() * 60);
+    const elevs = gpsPath
+      .filter(p => p.elevation !== undefined)
+      .map(p => p.elevation as number);
+
+    if (elevs.length === 0) {
+      return { pathD: '', areaD: '', elevations: [], minElev: 0, maxElev: 100 };
+    }
+
+    const min = Math.min(...elevs);
+    const max = Math.max(...elevs);
+    const range = max - min || 1;
+
+    const viewW = 1000;
+    const viewH = 150;
+    const padTop = 10;
+    const padBottom = 20;
+    const usableH = viewH - padTop - padBottom;
+
+    // Sample to ~200 points for smooth curve
+    const numSamples = Math.min(200, elevs.length);
+    const points: { x: number; y: number }[] = [];
+
+    for (let i = 0; i < numSamples; i++) {
+      const idx = Math.floor((i / (numSamples - 1)) * (elevs.length - 1));
+      const x = (i / (numSamples - 1)) * viewW;
+      const y = padTop + usableH - ((elevs[idx] - min) / range) * usableH;
+      points.push({ x, y });
+    }
+
+    // Build SVG path with smooth bezier curves
+    let pathStr = `M ${points[0].x} ${points[0].y}`;
+    for (let i = 1; i < points.length; i++) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      const cpx = (prev.x + curr.x) / 2;
+      pathStr += ` C ${cpx} ${prev.y} ${cpx} ${curr.y} ${curr.x} ${curr.y}`;
+    }
+
+    // Area path (for fill)
+    const areaStr = pathStr + ` L ${viewW} ${viewH} L 0 ${viewH} Z`;
+
+    return {
+      pathD: pathStr,
+      areaD: areaStr,
+      elevations: elevs,
+      minElev: min,
+      maxElev: max,
+    };
   }, [routeData.gpsPath]);
 
-  return (
-    <div className="w-full h-full p-6 flex items-end gap-1 relative z-0">
-      {elevationBars.map((height, i) => (
-        <div
-          key={i}
-          className="flex-1 bg-white/10 hover:bg-neon-blue transition-colors duration-300"
-          style={{ height: `${height}%` }}
-        />
-      ))}
-    </div>
-  );
-}
+  // Segment colors for gradient
+  const segments = routeAnalysis?.segments || [];
 
-export function MapCanvas() {
-  const {
-    routeData,
-    autoGeneratePlan,
-    addNutritionPoint,
-    removeNutritionPoint,
-    resetRoute
-  } = useApp();
-  const elevationRef = useRef<HTMLDivElement>(null);
+  const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if (!svgRef.current || !elevations.length) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const km = x * routeData.distanceKm;
+    const idx = Math.floor(x * (elevations.length - 1));
+    const elev = elevations[Math.min(idx, elevations.length - 1)] || 0;
+    setHover({ x: x * 1000, km, elev });
+  }, [elevations, routeData.distanceKm]);
+
+  const handleMouseLeave = useCallback(() => setHover(null), []);
+
   const handleElevationDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (!elevationRef.current) return;
+    const container = e.currentTarget;
+    const rect = container.getBoundingClientRect();
     try {
       const productData = JSON.parse(
         e.dataTransfer.getData('application/json')
       ) as ProductProps;
-      const rect = elevationRef.current.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const percentage = Math.max(0, Math.min(1, x / rect.width));
       const distanceKm = percentage * routeData.distanceKm;
@@ -81,10 +99,126 @@ export function MapCanvas() {
       console.error('Invalid drop data', err);
     }
   };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
   };
+
+  return (
+    <div
+      className="w-full h-full relative"
+      onDrop={handleElevationDrop}
+      onDragOver={handleDragOver}
+    >
+      {elevations.length > 0 ? (
+        <svg
+          ref={svgRef}
+          viewBox="0 0 1000 150"
+          preserveAspectRatio="none"
+          className="w-full h-full cursor-crosshair"
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        >
+          <defs>
+            <linearGradient id="elevGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#00d4ff" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#00d4ff" stopOpacity="0.05" />
+            </linearGradient>
+            <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0%" stopColor="#00d4ff" />
+              <stop offset="50%" stopColor="#ffffff" />
+              <stop offset="100%" stopColor="#ff6b00" />
+            </linearGradient>
+          </defs>
+
+          {/* Grid lines */}
+          {[0.25, 0.5, 0.75].map(pct => (
+            <line
+              key={pct}
+              x1="0" y1={150 * (1 - pct)} x2="1000" y2={150 * (1 - pct)}
+              stroke="rgba(255,255,255,0.05)" strokeWidth="1"
+            />
+          ))}
+
+          {/* Segment coloring */}
+          {segments.map((seg, i) => {
+            const x1 = (seg.startKm / routeData.distanceKm) * 1000;
+            const x2 = (seg.endKm / routeData.distanceKm) * 1000;
+            const color = seg.type === 'climb' ? 'rgba(255,107,0,0.08)' :
+                         seg.type === 'descent' ? 'rgba(0,255,136,0.05)' : 'transparent';
+            return (
+              <rect key={i} x={x1} y="0" width={x2 - x1} height="150" fill={color} />
+            );
+          })}
+
+          {/* Elevation area fill */}
+          <path d={areaD} fill="url(#elevGradient)" />
+
+          {/* Elevation line */}
+          <path d={pathD} fill="none" stroke="url(#lineGradient)" strokeWidth="2" />
+
+          {/* Hover crosshair */}
+          {hover && (
+            <>
+              <line
+                x1={hover.x} y1="0" x2={hover.x} y2="150"
+                stroke="rgba(255,255,255,0.3)" strokeWidth="1" strokeDasharray="4 4"
+              />
+              <circle cx={hover.x} cy={10 + 120 - ((hover.elev - minElev) / (maxElev - minElev || 1)) * 120} r="4" fill="#fff" stroke="#ff6b00" strokeWidth="2" />
+            </>
+          )}
+
+          {/* Nutrition point markers */}
+          {routeData.nutritionPoints.map((point) => {
+            const x = (point.distanceKm / routeData.distanceKm) * 1000;
+            return (
+              <line
+                key={`seg-${point.id}`}
+                x1={x} y1="0" x2={x} y2="150"
+                stroke="rgba(255,107,0,0.3)" strokeWidth="1"
+              />
+            );
+          })}
+        </svg>
+      ) : (
+        // Fallback bar chart when no elevation data
+        <div className="w-full h-full p-6 flex items-end gap-1 relative z-0">
+          {Array.from({ length: 40 }, (_, i) => (
+            <div
+              key={i}
+              className="flex-1 bg-white/10 hover:bg-neon-blue transition-colors duration-300"
+              style={{ height: `${20 + Math.random() * 60}%` }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Hover tooltip */}
+      {hover && (
+        <div
+          className="absolute top-2 pointer-events-none z-20"
+          style={{ left: `${(hover.x / 1000) * 100}%`, transform: 'translateX(-50%)' }}
+        >
+          <div className="bg-surface/95 backdrop-blur border border-white/20 px-2 py-1 text-center">
+            <div className="text-xs font-mono font-bold text-white">{hover.km.toFixed(1)}km</div>
+            <div className="text-[10px] font-mono text-neon-orange">{Math.round(hover.elev)}m</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function MapCanvas() {
+  const {
+    routeData,
+    autoGeneratePlan,
+    removeNutritionPoint,
+    resetRoute
+  } = useApp();
+  const elevationRef = useRef<HTMLDivElement>(null);
+
   return (
     <main className="flex-1 relative flex flex-col bg-background bg-grid-pattern bg-[length:40px_40px]">
       {/* Map Area */}
@@ -144,15 +278,13 @@ export function MapCanvas() {
       <div
         ref={elevationRef}
         className="h-48 bg-surface border-t border-white/10 relative group"
-        onDrop={handleElevationDrop}
-        onDragOver={handleDragOver}>
-
+      >
         <div className="absolute top-0 left-0 bg-neon-orange text-black text-[10px] font-bold px-2 py-1 uppercase tracking-wider z-10">
           Elevation Profile
         </div>
 
-        {/* Elevation Profile Chart */}
-        <ElevationChart />
+        {/* SVG Elevation Profile */}
+        <ElevationProfile />
 
         {/* Nutrition Markers on Elevation Profile */}
         {routeData.loaded &&
@@ -167,9 +299,9 @@ export function MapCanvas() {
               style={{
                 left,
                 top: '40%'
-              }} />);
-
-
+              }}
+            />
+          );
         })}
 
         {/* X-Axis Labels */}
@@ -192,26 +324,6 @@ export function MapCanvas() {
           </span>
         </div>
 
-        {/* Grid Lines */}
-        <div
-          className="absolute inset-0 pointer-events-none border-b border-white/5"
-          style={{
-            bottom: '25%'
-          }}>
-        </div>
-        <div
-          className="absolute inset-0 pointer-events-none border-b border-white/5"
-          style={{
-            bottom: '50%'
-          }}>
-        </div>
-        <div
-          className="absolute inset-0 pointer-events-none border-b border-white/5"
-          style={{
-            bottom: '75%'
-          }}>
-        </div>
-
         {/* Drop Hint */}
         <div className="absolute inset-0 bg-neon-blue/5 border-2 border-dashed border-neon-blue/30 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity flex items-center justify-center">
           <span className="text-neon-blue font-mono text-xs bg-black/80 px-2 py-1">
@@ -219,6 +331,6 @@ export function MapCanvas() {
           </span>
         </div>
       </div>
-    </main>);
-
+    </main>
+  );
 }
