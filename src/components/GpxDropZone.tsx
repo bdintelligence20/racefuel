@@ -91,7 +91,7 @@ export function GpxDropZone() {
             </div>
 
             <h3 className="mt-6 text-xl font-bold tracking-tight text-white group-hover:text-neon-blue transition-colors">
-              DROP GPX FILE
+              DROP GPX / TCX FILE
             </h3>
             <p className="mt-2 text-text-secondary font-mono text-sm">
               OR CLICK TO UPLOAD ROUTE
@@ -101,7 +101,7 @@ export function GpxDropZone() {
               type="file"
               id="gpx-upload"
               className="hidden"
-              accept=".gpx"
+              accept=".gpx,.tcx"
               onChange={handleFileInput}
             />
 

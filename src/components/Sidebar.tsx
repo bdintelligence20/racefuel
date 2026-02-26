@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { Activity, User, Wind, Zap, Edit2, LogOut, Bike, PersonStanding, Trophy, Mountain, RotateCcw } from 'lucide-react';
+import { Activity, User, Wind, Zap, Edit2, LogOut, Bike, PersonStanding, Trophy, Mountain, RotateCcw, FolderOpen, GitCompare } from 'lucide-react';
 import { useApp, SportType } from '../context/AppContext';
 import { EditProfileModal } from './EditProfileModal';
+import { SavedPlansModal } from './SavedPlansModal';
+import { PlanComparison } from './PlanComparison';
 
 interface StatProps {
   label: string;
@@ -37,6 +39,8 @@ const sportOptions: { type: SportType; label: string; icon: React.ElementType }[
 export function Sidebar() {
   const { userProfile, strava, connectStrava, disconnectStrava, sportType, setSportType, resetAll } = useApp();
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [savedPlansOpen, setSavedPlansOpen] = useState(false);
+  const [comparisonOpen, setComparisonOpen] = useState(false);
 
   return (
     <aside className="w-72 bg-surface border-r border-white/10 flex flex-col h-full z-30 shadow-xl">
@@ -179,6 +183,24 @@ export function Sidebar() {
         </div>
       </div>
 
+      {/* Tools */}
+      <div className="px-4 pb-2 flex gap-2">
+        <button
+          onClick={() => setSavedPlansOpen(true)}
+          className="flex-1 flex items-center justify-center gap-2 py-2 px-2 bg-white/5 border border-white/10 text-text-secondary hover:bg-white/10 hover:text-white transition-colors text-[10px] font-mono uppercase tracking-wider"
+        >
+          <FolderOpen className="w-3 h-3" />
+          Plans
+        </button>
+        <button
+          onClick={() => setComparisonOpen(true)}
+          className="flex-1 flex items-center justify-center gap-2 py-2 px-2 bg-white/5 border border-white/10 text-text-secondary hover:bg-white/10 hover:text-white transition-colors text-[10px] font-mono uppercase tracking-wider"
+        >
+          <GitCompare className="w-3 h-3" />
+          Compare
+        </button>
+      </div>
+
       {/* Footer */}
       <div className="p-4 border-t border-white/10">
         <button
@@ -193,10 +215,18 @@ export function Sidebar() {
         </div>
       </div>
 
-      {/* Edit Profile Modal */}
+      {/* Modals */}
       <EditProfileModal
         isOpen={editProfileOpen}
         onClose={() => setEditProfileOpen(false)}
+      />
+      <SavedPlansModal
+        isOpen={savedPlansOpen}
+        onClose={() => setSavedPlansOpen(false)}
+      />
+      <PlanComparison
+        isOpen={comparisonOpen}
+        onClose={() => setComparisonOpen(false)}
       />
     </aside>
   );

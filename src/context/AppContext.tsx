@@ -2,6 +2,7 @@ import React, { useState, createContext, useContext, useEffect, useCallback, use
 import { nanoid } from 'nanoid';
 import { ProductProps } from '../components/NutritionCard';
 import { parseGpx } from '../services/route/gpxParser';
+import { parseTcx } from '../services/route/tcxParser';
 import { analyzeRoute, RouteAnalysis } from '../services/route/routeAnalyzer';
 import { generatePlan, GeneratedPlan } from '../services/nutrition/planGenerator';
 import { validatePlan, ValidationResult } from '../services/nutrition/planValidator';
@@ -458,7 +459,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const loadRoute = async (file: File) => {
     try {
       const text = await file.text();
-      const parsed = parseGpx(text, file.name);
+      const isTcx = file.name.toLowerCase().endsWith('.tcx');
+      const parsed = isTcx ? parseTcx(text, file.name) : parseGpx(text, file.name);
 
       setRouteData({
         loaded: true,
@@ -472,8 +474,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         source: 'gpx',
       });
     } catch (err) {
-      console.error('Failed to parse GPX file:', err);
-      loadDemoRoute(file.name.replace('.gpx', ''));
+      console.error('Failed to parse route file:', err);
+      loadDemoRoute(file.name.replace(/\.(gpx|tcx)$/i, ''));
     }
   };
 
