@@ -16,15 +16,15 @@ export function NutritionMarker({
   style,
 }: NutritionMarkerProps) {
   const colorMap: Record<string, string> = {
-    orange: 'bg-neon-orange border-neon-orange',
-    blue: 'bg-neon-blue border-neon-blue',
+    orange: 'bg-accent border-accent',
+    blue: 'bg-warm border-warm',
     white: 'bg-white border-white',
-    green: 'bg-neon-green border-neon-green',
+    green: 'bg-accent-light border-accent-light',
     red: 'bg-red-500 border-red-500',
     yellow: 'bg-yellow-500 border-yellow-500',
   };
 
-  const stemColor = colorMap[product.color]?.split(' ')[0] || 'bg-neon-orange';
+  const stemColor = colorMap[product.color]?.split(' ')[0] || 'bg-accent';
 
   return (
     <div
@@ -61,7 +61,7 @@ export function NutritionMarker({
 
       {/* Tooltip */}
       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto min-w-[160px]">
-        <div className="bg-surfaceHighlight border border-white/20 p-3 shadow-xl rounded-sm">
+        <div className="bg-surfaceHighlight border border-white/[0.08] p-3 shadow-xl rounded-lg">
           <div className="flex justify-between items-start gap-2 mb-1">
             <span className="text-[10px] font-mono text-text-muted uppercase">
               {product.brand}
@@ -80,17 +80,17 @@ export function NutritionMarker({
             {product.name}
           </div>
           <div className="flex flex-wrap gap-x-2 gap-y-1 text-[10px] font-mono">
-            <span className="text-neon-orange">{product.carbs}g CHO</span>
+            <span className="text-accent">{product.carbs}g CHO</span>
             <span className="text-text-secondary">@ {distanceKm.toFixed(1)}km</span>
           </div>
           {product.priceZAR && (
-            <div className="mt-1 text-[10px] font-mono text-neon-green">
+            <div className="mt-1 text-[10px] font-mono text-accent-light">
               R{product.priceZAR.toFixed(2)}
             </div>
           )}
         </div>
         {/* Arrow */}
-        <div className="w-2 h-2 bg-surfaceHighlight border-r border-b border-white/20 transform rotate-45 absolute bottom-[-5px] left-1/2 -translate-x-1/2"></div>
+        <div className="w-2 h-2 bg-surfaceHighlight border-r border-b border-white/[0.08] transform rotate-45 absolute bottom-[-5px] left-1/2 -translate-x-1/2"></div>
       </div>
     </div>
   );

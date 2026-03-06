@@ -60,11 +60,11 @@ export function ProductPickerModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-surface border border-white/10 w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
+      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
-            <MapPin className="w-5 h-5 text-neon-orange" />
+            <MapPin className="w-5 h-5 text-accent" />
             <div>
               <h2 className="text-lg font-bold text-white">Add Nutrition</h2>
               <div className="text-xs text-text-muted font-mono">
@@ -82,14 +82,14 @@ export function ProductPickerModal({
         </div>
 
         {/* Search & Filter */}
-        <div className="p-4 border-b border-white/10 space-y-3">
+        <div className="p-4 border-b border-white/[0.06] space-y-3">
           <div className="relative">
             <input
               type="text"
               placeholder="Search products..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-black/50 border border-white/10 text-white text-sm font-mono p-3 pl-10 focus:outline-none focus:border-neon-orange transition-colors placeholder:text-text-muted"
+              className="w-full bg-black/50 border border-white/[0.06] rounded-lg text-white text-sm font-mono p-3 pl-10 focus:outline-none focus:border-accent transition-colors placeholder:text-text-muted"
               autoFocus
             />
             <Search className="w-4 h-4 text-text-muted absolute left-3 top-3.5" />
@@ -102,8 +102,8 @@ export function ProductPickerModal({
                 onClick={() => setActiveFilter(tab.key)}
                 className={`flex-1 py-1.5 text-[10px] font-bold uppercase transition-colors ${
                   activeFilter === tab.key
-                    ? 'bg-neon-orange/20 text-neon-orange border border-neon-orange/50'
-                    : 'bg-white/5 text-text-secondary border border-transparent hover:bg-white/10'
+                    ? 'bg-accent/20 text-accent border border-accent/50 rounded-md'
+                    : 'bg-white/5 text-text-secondary border border-transparent rounded-md hover:bg-white/10'
                 }`}
               >
                 {tab.label}
@@ -124,7 +124,7 @@ export function ProductPickerModal({
                 <button
                   key={product.id}
                   onClick={() => handleSelect(product)}
-                  className="flex gap-3 p-3 bg-surfaceHighlight border border-white/5 hover:border-neon-orange/50 hover:bg-white/5 transition-colors text-left group"
+                  className="flex gap-3 p-3 bg-surfaceHighlight border border-white/[0.04] rounded-lg hover:border-accent/50 hover:bg-white/5 transition-colors text-left group"
                 >
                   {/* Product Image */}
                   <div className="w-12 h-12 flex-shrink-0 bg-white/10 rounded overflow-hidden">
@@ -142,11 +142,11 @@ export function ProductPickerModal({
                     <div className="text-[9px] text-text-muted uppercase tracking-wider">
                       {product.brand}
                     </div>
-                    <div className="text-xs font-bold text-white truncate group-hover:text-neon-orange transition-colors">
+                    <div className="text-xs font-bold text-white truncate group-hover:text-accent transition-colors">
                       {product.name}
                     </div>
                     <div className="flex gap-2 mt-1 text-[10px] font-mono">
-                      <span className="text-neon-blue">{product.carbs}g</span>
+                      <span className="text-warm">{product.carbs}g</span>
                       <span className="text-text-muted">R{product.priceZAR}</span>
                     </div>
                   </div>
@@ -157,7 +157,7 @@ export function ProductPickerModal({
         </div>
 
         {/* Footer hint */}
-        <div className="p-3 border-t border-white/10 bg-black/30 text-center">
+        <div className="p-3 border-t border-white/[0.06] bg-black/30 text-center">
           <span className="text-[10px] text-text-muted">
             Click a product to add it at {distanceKm.toFixed(1)}km
           </span>

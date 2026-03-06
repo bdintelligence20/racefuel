@@ -6,7 +6,6 @@ import {
   Check,
   Droplets,
   Ruler,
-  User,
   Weight,
   AlertCircle,
 } from 'lucide-react';
@@ -46,11 +45,11 @@ export function OnboardingModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg bg-surface border border-white/10 shadow-2xl relative overflow-hidden">
+      <div className="w-full max-w-lg bg-surface border border-white/[0.06] rounded-2xl shadow-2xl relative overflow-hidden">
         {/* Progress Bar */}
-        <div className="absolute top-0 left-0 w-full h-1 bg-white/5">
+        <div className="absolute top-0 left-0 w-full h-1 bg-white/5 rounded-t-2xl overflow-hidden">
           <div
-            className="h-full bg-neon-orange transition-all duration-500 ease-out"
+            className="h-full bg-accent transition-all duration-500 ease-out"
             style={{
               width: `${(step / 4) * 100}%`,
             }}
@@ -60,27 +59,27 @@ export function OnboardingModal() {
         <div className="p-8">
           {/* Header */}
           <div className="mb-8 text-center">
-            <h2 className="text-2xl font-black italic text-white mb-2">
-              SETUP <span className="text-neon-orange">PROFILE</span>
+            <h2 className="text-2xl font-bold text-white mb-2">
+              Setup <span className="text-accent">Profile</span>
             </h2>
             <p className="text-text-secondary text-sm font-mono">
-              STEP {step}/4:{' '}
+              Step {step}/4:{' '}
               {step === 1
-                ? 'CONNECT DATA'
+                ? 'Connect Data'
                 : step === 2
-                ? 'BODY METRICS'
+                ? 'Body Metrics'
                 : step === 3
-                ? 'SWEAT PROFILE'
-                : 'READY TO PLAN'}
+                ? 'Sweat Profile'
+                : 'Ready to Plan'}
             </p>
           </div>
 
           {/* Step 1: Strava */}
           {step === 1 && (
             <div className="space-y-6 text-center">
-              <div className="p-6 border border-white/10 bg-white/5 mx-auto w-32 h-32 flex items-center justify-center rounded-full mb-6 relative group">
-                <div className="absolute inset-0 border border-neon-orange/30 rounded-full animate-pulse-glow"></div>
-                <Activity className="w-12 h-12 text-neon-orange" />
+              <div className="p-6 border border-white/[0.06] bg-white/5 mx-auto w-32 h-32 flex items-center justify-center rounded-full mb-6 relative group">
+                <div className="absolute inset-0 border border-accent/20 rounded-full animate-pulse-glow"></div>
+                <Activity className="w-12 h-12 text-accent" />
               </div>
               <p className="text-text-secondary mb-6">
                 Connect Strava to import your routes and historical performance
@@ -89,7 +88,7 @@ export function OnboardingModal() {
 
               {/* Error message */}
               {strava.error && (
-                <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 text-red-400 text-sm mb-4">
+                <div className="flex items-center gap-2 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm mb-4">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
                   <span>{strava.error}</span>
                 </div>
@@ -98,13 +97,13 @@ export function OnboardingModal() {
               <button
                 onClick={handleConnect}
                 disabled={strava.isLoading}
-                className="w-full py-4 bg-[#FC4C02] hover:bg-[#e34402] text-white font-bold uppercase tracking-wider flex items-center justify-center gap-3 transition-all clip-corner disabled:opacity-70"
+                className="w-full py-4 bg-[#FC4C02] hover:bg-[#e34402] text-white font-bold uppercase tracking-wider flex items-center justify-center gap-3 transition-all rounded-xl disabled:opacity-70"
               >
                 {strava.isLoading ? (
-                  <span className="animate-pulse">CONNECTING...</span>
+                  <span className="animate-pulse">Connecting...</span>
                 ) : (
                   <>
-                    <span>CONNECT WITH STRAVA</span>
+                    <span>Connect with Strava</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -114,7 +113,7 @@ export function OnboardingModal() {
                 onClick={handleSkipStrava}
                 className="w-full py-3 text-text-secondary hover:text-white font-mono text-sm transition-colors"
               >
-                SKIP FOR NOW
+                Skip for now
               </button>
             </div>
           )}
@@ -123,8 +122,8 @@ export function OnboardingModal() {
           {step === 2 && (
             <div className="space-y-6">
               {strava.isConnected && strava.athlete && (
-                <div className="flex items-center gap-3 p-3 bg-[#FC4C02]/10 border border-[#FC4C02]/30 mb-4">
-                  <div className="w-8 h-8 bg-[#FC4C02] flex items-center justify-center">
+                <div className="flex items-center gap-3 p-3 bg-[#FC4C02]/10 border border-[#FC4C02]/30 rounded-lg mb-4">
+                  <div className="w-8 h-8 bg-[#FC4C02] rounded-lg flex items-center justify-center">
                     <Check className="w-5 h-5 text-white" />
                   </div>
                   <div className="text-sm">
@@ -150,9 +149,9 @@ export function OnboardingModal() {
                           weight: Number(e.target.value),
                         })
                       }
-                      className="w-full bg-black border border-white/20 p-4 text-white font-mono text-xl focus:border-neon-orange focus:outline-none transition-colors"
+                      className="w-full bg-black/50 border border-white/[0.08] rounded-lg p-4 text-white font-mono text-xl focus:border-accent focus:outline-none transition-colors"
                     />
-                    <Weight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-neon-orange" />
+                    <Weight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-accent" />
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -168,9 +167,9 @@ export function OnboardingModal() {
                           height: Number(e.target.value),
                         })
                       }
-                      className="w-full bg-black border border-white/20 p-4 text-white font-mono text-xl focus:border-neon-blue focus:outline-none transition-colors"
+                      className="w-full bg-black/50 border border-white/[0.08] rounded-lg p-4 text-white font-mono text-xl focus:border-warm focus:outline-none transition-colors"
                     />
-                    <Ruler className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-neon-blue" />
+                    <Ruler className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-warm" />
                   </div>
                 </div>
               </div>
@@ -188,7 +187,7 @@ export function OnboardingModal() {
                         ftp: Number(e.target.value),
                       })
                     }
-                    className="w-full bg-black border border-white/20 p-4 text-white font-mono text-xl focus:border-neon-green focus:outline-none transition-colors"
+                    className="w-full bg-black/50 border border-white/[0.08] rounded-lg p-4 text-white font-mono text-xl focus:border-accent-light focus:outline-none transition-colors"
                   />
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-mono text-text-muted">
                     WATTS
@@ -198,9 +197,9 @@ export function OnboardingModal() {
 
               <button
                 onClick={handleNext}
-                className="w-full py-4 bg-white hover:bg-gray-200 text-black font-bold uppercase tracking-wider flex items-center justify-center gap-3 transition-all mt-4 clip-corner"
+                className="w-full py-4 bg-white hover:bg-gray-200 text-black font-bold uppercase tracking-wider flex items-center justify-center gap-3 transition-all mt-4 rounded-xl"
               >
-                CONTINUE <ArrowRight className="w-4 h-4" />
+                Continue <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -221,17 +220,17 @@ export function OnboardingModal() {
                       sweatRate: rate,
                     })
                   }
-                  className={`w-full p-4 border flex items-center justify-between group transition-all duration-300 ${
+                  className={`w-full p-4 border rounded-xl flex items-center justify-between group transition-all duration-300 ${
                     userProfile.sweatRate === rate
-                      ? 'bg-neon-blue/10 border-neon-blue'
-                      : 'bg-transparent border-white/10 hover:border-white/30'
+                      ? 'bg-warm/10 border-warm'
+                      : 'bg-transparent border-white/[0.06] hover:border-white/20'
                   }`}
                 >
                   <div className="flex items-center gap-4">
                     <div
                       className={`w-10 h-10 flex items-center justify-center rounded-full ${
                         userProfile.sweatRate === rate
-                          ? 'bg-neon-blue text-black'
+                          ? 'bg-warm text-black'
                           : 'bg-white/5 text-text-muted'
                       }`}
                     >
@@ -257,16 +256,16 @@ export function OnboardingModal() {
                     </div>
                   </div>
                   {userProfile.sweatRate === rate && (
-                    <Check className="w-5 h-5 text-neon-blue" />
+                    <Check className="w-5 h-5 text-warm" />
                   )}
                 </button>
               ))}
 
               <button
                 onClick={handleNext}
-                className="w-full py-4 bg-neon-blue hover:bg-neon-blue/90 text-black font-bold uppercase tracking-wider flex items-center justify-center gap-3 transition-all mt-4 clip-corner"
+                className="w-full py-4 bg-warm hover:bg-warm/90 text-black font-bold uppercase tracking-wider flex items-center justify-center gap-3 transition-all mt-4 rounded-xl"
               >
-                CONTINUE <ArrowRight className="w-4 h-4" />
+                Continue <ArrowRight className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -274,13 +273,13 @@ export function OnboardingModal() {
           {/* Step 4: Ready */}
           {step === 4 && (
             <div className="text-center space-y-6">
-              <div className="w-20 h-20 bg-neon-green/10 rounded-full flex items-center justify-center mx-auto border border-neon-green/30">
-                <Check className="w-10 h-10 text-neon-green" />
+              <div className="w-20 h-20 bg-accent-light/10 rounded-full flex items-center justify-center mx-auto border border-accent-light/20">
+                <Check className="w-10 h-10 text-accent-light" />
               </div>
 
               <div className="space-y-2">
                 <h3 className="text-xl font-bold text-white">
-                  PROFILE COMPLETE
+                  Profile Complete
                 </h3>
                 <p className="text-text-secondary">
                   Your physiological profile has been calibrated. You are ready
@@ -288,7 +287,7 @@ export function OnboardingModal() {
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 text-center py-4 border-y border-white/10">
+              <div className="grid grid-cols-3 gap-2 text-center py-4 border-y border-white/[0.06]">
                 <div>
                   <div className="text-[10px] text-text-muted uppercase">
                     Weight
@@ -324,17 +323,13 @@ export function OnboardingModal() {
 
               <button
                 onClick={completeOnboarding}
-                className="w-full py-4 bg-neon-green hover:bg-neon-green/90 text-black font-bold uppercase tracking-wider flex items-center justify-center gap-3 transition-all clip-corner shadow-[0_0_20px_rgba(0,255,136,0.3)] hover:shadow-[0_0_30px_rgba(0,255,136,0.5)]"
+                className="w-full py-4 bg-accent-light hover:bg-accent-light/90 text-black font-bold uppercase tracking-wider flex items-center justify-center gap-3 transition-all rounded-xl shadow-[0_0_20px_rgba(52,211,153,0.3)] hover:shadow-[0_0_30px_rgba(52,211,153,0.5)]"
               >
-                START PLANNING
+                Start Planning
               </button>
             </div>
           )}
         </div>
-
-        {/* Decorative corner */}
-        <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white/10"></div>
-        <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/10"></div>
       </div>
     </div>
   );

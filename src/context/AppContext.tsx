@@ -23,9 +23,6 @@ import {
   transformActivityToRoute,
 } from '../services/strava';
 
-// Types
-export type SportType = 'cycling' | 'running' | 'triathlon' | 'hiking';
-
 export interface UserProfile {
   weight: number;
   height: number;
@@ -66,8 +63,6 @@ interface AppContextType {
   onboardingComplete: boolean;
   userProfile: UserProfile;
   routeData: RouteData;
-  sportType: SportType;
-
   // New: analysis & validation
   routeAnalysis: RouteAnalysis | null;
   planValidation: ValidationResult | null;
@@ -87,7 +82,6 @@ interface AppContextType {
   // Existing methods
   completeOnboarding: () => void;
   updateProfile: (data: Partial<UserProfile>) => void;
-  setSportType: (sport: SportType) => void;
   loadRoute: (file: File) => void;
   addNutritionPoint: (product: ProductProps, distanceKm: number) => void;
   removeNutritionPoint: (id: string) => void;
@@ -132,7 +126,7 @@ const defaultStravaState: StravaAuthState = {
 };
 
 // Storage keys
-const PROFILE_STORAGE_KEY = 'racefuel_profile';
+const PROFILE_STORAGE_KEY = 'fuelcue_profile';
 
 function loadStoredProfile(): UserProfile {
   try {
@@ -169,8 +163,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile>(loadStoredProfile);
   const [routeData, setRouteData] = useState<RouteData>(defaultRoute);
-  const [sportType, setSportType] = useState<SportType>('cycling');
-
   // Analysis & validation
   const [routeAnalysis, setRouteAnalysis] = useState<RouteAnalysis | null>(null);
   const [planValidation, setPlanValidation] = useState<ValidationResult | null>(null);
@@ -389,7 +381,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     setStravaActivitiesLoading(true);
     try {
-      const activities = await getActivities(1, 30, sportType);
+      const activities = await getActivities(1, 30);
       setStravaActivities(activities);
     } catch (err) {
       console.error('Failed to fetch activities:', err);
@@ -400,7 +392,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     } finally {
       setStravaActivitiesLoading(false);
     }
-  }, [strava.isConnected, sportType]);
+  }, [strava.isConnected]);
 
   const importStravaActivity = useCallback(async (activity: StravaActivitySummary) => {
     try {
@@ -547,27 +539,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const autoGeneratePlan = () => {
     if (!routeData.loaded) return;
 
-    pushHistory(routeData.nutritionPoints);
+    try {
+      pushHistory(routeData.nutritionPoints);
 
-    const timeParts = (routeData.estimatedTime || '3:00:00').split(':').map(Number);
-    const durationHours = timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600;
+      const timeParts = (routeData.estimatedTime || '3:00:00').split(':').map(Number);
+      const durationHours = timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600;
 
-    const plan = generatePlan({
-      distanceKm: routeData.distanceKm,
-      durationHours,
-      gpsPath: routeData.gpsPath,
-      routeAnalysis: routeAnalysis || undefined,
-      profile: userProfile,
-      isCompetition: false,
-      temperatureCelsius: 22,
-      humidity: 50,
-    });
+      console.log('[AutoGenerate] Starting...', { distanceKm: routeData.distanceKm, durationHours, profile: userProfile });
 
-    setLastGeneratedPlan(plan);
-    setRouteData((prev) => ({
-      ...prev,
-      nutritionPoints: plan.nutritionPoints,
-    }));
+      const plan = generatePlan({
+        distanceKm: routeData.distanceKm,
+        durationHours,
+        gpsPath: routeData.gpsPath,
+        routeAnalysis: routeAnalysis || undefined,
+        profile: userProfile,
+        isCompetition: false,
+        temperatureCelsius: 22,
+        humidity: 50,
+      });
+
+      console.log('[AutoGenerate] Generated', plan.nutritionPoints.length, 'points');
+
+      setLastGeneratedPlan(plan);
+      setRouteData((prev) => ({
+        ...prev,
+        nutritionPoints: plan.nutritionPoints,
+      }));
+    } catch (err) {
+      console.error('[AutoGenerate] Error:', err);
+    }
   };
 
   const resetRoute = () => {
@@ -590,7 +590,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setOnboardingComplete(false);
     setUserProfile(defaultProfile);
     setRouteData(defaultRoute);
-    setSportType('cycling');
     setRouteAnalysis(null);
     setPlanValidation(null);
     setLastGeneratedPlan(null);
@@ -607,8 +606,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         onboardingComplete,
         userProfile,
         routeData,
-        sportType,
-
         routeAnalysis,
         planValidation,
         lastGeneratedPlan,
@@ -624,7 +621,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         completeOnboarding,
         updateProfile,
-        setSportType,
         loadRoute,
         addNutritionPoint,
         removeNutritionPoint,

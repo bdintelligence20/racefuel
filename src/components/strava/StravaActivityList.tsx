@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Activity, Calendar, Mountain, ArrowRight, Loader2, X, RefreshCw, Search, ArrowUpDown } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { StravaActivitySummary, formatDistance, formatDuration, formatDate } from '../../services/strava';
+import { StravaActivitySummary, ACTIVITY_TYPE_LABELS, formatDistance, formatDuration, formatDate } from '../../services/strava';
 
 interface StravaActivityListProps {
   onClose: () => void;
@@ -21,6 +21,7 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
 
   const [importingId, setImportingId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activityTypeFilter, setActivityTypeFilter] = useState<string>('all');
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [minDistance, setMinDistance] = useState(0);
@@ -52,8 +53,19 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
     }
   };
 
+  // Get unique activity types present in the data
+  const availableTypes = useMemo(() => {
+    const types = new Set(stravaActivities.map(a => a.type));
+    return Array.from(types).sort();
+  }, [stravaActivities]);
+
   const filteredActivities = useMemo(() => {
     let result = [...stravaActivities];
+
+    // Activity type filter
+    if (activityTypeFilter !== 'all') {
+      result = result.filter(a => a.type === activityTypeFilter);
+    }
 
     // Search filter
     if (searchQuery.trim()) {
@@ -87,7 +99,7 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
     });
 
     return result;
-  }, [stravaActivities, searchQuery, sortKey, sortDir, minDistance]);
+  }, [stravaActivities, activityTypeFilter, searchQuery, sortKey, sortDir, minDistance]);
 
   if (!strava.isConnected) {
     return (
@@ -99,15 +111,15 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl bg-surface border border-white/10 shadow-2xl max-h-[80vh] flex flex-col">
+      <div className="w-full max-w-2xl bg-surface border border-white/[0.06] shadow-2xl max-h-[80vh] flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
+        <div className="p-6 border-b border-white/[0.06] flex items-center justify-between">
           <div>
             <h2 className="text-xl font-black italic text-white">
               IMPORT FROM <span className="text-[#FC4C02]">STRAVA</span>
             </h2>
             <p className="text-text-secondary text-sm font-mono mt-1">
-              Select a ride to import
+              Select an activity to import
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -129,7 +141,7 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
         </div>
 
         {/* Search & Filters */}
-        <div className="px-4 py-3 border-b border-white/10 bg-black/30 space-y-3">
+        <div className="px-4 py-3 border-b border-white/[0.06] bg-black/30 space-y-3">
           {/* Search */}
           <div className="relative">
             <input
@@ -137,10 +149,42 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
               placeholder="Search activities..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-black/50 border border-white/10 text-white text-xs font-mono p-2.5 pl-8 focus:outline-none focus:border-[#FC4C02] transition-colors placeholder:text-text-muted"
+              className="w-full bg-black/50 border border-white/[0.06] text-white text-xs font-mono p-2.5 pl-8 focus:outline-none focus:border-[#FC4C02] transition-colors placeholder:text-text-muted"
             />
             <Search className="w-3.5 h-3.5 text-text-muted absolute left-2.5 top-2.5" />
           </div>
+
+          {/* Activity Type Filter */}
+          {availableTypes.length > 1 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[10px] text-text-muted uppercase">Type:</span>
+              <div className="flex gap-1 flex-wrap">
+                <button
+                  onClick={() => setActivityTypeFilter('all')}
+                  className={`px-2 py-0.5 text-[10px] font-mono transition-colors ${
+                    activityTypeFilter === 'all'
+                      ? 'bg-[#FC4C02]/20 text-[#FC4C02] border border-[#FC4C02]/50'
+                      : 'bg-white/5 text-text-muted border border-transparent hover:bg-white/10'
+                  }`}
+                >
+                  All
+                </button>
+                {availableTypes.map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setActivityTypeFilter(type)}
+                    className={`px-2 py-0.5 text-[10px] font-mono transition-colors ${
+                      activityTypeFilter === type
+                        ? 'bg-[#FC4C02]/20 text-[#FC4C02] border border-[#FC4C02]/50'
+                        : 'bg-white/5 text-text-muted border border-transparent hover:bg-white/10'
+                    }`}
+                  >
+                    {ACTIVITY_TYPE_LABELS[type] || type}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Filters Row */}
           <div className="flex items-center gap-3">
@@ -198,10 +242,10 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
             <div className="text-center py-12">
               <Activity className="w-12 h-12 text-text-muted mx-auto mb-4" />
               <p className="text-text-secondary">
-                {stravaActivities.length === 0 ? 'No cycling activities found' : 'No matching activities'}
+                {stravaActivities.length === 0 ? 'No activities found' : 'No matching activities'}
               </p>
               <p className="text-text-muted text-sm mt-1">
-                {stravaActivities.length === 0 ? 'Go for a ride and come back!' : 'Try adjusting your filters'}
+                {stravaActivities.length === 0 ? 'Record an activity and come back!' : 'Try adjusting your filters'}
               </p>
             </div>
           ) : (
@@ -213,9 +257,14 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-white truncate group-hover:text-[#FC4C02] transition-colors">
-                        {activity.name}
-                      </h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-bold text-white truncate group-hover:text-[#FC4C02] transition-colors">
+                          {activity.name}
+                        </h3>
+                        <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 bg-white/5 border border-white/[0.06] text-text-muted flex-shrink-0">
+                          {ACTIVITY_TYPE_LABELS[activity.type] || activity.type}
+                        </span>
+                      </div>
                       <div className="flex items-center gap-4 mt-2 text-sm text-text-secondary font-mono flex-wrap">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
@@ -254,7 +303,7 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-white/10 flex items-center justify-between text-xs text-text-muted font-mono">
+        <div className="p-4 border-t border-white/[0.06] flex items-center justify-between text-xs text-text-muted font-mono">
           <span>
             {strava.athlete && `${strava.athlete.firstname} ${strava.athlete.lastname}`}
           </span>

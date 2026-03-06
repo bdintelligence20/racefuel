@@ -17,7 +17,7 @@ function makePoint(distanceKm: number, carbs: number, overrides: Partial<Nutriti
       caffeine: 0,
       priceZAR: 35,
       image: '',
-      color: '#ff6b00',
+      color: 'green',
       ...overrides,
     },
   };

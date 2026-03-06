@@ -25,7 +25,7 @@ const colorOptions: { value: ProductProps['color']; label: string }[] = [
   { value: 'yellow', label: 'Yellow' },
 ];
 
-const CUSTOM_PRODUCTS_KEY = 'racefuel_custom_products';
+const CUSTOM_PRODUCTS_KEY = 'fuelcue_custom_products';
 
 export function loadCustomProducts(): ProductProps[] {
   try {
@@ -94,18 +94,18 @@ export function CustomProductModal({ isOpen, onClose, onAdd }: CustomProductModa
 
   if (!isOpen) return null;
 
-  const inputClass = 'w-full bg-black/50 border border-white/10 text-white text-xs font-mono p-2.5 focus:outline-none focus:border-neon-orange transition-colors';
+  const inputClass = 'w-full bg-black/50 border border-white/[0.06] rounded-lg text-white text-xs font-mono p-2.5 focus:outline-none focus:border-accent transition-colors';
   const labelClass = 'text-[10px] text-text-secondary uppercase tracking-wider mb-1 block';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-white/10 w-full max-w-md shadow-2xl">
+      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-md shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
-            <Plus className="w-5 h-5 text-neon-orange" />
+            <Plus className="w-5 h-5 text-accent" />
             <h2 className="text-lg font-bold text-white">Custom Product</h2>
           </div>
           <button
@@ -231,7 +231,7 @@ export function CustomProductModal({ isOpen, onClose, onAdd }: CustomProductModa
           {/* Submit */}
           <button
             type="submit"
-            className="w-full py-3 bg-neon-orange text-black font-bold uppercase tracking-wider hover:bg-neon-orange/90 transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 bg-accent text-black font-bold uppercase tracking-wider rounded-xl hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Add Product

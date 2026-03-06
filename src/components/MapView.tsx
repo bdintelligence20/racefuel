@@ -177,7 +177,7 @@ export function MapView() {
           'line-cap': 'round',
         },
         paint: {
-          'line-color': '#00d4ff',
+          'line-color': '#f59e0b',
           'line-width': 10,
           'line-opacity': 0.4,
           'line-blur': 6,
@@ -199,9 +199,9 @@ export function MapView() {
             'interpolate',
             ['linear'],
             ['line-progress'],
-            0, '#00d4ff',
+            0, '#f59e0b',
             0.5, '#ffffff',
-            1, '#ff6b00',
+            1, '#10b981',
           ],
         },
       });
@@ -232,7 +232,7 @@ export function MapView() {
 
       // Add start marker
       const startEl = document.createElement('div');
-      startEl.style.cssText = 'width:16px;height:16px;background:#00ff88;border-radius:50%;border:2px solid black;';
+      startEl.style.cssText = 'width:16px;height:16px;background:#34d399;border-radius:50%;border:2px solid black;';
       const startMarker = new mapboxgl.Marker({ element: startEl })
         .setLngLat(coordinates[0])
         .addTo(map.current);
@@ -240,7 +240,7 @@ export function MapView() {
 
       // Add end marker
       const endEl = document.createElement('div');
-      endEl.style.cssText = 'width:16px;height:16px;background:#ff6b00;border-radius:50%;border:2px solid black;';
+      endEl.style.cssText = 'width:16px;height:16px;background:#10b981;border-radius:50%;border:2px solid black;';
       const endMarker = new mapboxgl.Marker({ element: endEl })
         .setLngLat(coordinates[coordinates.length - 1])
         .addTo(map.current);
@@ -363,7 +363,7 @@ export function MapView() {
       const el = document.createElement('div');
       el.style.cssText = 'cursor:pointer;';
       el.innerHTML = `
-        <div style="width:32px;height:32px;background:white;border-radius:50%;border:2px solid #ff6b00;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;">
+        <div style="width:32px;height:32px;background:white;border-radius:50%;border:2px solid #10b981;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;">
           ${point.product.carbs}g
         </div>
       `;
@@ -442,7 +442,7 @@ export function MapView() {
       {!mapReady && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none bg-surface/50">
           <div className="text-center">
-            <div className="w-8 h-8 border-2 border-neon-blue border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+            <div className="w-8 h-8 border-2 border-warm border-t-transparent rounded-full animate-spin mx-auto mb-2" />
             <p className="text-text-muted text-sm">Loading map...</p>
           </div>
         </div>
@@ -463,7 +463,7 @@ export function MapView() {
               <span className="text-xs text-text-muted ml-1">km</span>
             </div>
             {hoverInfo.elevation !== null && (
-              <div className="text-sm font-mono text-neon-orange">
+              <div className="text-sm font-mono text-accent">
                 {Math.round(hoverInfo.elevation)}
                 <span className="text-xs text-text-muted ml-1">m elev</span>
               </div>

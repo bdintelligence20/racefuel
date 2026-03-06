@@ -28,10 +28,10 @@ export function NutritionCard({
   image,
 }: ProductProps) {
   const colorMap: Record<string, { border: string; accent: string; hover: string }> = {
-    orange: { border: 'border-neon-orange', accent: 'text-neon-orange', hover: 'hover:bg-neon-orange/10' },
-    blue: { border: 'border-neon-blue', accent: 'text-neon-blue', hover: 'hover:bg-neon-blue/10' },
+    orange: { border: 'border-accent', accent: 'text-accent', hover: 'hover:bg-accent/10' },
+    blue: { border: 'border-warm', accent: 'text-warm', hover: 'hover:bg-warm/10' },
     white: { border: 'border-white', accent: 'text-white', hover: 'hover:bg-white/10' },
-    green: { border: 'border-neon-green', accent: 'text-neon-green', hover: 'hover:bg-neon-green/10' },
+    green: { border: 'border-accent-light', accent: 'text-accent-light', hover: 'hover:bg-accent-light/10' },
     red: { border: 'border-red-500', accent: 'text-red-500', hover: 'hover:bg-red-500/10' },
     yellow: { border: 'border-yellow-500', accent: 'text-yellow-500', hover: 'hover:bg-yellow-500/10' },
   };
@@ -40,7 +40,7 @@ export function NutritionCard({
 
   return (
     <div
-      className={`group relative bg-surfaceHighlight border-l-4 ${colors.border} p-3 cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-all duration-200 ${colors.hover}`}>
+      className={`group relative bg-surfaceHighlight rounded-xl border-l-4 ${colors.border} p-3 cursor-grab active:cursor-grabbing hover:-translate-y-0.5 transition-all duration-200 ${colors.hover}`}>
 
       {/* Drag Handle Pattern */}
       <div className="absolute top-2 right-2 flex gap-0.5 opacity-20 group-hover:opacity-50">
@@ -73,7 +73,7 @@ export function NutritionCard({
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-1 border-t border-white/10 pt-2 mt-2">
+      <div className="grid grid-cols-4 gap-1 border-t border-white/[0.06] pt-2 mt-2">
         <div>
           <div className="text-[9px] text-text-secondary uppercase">Carbs</div>
           <div className={`text-xs font-mono font-bold ${colors.accent}`}>

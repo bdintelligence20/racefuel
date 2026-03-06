@@ -29,3 +29,28 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  deploy:
+    needs: test-and-build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and deploy to Cloud Run
+        run: |
+          gcloud builds submit \
+            --config=cloudbuild.yaml \
+            --project=promogroup \
+            --substitutions=COMMIT_SHA=${{ github.sha }}

@@ -31,10 +31,10 @@ const severityConfig: Record<WarningSeverity, {
   },
   info: {
     icon: Info,
-    bg: 'bg-neon-blue/10',
-    border: 'border-neon-blue/30',
-    text: 'text-neon-blue',
-    iconColor: 'text-neon-blue',
+    bg: 'bg-warm/10',
+    border: 'border-warm/30',
+    text: 'text-warm',
+    iconColor: 'text-warm',
   },
 };
 
@@ -56,7 +56,7 @@ export function PlanWarnings({ warnings, onDismiss, compact }: PlanWarningsProps
           return (
             <div
               key={w.id}
-              className={`flex items-center gap-1 px-2 py-1 ${config.bg} border ${config.border} text-[10px] ${config.text}`}
+              className={`flex items-center gap-1 px-2 py-1 rounded-md ${config.bg} border ${config.border} text-[10px] ${config.text}`}
               title={w.detail}
             >
               <Icon className="w-3 h-3" />
@@ -76,7 +76,7 @@ export function PlanWarnings({ warnings, onDismiss, compact }: PlanWarningsProps
         return (
           <div
             key={w.id}
-            className={`flex items-start gap-3 p-3 ${config.bg} border ${config.border}`}
+            className={`flex items-start gap-3 p-3 rounded-lg ${config.bg} border ${config.border}`}
           >
             <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${config.iconColor}`} />
             <div className="flex-1 min-w-0">

@@ -15,7 +15,7 @@ interface PackingItem {
   checked: boolean;
 }
 
-const CHECKLIST_STORAGE_KEY = 'racefuel_checklist';
+const CHECKLIST_STORAGE_KEY = 'fuelcue_checklist';
 
 function loadCheckedState(): Record<string, boolean> {
   try {
@@ -145,11 +145,11 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-white/10 w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
+      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
-            <Package className="w-5 h-5 text-neon-orange" />
+            <Package className="w-5 h-5 text-accent" />
             <div>
               <h2 className="text-lg font-bold text-white">Race Day Checklist</h2>
               <p className="text-[10px] text-text-muted uppercase tracking-wider">
@@ -175,7 +175,7 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
         </div>
 
         {/* Progress Bar */}
-        <div className="px-4 py-3 border-b border-white/10 bg-black/30">
+        <div className="px-4 py-3 border-b border-white/[0.06] bg-black/30">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-text-secondary uppercase tracking-wider">
               Packing Progress
@@ -187,7 +187,7 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
           <div className="w-full h-2 bg-black rounded-full overflow-hidden">
             <div
               className={`h-full transition-all duration-500 ${
-                progressPct === 100 ? 'bg-neon-green' : 'bg-neon-orange'
+                progressPct === 100 ? 'bg-accent-light' : 'bg-accent'
               }`}
               style={{ width: `${progressPct}%` }}
             />
@@ -210,14 +210,14 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
               const groupChecked = items.every(item => checkedState[item.product.id]);
 
               return (
-                <div key={category} className="border-b border-white/5">
+                <div key={category} className="border-b border-white/[0.04]">
                   {/* Category Header */}
                   <button
                     onClick={() => toggleGroup(category)}
                     className="w-full flex items-center justify-between px-4 py-3 bg-surfaceHighlight/50 hover:bg-surfaceHighlight transition-colors"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${groupChecked ? 'bg-neon-green' : 'bg-text-muted'}`} />
+                      <div className={`w-2 h-2 rounded-full ${groupChecked ? 'bg-accent-light' : 'bg-text-muted'}`} />
                       <span className="text-xs font-bold text-white uppercase tracking-wider">
                         {categoryLabels[category] || category}
                       </span>
@@ -234,7 +234,7 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
 
                   {/* Items */}
                   {isExpanded && (
-                    <div className="divide-y divide-white/5">
+                    <div className="divide-y divide-white/[0.04]">
                       {items.map((item, idx) => {
                         const isChecked = checkedState[item.product.id] || false;
                         const placement = suggestPlacement(item.product, idx, items.length);
@@ -244,13 +244,13 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
                             key={item.product.id}
                             onClick={() => toggleItem(item.product.id)}
                             className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all ${
-                              isChecked ? 'bg-neon-green/5' : 'hover:bg-white/5'
+                              isChecked ? 'bg-accent-light/5' : 'hover:bg-white/5'
                             }`}
                           >
                             {/* Checkbox */}
                             <div className={`w-5 h-5 border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                               isChecked
-                                ? 'bg-neon-green border-neon-green'
+                                ? 'bg-accent-light border-accent-light'
                                 : 'border-white/20 hover:border-white/40'
                             }`}>
                               {isChecked && <Check className="w-3 h-3 text-black" />}
@@ -273,7 +273,7 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
                                 <span className={`text-sm font-bold ${isChecked ? 'text-text-muted line-through' : 'text-white'}`}>
                                   {item.product.name}
                                 </span>
-                                <span className="text-xs font-mono text-neon-orange">
+                                <span className="text-xs font-mono text-accent">
                                   x{item.quantity}
                                 </span>
                               </div>
@@ -283,7 +283,7 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
                             </div>
 
                             {/* Price */}
-                            <div className={`text-sm font-mono font-bold ${isChecked ? 'text-text-muted' : 'text-neon-green'}`}>
+                            <div className={`text-sm font-mono font-bold ${isChecked ? 'text-text-muted' : 'text-accent-light'}`}>
                               R{(item.product.priceZAR * item.quantity).toFixed(2)}
                             </div>
                           </div>
@@ -299,12 +299,12 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
 
         {/* Footer */}
         {totalItems > 0 && (
-          <div className="p-4 border-t border-white/10 bg-surfaceHighlight">
+          <div className="p-4 border-t border-white/[0.06] bg-surfaceHighlight">
             <div className="flex items-center justify-between mb-3">
               <div className="flex gap-2">
                 <button
                   onClick={checkAll}
-                  className="text-[10px] font-mono text-neon-blue hover:text-white transition-colors uppercase"
+                  className="text-[10px] font-mono text-warm hover:text-white transition-colors uppercase"
                 >
                   Check All
                 </button>
@@ -316,12 +316,12 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
                   Clear All
                 </button>
               </div>
-              <span className="text-lg font-mono font-bold text-neon-green">
+              <span className="text-lg font-mono font-bold text-accent-light">
                 R{totalCost.toFixed(2)}
               </span>
             </div>
             {progressPct === 100 && (
-              <div className="text-center py-2 bg-neon-green/10 border border-neon-green/20 text-neon-green text-xs font-bold uppercase tracking-wider">
+              <div className="text-center py-2 bg-accent-light/10 border border-accent-light/20 text-accent-light text-xs font-bold uppercase tracking-wider">
                 All packed! Ready to race.
               </div>
             )}

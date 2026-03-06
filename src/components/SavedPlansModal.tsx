@@ -64,7 +64,7 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
     try {
       const restored = JSON.parse(plan.routeDataJson) as RouteData;
       // Store in sessionStorage and reload to force the app to pick it up
-      sessionStorage.setItem('racefuel_load_plan', plan.routeDataJson);
+      sessionStorage.setItem('fuelcue_load_plan', plan.routeDataJson);
       window.location.reload();
     } catch {
       toast.error('Failed to load plan — data may be corrupted');
@@ -82,11 +82,11 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-white/10 w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
+      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
-            <FolderOpen className="w-5 h-5 text-neon-orange" />
+            <FolderOpen className="w-5 h-5 text-accent" />
             <h2 className="text-lg font-bold text-white">Saved Plans</h2>
           </div>
           <button
@@ -112,7 +112,7 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-white/5">
+            <div className="divide-y divide-white/[0.04]">
               {plans.map((plan) => (
                 <div
                   key={plan.id}
@@ -126,7 +126,7 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
                             type="text"
                             value={editName}
                             onChange={e => setEditName(e.target.value)}
-                            className="bg-black/50 border border-white/20 text-white text-sm font-mono p-1.5 focus:outline-none focus:border-neon-orange flex-1"
+                            className="bg-black/50 border border-white/20 text-white text-sm font-mono p-1.5 focus:outline-none focus:border-accent flex-1"
                             autoFocus
                             onKeyDown={e => {
                               if (e.key === 'Enter') handleRename(plan.id!);
@@ -135,7 +135,7 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
                           />
                           <button
                             onClick={() => handleRename(plan.id!)}
-                            className="p-1.5 bg-neon-green/20 text-neon-green hover:bg-neon-green/30 transition-colors"
+                            className="p-1.5 bg-accent-light/20 text-accent-light hover:bg-accent-light/30 transition-colors"
                           >
                             <Check className="w-3 h-3" />
                           </button>
@@ -185,7 +185,7 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
                   {/* Load button */}
                   <button
                     onClick={() => handleLoad(plan)}
-                    className="mt-2 w-full py-1.5 text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/10 text-text-secondary hover:bg-neon-orange/10 hover:border-neon-orange/50 hover:text-neon-orange transition-colors"
+                    className="mt-2 w-full py-1.5 text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/[0.06] rounded-lg text-text-secondary hover:bg-accent/10 hover:border-accent/50 hover:text-accent transition-colors"
                   >
                     Load Plan
                   </button>
@@ -196,7 +196,7 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-white/10 text-center">
+        <div className="p-3 border-t border-white/[0.06] text-center">
           <span className="text-[10px] text-text-muted font-mono">
             {plans.length} {plans.length === 1 ? 'plan' : 'plans'} saved
           </span>

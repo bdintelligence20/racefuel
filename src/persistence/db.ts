@@ -18,7 +18,7 @@ export interface SavedPreference {
   value: string;
 }
 
-class RaceFuelDB extends Dexie {
+class FuelCueDB extends Dexie {
   plans!: EntityTable<SavedPlan, 'id'>;
   preferences!: EntityTable<SavedPreference, 'key'>;
 
@@ -32,7 +32,7 @@ class RaceFuelDB extends Dexie {
   }
 }
 
-export const db = new RaceFuelDB();
+export const db = new FuelCueDB();
 
 // Plan operations
 export async function savePlan(plan: Omit<SavedPlan, 'id' | 'createdAt' | 'updatedAt'>): Promise<number> {

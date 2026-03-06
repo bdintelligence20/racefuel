@@ -136,13 +136,13 @@ function ElevationProfile() {
         >
           <defs>
             <linearGradient id="elevGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#00d4ff" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#00d4ff" stopOpacity="0.05" />
+              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4" />
+              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.05" />
             </linearGradient>
             <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#00d4ff" />
+              <stop offset="0%" stopColor="#f59e0b" />
               <stop offset="50%" stopColor="#ffffff" />
-              <stop offset="100%" stopColor="#ff6b00" />
+              <stop offset="100%" stopColor="#10b981" />
             </linearGradient>
           </defs>
 
@@ -159,8 +159,8 @@ function ElevationProfile() {
           {segments.map((seg, i) => {
             const x1 = (seg.startKm / routeData.distanceKm) * 1000;
             const x2 = (seg.endKm / routeData.distanceKm) * 1000;
-            const color = seg.type === 'climb' ? 'rgba(255,107,0,0.08)' :
-                         seg.type === 'descent' ? 'rgba(0,255,136,0.05)' : 'transparent';
+            const color = seg.type === 'climb' ? 'rgba(245,158,11,0.08)' :
+                         seg.type === 'descent' ? 'rgba(16,185,129,0.05)' : 'transparent';
             return (
               <rect key={i} x={x1} y="0" width={x2 - x1} height="150" fill={color} />
             );
@@ -179,7 +179,7 @@ function ElevationProfile() {
                 x1={hover.x} y1="0" x2={hover.x} y2="150"
                 stroke="rgba(255,255,255,0.3)" strokeWidth="1" strokeDasharray="4 4"
               />
-              <circle cx={hover.x} cy={10 + 120 - ((hover.elev - minElev) / (maxElev - minElev || 1)) * 120} r="4" fill="#fff" stroke="#ff6b00" strokeWidth="2" />
+              <circle cx={hover.x} cy={10 + 120 - ((hover.elev - minElev) / (maxElev - minElev || 1)) * 120} r="4" fill="#fff" stroke="#10b981" strokeWidth="2" />
             </>
           )}
 
@@ -188,15 +188,15 @@ function ElevationProfile() {
             const x = (point.distanceKm / routeData.distanceKm) * 1000;
             const isDragging = draggingPointId === point.id;
             const colorMap: Record<string, string> = {
-              orange: '#ff6b00', blue: '#00d4ff', white: '#ffffff',
-              green: '#00ff88', red: '#ef4444', yellow: '#eab308',
+              orange: '#10b981', blue: '#f59e0b', white: '#ffffff',
+              green: '#34d399', red: '#ef4444', yellow: '#eab308',
             };
-            const markerColor = colorMap[point.product.color] || '#ff6b00';
+            const markerColor = colorMap[point.product.color] || '#10b981';
             return (
               <g key={`seg-${point.id}`}>
                 <line
                   x1={x} y1="0" x2={x} y2="150"
-                  stroke={isDragging ? markerColor : 'rgba(255,107,0,0.3)'}
+                  stroke={isDragging ? markerColor : 'rgba(16,185,129,0.3)'}
                   strokeWidth={isDragging ? 2 : 1}
                 />
                 {/* Draggable handle */}
@@ -206,7 +206,7 @@ function ElevationProfile() {
                   stroke={isDragging ? '#fff' : 'rgba(0,0,0,0.5)'}
                   strokeWidth={isDragging ? 2 : 1}
                   className="cursor-grab active:cursor-grabbing"
-                  style={{ filter: isDragging ? 'drop-shadow(0 0 4px rgba(255,107,0,0.6))' : undefined }}
+                  style={{ filter: isDragging ? 'drop-shadow(0 0 4px rgba(16,185,129,0.5))' : undefined }}
                   onMouseDown={(e) => {
                     e.stopPropagation();
                     setDraggingPointId(point.id);
@@ -233,7 +233,7 @@ function ElevationProfile() {
           {Array.from({ length: 40 }, (_, i) => (
             <div
               key={i}
-              className="flex-1 bg-white/10 hover:bg-neon-blue transition-colors duration-300"
+              className="flex-1 bg-white/10 hover:bg-warm transition-colors duration-300"
               style={{ height: `${20 + Math.random() * 60}%` }}
             />
           ))}
@@ -246,9 +246,9 @@ function ElevationProfile() {
           className="absolute top-2 pointer-events-none z-20"
           style={{ left: `${(hover.x / 1000) * 100}%`, transform: 'translateX(-50%)' }}
         >
-          <div className="bg-surface/95 backdrop-blur border border-white/20 px-2 py-1 text-center">
+          <div className="bg-surface/95 backdrop-blur-md border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-center shadow-lg">
             <div className="text-xs font-mono font-bold text-white">{hover.km.toFixed(1)}km</div>
-            <div className="text-[10px] font-mono text-neon-orange">{Math.round(hover.elev)}m</div>
+            <div className="text-[10px] font-mono text-accent">{Math.round(hover.elev)}m</div>
           </div>
         </div>
       )}
@@ -270,40 +270,40 @@ export function MapCanvas() {
       {/* Map Area */}
       <div className="flex-1 relative overflow-hidden">
         {/* Map UI Overlays */}
-        <div className="absolute top-6 left-6 z-10 flex gap-4">
-          <div className="bg-surface/90 backdrop-blur border border-white/10 p-3 shadow-lg">
-            <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">
+        <div className="absolute top-5 left-5 z-10 flex gap-2">
+          <div className="bg-surface/80 backdrop-blur-md border border-white/[0.06] rounded-xl px-4 py-2.5">
+            <div className="text-[9px] text-text-muted uppercase tracking-widest mb-0.5">
               Distance
             </div>
-            <div className="text-2xl font-mono font-bold text-white">
-              {routeData.loaded ? routeData.distanceKm.toFixed(2) : '0.00'}{' '}
-              <span className="text-sm text-text-secondary">km</span>
+            <div className="text-xl font-mono font-bold text-white">
+              {routeData.loaded ? routeData.distanceKm.toFixed(1) : '0.0'}
+              <span className="text-xs text-text-muted ml-1">km</span>
             </div>
           </div>
-          <div className="bg-surface/90 backdrop-blur border border-white/10 p-3 shadow-lg">
-            <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">
+          <div className="bg-surface/80 backdrop-blur-md border border-white/[0.06] rounded-xl px-4 py-2.5">
+            <div className="text-[9px] text-text-muted uppercase tracking-widest mb-0.5">
               Elevation
             </div>
-            <div className="text-2xl font-mono font-bold text-white">
-              {routeData.loaded ? routeData.elevationGain : '0'}{' '}
-              <span className="text-sm text-text-secondary">m</span>
+            <div className="text-xl font-mono font-bold text-white">
+              {routeData.loaded ? routeData.elevationGain : '0'}
+              <span className="text-xs text-text-muted ml-1">m</span>
             </div>
           </div>
         </div>
 
         {/* Compass / Orientation */}
-        <div className="absolute top-6 right-6 z-10 flex gap-2">
+        <div className="absolute top-5 right-5 z-10 flex gap-2">
           {routeData.loaded && (
             <button
               onClick={resetRoute}
-              className="w-12 h-12 rounded-full border border-white/10 bg-surface/80 backdrop-blur flex items-center justify-center hover:bg-surface hover:border-neon-orange/50 transition-colors group"
+              className="w-10 h-10 rounded-xl border border-white/[0.06] bg-surface/80 backdrop-blur-md flex items-center justify-center hover:bg-surface hover:border-accent/30 transition-colors group"
               title="Load different route"
             >
-              <RotateCcw className="w-5 h-5 text-text-muted group-hover:text-neon-orange transition-colors" />
+              <RotateCcw className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors" />
             </button>
           )}
-          <div className="w-12 h-12 rounded-full border border-white/10 bg-surface/50 backdrop-blur flex items-center justify-center">
-            <Navigation className="w-5 h-5 text-neon-orange transform -rotate-45" />
+          <div className="w-10 h-10 rounded-xl border border-white/[0.06] bg-surface/60 backdrop-blur-md flex items-center justify-center">
+            <Navigation className="w-4 h-4 text-accent transform -rotate-45" />
           </div>
         </div>
 
@@ -323,10 +323,10 @@ export function MapCanvas() {
       {/* Elevation Profile Panel */}
       <div
         ref={elevationRef}
-        className="h-48 bg-surface border-t border-white/10 relative group"
+        className="h-48 bg-surface border-t border-white/[0.06] relative group"
       >
-        <div className="absolute top-0 left-0 bg-neon-orange text-black text-[10px] font-bold px-2 py-1 uppercase tracking-wider z-10">
-          Elevation Profile
+        <div className="absolute top-2 left-3 bg-accent/10 text-accent text-[9px] font-semibold px-2.5 py-1 rounded-md uppercase tracking-wider z-10 border border-accent/20">
+          Elevation
         </div>
 
         {/* SVG Elevation Profile */}
@@ -371,9 +371,9 @@ export function MapCanvas() {
         </div>
 
         {/* Drop Hint */}
-        <div className="absolute inset-0 bg-neon-blue/5 border-2 border-dashed border-neon-blue/30 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity flex items-center justify-center">
-          <span className="text-neon-blue font-mono text-xs bg-black/80 px-2 py-1">
-            DROP TO ADD
+        <div className="absolute inset-0 bg-accent/5 border-2 border-dashed border-accent/20 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity flex items-center justify-center rounded-lg m-1">
+          <span className="text-accent font-mono text-[10px] bg-black/80 px-2.5 py-1 rounded-md">
+            Drop to add
           </span>
         </div>
       </div>

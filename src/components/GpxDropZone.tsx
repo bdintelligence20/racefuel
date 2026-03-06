@@ -45,7 +45,6 @@ export function GpxDropZone() {
   const loadDemoRoute = () => {
     setIsLoading(true);
     setTimeout(() => {
-      // Create a mock file object for the demo
       const mockFile = new File([''], 'Col_du_Galibier.gpx', {
         type: 'application/gpx+xml',
       });
@@ -57,11 +56,11 @@ export function GpxDropZone() {
   return (
     <>
       <div
-        className={`absolute inset-4 border-2 border-dashed transition-all duration-300 z-10 flex flex-col items-center justify-center group
+        className={`absolute inset-6 rounded-2xl border-2 border-dashed transition-all duration-300 z-10 flex flex-col items-center justify-center group
         ${
           isDragging
-            ? 'border-neon-blue bg-neon-blue/10 scale-[0.99]'
-            : 'border-neon-blue/30 bg-surface/50 backdrop-blur-sm'
+            ? 'border-accent bg-accent/5 scale-[0.99]'
+            : 'border-white/[0.08] bg-surface/40 backdrop-blur-sm'
         }
       `}
         onDragOver={handleDragOver}
@@ -70,12 +69,14 @@ export function GpxDropZone() {
       >
         {isLoading ? (
           <div className="flex flex-col items-center animate-pulse">
-            <FileCode className="w-12 h-12 text-neon-orange mb-4" />
-            <h3 className="text-xl font-bold text-white tracking-tight">
-              PARSING ROUTE DATA...
+            <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mb-5">
+              <FileCode className="w-8 h-8 text-accent" />
+            </div>
+            <h3 className="text-lg font-semibold text-white tracking-tight">
+              Parsing route data...
             </h3>
-            <p className="text-text-secondary font-mono text-sm mt-2">
-              ANALYZING ELEVATION PROFILE
+            <p className="text-text-muted font-mono text-xs mt-2">
+              Analyzing elevation profile
             </p>
           </div>
         ) : (
@@ -84,17 +85,17 @@ export function GpxDropZone() {
               className="relative cursor-pointer"
               onClick={() => document.getElementById('gpx-upload')?.click()}
             >
-              <div className="absolute inset-0 bg-neon-blue/20 blur-xl rounded-full animate-pulse"></div>
-              <div className="relative bg-surfaceHighlight p-6 border border-neon-blue/50 group-hover:scale-110 transition-transform duration-300">
-                <Upload className="w-12 h-12 text-neon-blue" />
+              <div className="absolute inset-0 bg-accent/10 blur-2xl rounded-full"></div>
+              <div className="relative w-20 h-20 rounded-2xl bg-surfaceHighlight border border-white/[0.08] flex items-center justify-center group-hover:scale-105 group-hover:border-accent/30 transition-all duration-300">
+                <Upload className="w-8 h-8 text-accent" />
               </div>
             </div>
 
-            <h3 className="mt-6 text-xl font-bold tracking-tight text-white group-hover:text-neon-blue transition-colors">
-              DROP GPX / TCX FILE
+            <h3 className="mt-6 text-lg font-semibold tracking-tight text-white group-hover:text-accent transition-colors">
+              Drop a GPX or TCX file
             </h3>
-            <p className="mt-2 text-text-secondary font-mono text-sm">
-              OR CLICK TO UPLOAD ROUTE
+            <p className="mt-1.5 text-text-muted text-sm">
+              or click to browse your files
             </p>
 
             <input
@@ -105,43 +106,33 @@ export function GpxDropZone() {
               onChange={handleFileInput}
             />
 
-            {/* Action Buttons */}
-            <div className="mt-8 flex flex-col sm:flex-row items-center gap-4">
-              {/* Import from Strava Button */}
+            <div className="mt-8 flex flex-col sm:flex-row items-center gap-3">
               {strava.isConnected && (
                 <button
                   onClick={() => setShowStravaModal(true)}
-                  className="flex items-center gap-2 px-6 py-3 bg-[#FC4C02]/10 border border-[#FC4C02]/50 text-[#FC4C02] font-bold uppercase text-sm tracking-wider hover:bg-[#FC4C02] hover:text-white transition-all duration-300"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#FC4C02]/10 border border-[#FC4C02]/30 text-[#FC4C02] font-semibold text-sm hover:bg-[#FC4C02] hover:text-white transition-all duration-300"
                 >
                   <Activity className="w-4 h-4" />
-                  IMPORT FROM STRAVA
+                  Import from Strava
                 </button>
               )}
 
-              {/* Demo Route Button */}
               <button
                 onClick={loadDemoRoute}
-                className="flex items-center gap-2 px-6 py-3 bg-neon-orange/10 border border-neon-orange/50 text-neon-orange font-bold uppercase text-sm tracking-wider hover:bg-neon-orange hover:text-black transition-all duration-300"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-accent/10 border border-accent/20 text-accent font-semibold text-sm hover:bg-accent hover:text-black transition-all duration-300"
               >
                 <Play className="w-4 h-4" />
-                LOAD DEMO ROUTE
+                Try demo route
               </button>
             </div>
 
-            <p className="mt-2 text-text-muted font-mono text-xs">
-              Col du Galibier • 85km • 1,240m
+            <p className="mt-3 text-text-muted font-mono text-[10px] tracking-wide">
+              Col du Galibier &middot; 85km &middot; 1,240m gain
             </p>
           </>
         )}
-
-        {/* Decorative corners */}
-        <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-neon-blue transition-all group-hover:w-8 group-hover:h-8"></div>
-        <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-neon-blue transition-all group-hover:w-8 group-hover:h-8"></div>
-        <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-neon-blue transition-all group-hover:w-8 group-hover:h-8"></div>
-        <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-neon-blue transition-all group-hover:w-8 group-hover:h-8"></div>
       </div>
 
-      {/* Strava Activity List Modal */}
       {showStravaModal && (
         <StravaActivityList onClose={() => setShowStravaModal(false)} />
       )}

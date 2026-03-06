@@ -68,18 +68,15 @@ export interface StravaOAuthResponse extends StravaTokens {
   athlete: StravaAthlete;
 }
 
-// Sport type from app context
-import { SportType } from '../../context/AppContext';
-
-// Activity type mappings for each sport
-export const SPORT_ACTIVITY_TYPES: Record<SportType, readonly string[]> = {
-  cycling: ['Ride', 'VirtualRide', 'EBikeRide', 'Handcycle', 'Velomobile'],
-  running: ['Run', 'VirtualRun', 'TrailRun'],
-  triathlon: ['Ride', 'VirtualRide', 'EBikeRide', 'Run', 'VirtualRun', 'TrailRun', 'Swim'],
-  hiking: ['Hike', 'Walk'],
+// Activity type display labels for filtering
+export const ACTIVITY_TYPE_LABELS: Record<string, string> = {
+  Ride: 'Cycling',
+  VirtualRide: 'Virtual Ride',
+  EBikeRide: 'E-Bike',
+  Run: 'Running',
+  VirtualRun: 'Virtual Run',
+  TrailRun: 'Trail Run',
+  Swim: 'Swimming',
+  Hike: 'Hiking',
+  Walk: 'Walking',
 } as const;
-
-// Legacy export for backwards compatibility
-export const CYCLING_ACTIVITY_TYPES = SPORT_ACTIVITY_TYPES.cycling;
-
-export type CyclingActivityType = typeof CYCLING_ACTIVITY_TYPES[number];

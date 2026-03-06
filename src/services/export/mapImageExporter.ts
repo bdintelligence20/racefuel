@@ -64,7 +64,7 @@ export async function exportMapImage(
 
   // Bottom left: Route stats
   const bottomY = height - 30;
-  ctx.fillStyle = '#ff6b00';
+  ctx.fillStyle = '#10b981';
   ctx.font = 'bold 24px "JetBrains Mono", monospace';
   ctx.fillText(routeData.name || 'Untitled Route', 30, bottomY - 80);
 

@@ -76,11 +76,11 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
       />
 
       {/* Modal */}
-      <div className="relative bg-surface border border-white/10 w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
+      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
-            <ShoppingCart className="w-5 h-5 text-neon-orange" />
+            <ShoppingCart className="w-5 h-5 text-accent" />
             <h2 className="text-lg font-bold text-white">Nutrition Kit</h2>
           </div>
           <button
@@ -93,7 +93,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
 
         {/* Route Info */}
         {routeData.loaded && (
-          <div className="px-4 py-3 bg-black/30 border-b border-white/10">
+          <div className="px-4 py-3 bg-black/30 border-b border-white/[0.06]">
             <div className="text-xs text-text-muted uppercase tracking-wider">
               Kit for route
             </div>
@@ -118,7 +118,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
               {cartItems.map((item) => (
                 <div
                   key={item.product.id}
-                  className="flex gap-3 p-3 bg-surfaceHighlight border border-white/5"
+                  className="flex gap-3 p-3 bg-surfaceHighlight border border-white/[0.04] rounded-lg"
                 >
                   {/* Product Image */}
                   <div className="w-14 h-14 flex-shrink-0 bg-white/5 rounded overflow-hidden">
@@ -144,7 +144,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
 
                   {/* Quantity & Price */}
                   <div className="flex flex-col items-end justify-between">
-                    <div className="text-sm font-mono font-bold text-neon-green">
+                    <div className="text-sm font-mono font-bold text-accent-light">
                       R{(item.product.priceZAR * item.quantity).toFixed(2)}
                     </div>
                     <div className="flex items-center gap-1">
@@ -175,7 +175,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
 
         {/* Summary */}
         {cartItems.length > 0 && (
-          <div className="p-4 border-t border-white/10 bg-surfaceHighlight space-y-3">
+          <div className="p-4 border-t border-white/[0.06] bg-surfaceHighlight space-y-3">
             {/* Nutrition Summary */}
             <div className="grid grid-cols-3 gap-2 text-center">
               <div className="p-2 bg-black/30 rounded">
@@ -186,7 +186,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
               </div>
               <div className="p-2 bg-black/30 rounded">
                 <div className="text-[10px] text-text-muted uppercase">Total Carbs</div>
-                <div className="text-lg font-mono font-bold text-neon-orange">
+                <div className="text-lg font-mono font-bold text-accent">
                   {totalCarbs}g
                 </div>
               </div>
@@ -199,16 +199,16 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
             </div>
 
             {/* Total */}
-            <div className="flex items-center justify-between py-3 border-t border-white/10">
+            <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
               <span className="text-sm text-text-secondary uppercase">Total</span>
-              <span className="text-2xl font-mono font-bold text-neon-green">
+              <span className="text-2xl font-mono font-bold text-accent-light">
                 R{totalCost.toFixed(2)}
               </span>
             </div>
 
             {/* Checkout Button */}
             <button
-              className="w-full py-4 bg-neon-orange text-black text-sm font-bold uppercase tracking-wider hover:bg-neon-orange/90 transition-colors flex items-center justify-center gap-2"
+              className="w-full py-4 bg-accent text-black text-sm font-bold uppercase tracking-wider rounded-xl hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
               onClick={() => alert('Checkout coming soon!')}
             >
               <ShoppingCart className="w-4 h-4" />

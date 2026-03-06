@@ -35,11 +35,11 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToRoute }: P
       />
 
       {/* Modal */}
-      <div className="relative bg-surface border border-white/10 w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
           <div>
-            <div className="text-[10px] text-neon-orange uppercase tracking-wider font-bold">
+            <div className="text-[10px] text-accent uppercase tracking-wider font-bold">
               {categoryLabels[product.category] || product.category}
             </div>
             <h2 className="text-lg font-bold text-white">{product.brand}</h2>
@@ -73,7 +73,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToRoute }: P
               <p className="text-sm text-text-secondary">{product.brand}</p>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-mono font-bold text-neon-green">
+              <div className="text-2xl font-mono font-bold text-accent-light">
                 R{product.priceZAR.toFixed(2)}
               </div>
               <div className="text-[10px] text-text-muted uppercase">per unit</div>
@@ -84,7 +84,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToRoute }: P
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-black/30 border border-white/5 p-4">
               <div className="flex items-center gap-2 mb-1">
-                <Flame className="w-4 h-4 text-neon-orange" />
+                <Flame className="w-4 h-4 text-accent" />
                 <span className="text-[10px] text-text-muted uppercase tracking-wider">Calories</span>
               </div>
               <div className="text-2xl font-mono font-bold text-white">
@@ -95,7 +95,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToRoute }: P
 
             <div className="bg-black/30 border border-white/5 p-4">
               <div className="flex items-center gap-2 mb-1">
-                <Zap className="w-4 h-4 text-neon-blue" />
+                <Zap className="w-4 h-4 text-warm" />
                 <span className="text-[10px] text-text-muted uppercase tracking-wider">Carbs</span>
               </div>
               <div className="text-2xl font-mono font-bold text-white">
@@ -128,7 +128,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToRoute }: P
           </div>
 
           {/* Efficiency Stats */}
-          <div className="bg-surfaceHighlight border border-white/10 p-4">
+          <div className="bg-surfaceHighlight border border-white/[0.06] p-4">
             <div className="text-[10px] text-text-muted uppercase tracking-wider mb-3">
               Efficiency Metrics
             </div>
@@ -156,10 +156,10 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToRoute }: P
         </div>
 
         {/* Action Button */}
-        <div className="p-4 border-t border-white/10 bg-surfaceHighlight">
+        <div className="p-4 border-t border-white/[0.06] bg-surfaceHighlight">
           <button
             onClick={handleAddToRoute}
-            className="w-full py-4 bg-neon-orange text-black text-sm font-bold uppercase tracking-wider hover:bg-neon-orange/90 transition-colors flex items-center justify-center gap-2"
+            className="w-full py-4 bg-accent text-black text-sm font-bold uppercase tracking-wider rounded-xl hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
           >
             <Plus className="w-4 h-4" />
             Add to Route Plan

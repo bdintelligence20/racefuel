@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Activity, User, Wind, Zap, Edit2, LogOut, Bike, PersonStanding, Trophy, Mountain, RotateCcw, FolderOpen, GitCompare } from 'lucide-react';
-import { useApp, SportType } from '../context/AppContext';
+import { Activity, User, Wind, Zap, Edit2, LogOut, RotateCcw, FolderOpen, GitCompare } from 'lucide-react';
+import { useApp } from '../context/AppContext';
 import { EditProfileModal } from './EditProfileModal';
 import { SavedPlansModal } from './SavedPlansModal';
 import { PlanComparison } from './PlanComparison';
@@ -14,120 +14,83 @@ interface StatProps {
 
 function StatRow({ label, value, unit, icon: Icon }: StatProps) {
   return (
-    <div className="flex items-center justify-between py-3 border-b border-white/5 group hover:bg-white/5 px-2 transition-colors">
-      <div className="flex items-center gap-3 text-text-secondary">
-        <Icon className="w-4 h-4 text-neon-orange" />
+    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-white/[0.03] transition-colors group">
+      <div className="flex items-center gap-2.5 text-text-secondary">
+        <div className="w-7 h-7 rounded-md bg-accent/10 flex items-center justify-center">
+          <Icon className="w-3.5 h-3.5 text-accent" />
+        </div>
         <span className="text-xs uppercase tracking-wider font-medium">
           {label}
         </span>
       </div>
       <div className="font-mono text-text-primary">
-        <span className="text-lg font-bold">{value}</span>
-        {unit && <span className="text-xs text-text-muted ml-1">{unit}</span>}
+        <span className="text-base font-bold">{value}</span>
+        {unit && <span className="text-[10px] text-text-muted ml-1">{unit}</span>}
       </div>
     </div>
   );
 }
 
-const sportOptions: { type: SportType; label: string; icon: React.ElementType }[] = [
-  { type: 'cycling', label: 'Cycling', icon: Bike },
-  { type: 'running', label: 'Running', icon: PersonStanding },
-  { type: 'triathlon', label: 'Triathlon', icon: Trophy },
-  { type: 'hiking', label: 'Hiking', icon: Mountain },
-];
-
 export function Sidebar() {
-  const { userProfile, strava, connectStrava, disconnectStrava, sportType, setSportType, resetAll } = useApp();
+  const { userProfile, strava, connectStrava, disconnectStrava, resetAll } = useApp();
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [savedPlansOpen, setSavedPlansOpen] = useState(false);
   const [comparisonOpen, setComparisonOpen] = useState(false);
 
   return (
-    <aside className="w-72 bg-surface border-r border-white/10 flex flex-col h-full z-30 shadow-xl">
+    <aside className="w-72 bg-surface border-r border-white/[0.06] flex flex-col h-full z-30">
       {/* Header */}
-      <div className="p-6 border-b border-white/10">
-        <h1 className="text-2xl font-black italic tracking-tighter text-white">
-          RACE<span className="text-neon-orange">FUEL</span>
-        </h1>
-        <div className="mt-1 flex items-center gap-2">
-          <div className="w-2 h-2 bg-neon-green rounded-full animate-pulse"></div>
-          <span className="text-xs font-mono text-neon-green uppercase tracking-widest">
-            System Online
-          </span>
+      <div className="p-5 pb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center">
+            <span className="text-accent font-extrabold text-sm">fc</span>
+          </div>
+          <div>
+            <h1 className="text-lg font-extrabold tracking-tight text-white">
+              Fuel<span className="text-accent">Cue</span>
+            </h1>
+            <p className="text-[10px] font-mono text-text-muted tracking-wide">
+              NUTRITION PLANNER
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Sport Selector */}
-      <div className="p-4 border-b border-white/10">
-        <div className="grid grid-cols-4 gap-1">
-          {sportOptions.map(({ type, label, icon: Icon }) => (
-            <button
-              key={type}
-              onClick={() => setSportType(type)}
-              className={`flex flex-col items-center gap-1 p-2 transition-all ${
-                sportType === type
-                  ? 'bg-neon-orange/20 border border-neon-orange/50 text-neon-orange'
-                  : 'bg-white/5 border border-transparent text-text-muted hover:bg-white/10 hover:text-white'
-              }`}
-              title={label}
-            >
-              <Icon className="w-4 h-4" />
-              <span className="text-[9px] font-mono uppercase tracking-tight">{label}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Strava Status */}
-      <div className="p-6 border-b border-white/10 bg-surfaceHighlight/30">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wider">
-            Connections
-          </h2>
-          <span
-            className={`px-2 py-0.5 border text-[10px] font-mono uppercase ${
-              strava.isConnected
-                ? 'bg-neon-green/10 border-neon-green/20 text-neon-green'
-                : 'bg-white/5 border-white/10 text-text-muted'
-            }`}
-          >
-            {strava.isConnected ? 'Active' : 'Offline'}
-          </span>
-        </div>
-
+      {/* Strava Connection */}
+      <div className="px-4 pb-4">
         {strava.isConnected ? (
-          <div className="flex items-center gap-3 p-3 border bg-black/40 border-white/5 group">
-            <div className="w-8 h-8 bg-[#FC4C02] flex items-center justify-center">
-              <Activity className="w-5 h-5 text-white" />
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+            <div className="w-8 h-8 rounded-lg bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
+              <Activity className="w-4 h-4 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-xs text-text-secondary">Connected as</div>
-              <div className="text-sm font-bold text-white font-mono truncate">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">Strava</div>
+              <div className="text-sm font-semibold text-white truncate">
                 {strava.athlete?.firstname} {strava.athlete?.lastname}
               </div>
             </div>
             <button
               onClick={disconnectStrava}
-              className="p-2 hover:bg-white/10 transition-colors text-text-muted hover:text-red-400"
-              title="Disconnect Strava"
+              className="p-1.5 rounded-md hover:bg-white/10 transition-colors text-text-muted hover:text-red-400"
+              title="Disconnect"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
         ) : (
           <button
             onClick={connectStrava}
             disabled={strava.isLoading}
-            className="w-full flex items-center gap-3 p-3 border bg-black/20 border-white/5 hover:border-[#FC4C02]/50 transition-colors cursor-pointer group"
+            className="w-full flex items-center gap-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-[#FC4C02]/40 transition-all cursor-pointer group"
           >
-            <div className="w-8 h-8 bg-[#FC4C02] flex items-center justify-center group-hover:scale-105 transition-transform">
-              <Activity className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 rounded-lg bg-[#FC4C02] flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
+              <Activity className="w-4 h-4 text-white" />
             </div>
             <div className="text-left">
-              <div className="text-xs text-text-secondary group-hover:text-white transition-colors">
+              <div className="text-[10px] text-text-muted uppercase tracking-wider">
                 {strava.isLoading ? 'Connecting...' : 'Connect to'}
               </div>
-              <div className="text-sm font-bold text-white font-mono">STRAVA</div>
+              <div className="text-sm font-semibold text-white">Strava</div>
             </div>
           </button>
         )}
@@ -137,64 +100,51 @@ export function Sidebar() {
         )}
       </div>
 
+      <div className="h-px bg-white/[0.06] mx-4" />
+
       {/* Athlete Profile */}
-      <div className="flex-1 p-6 overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-sm font-bold text-white uppercase tracking-wider">
+      <div className="flex-1 p-4 overflow-y-auto">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-semibold text-text-muted uppercase tracking-wider">
             Athlete Profile
           </h2>
           <button
             onClick={() => setEditProfileOpen(true)}
-            className="text-xs text-neon-blue hover:text-white transition-colors font-mono flex items-center gap-1"
+            className="text-[10px] text-accent hover:text-accent-light transition-colors font-mono flex items-center gap-1"
           >
-            <Edit2 className="w-3 h-3" /> [EDIT]
+            <Edit2 className="w-3 h-3" /> Edit
           </button>
         </div>
 
-        <div className="space-y-1">
+        <div className="space-y-0.5">
+          <StatRow label="Weight" value={userProfile.weight} unit="KG" icon={User} />
+          <StatRow label="Height" value={userProfile.height} unit="CM" icon={User} />
           <StatRow
-            label="Weight"
-            value={userProfile.weight}
-            unit="KG"
-            icon={User}
-          />
-
-          <StatRow
-            label="Height"
-            value={userProfile.height}
-            unit="CM"
-            icon={User}
-          />
-
-          <StatRow
-            label="Sweat Rate"
+            label="Sweat"
             value={
-              userProfile.sweatRate === 'light'
-                ? 'LOW'
-                : userProfile.sweatRate === 'moderate'
-                ? 'MED'
-                : 'HIGH'
+              userProfile.sweatRate === 'light' ? 'Low'
+                : userProfile.sweatRate === 'moderate' ? 'Med'
+                : 'High'
             }
             unit=""
             icon={Wind}
           />
-
           <StatRow label="FTP" value={userProfile.ftp} unit="W" icon={Zap} />
         </div>
       </div>
 
       {/* Tools */}
-      <div className="px-4 pb-2 flex gap-2">
+      <div className="px-4 pb-3 flex gap-2">
         <button
           onClick={() => setSavedPlansOpen(true)}
-          className="flex-1 flex items-center justify-center gap-2 py-2 px-2 bg-white/5 border border-white/10 text-text-secondary hover:bg-white/10 hover:text-white transition-colors text-[10px] font-mono uppercase tracking-wider"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-text-secondary hover:bg-white/[0.06] hover:text-white transition-colors text-[10px] font-medium"
         >
           <FolderOpen className="w-3 h-3" />
           Plans
         </button>
         <button
           onClick={() => setComparisonOpen(true)}
-          className="flex-1 flex items-center justify-center gap-2 py-2 px-2 bg-white/5 border border-white/10 text-text-secondary hover:bg-white/10 hover:text-white transition-colors text-[10px] font-mono uppercase tracking-wider"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-text-secondary hover:bg-white/[0.06] hover:text-white transition-colors text-[10px] font-medium"
         >
           <GitCompare className="w-3 h-3" />
           Compare
@@ -202,17 +152,14 @@ export function Sidebar() {
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-white/10">
+      <div className="p-4 border-t border-white/[0.06]">
         <button
           onClick={resetAll}
-          className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors text-xs font-mono uppercase tracking-wider"
+          className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-red-500/5 border border-red-500/10 text-red-400/70 hover:bg-red-500/10 hover:text-red-400 transition-colors text-[10px] font-medium"
         >
           <RotateCcw className="w-3 h-3" />
-          Reset Demo
+          Reset
         </button>
-        <div className="mt-2 text-[10px] text-text-muted font-mono text-center">
-          v2.4.0-RC1 // BUILD 8922
-        </div>
       </div>
 
       {/* Modals */}

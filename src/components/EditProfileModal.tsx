@@ -72,11 +72,11 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
       />
 
       {/* Modal */}
-      <div className="relative bg-surface border border-white/10 w-full max-w-md shadow-2xl">
+      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-md shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
-            <User className="w-5 h-5 text-neon-orange" />
+            <User className="w-5 h-5 text-accent" />
             <h2 className="text-lg font-bold text-white">Edit Profile</h2>
           </div>
           <button
@@ -127,7 +127,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
           {/* Weight */}
           <div>
             <label className="flex items-center gap-2 text-xs text-text-secondary uppercase tracking-wider mb-2">
-              <User className="w-3 h-3 text-neon-orange" />
+              <User className="w-3 h-3 text-accent" />
               Weight
             </label>
             <div className="flex items-center gap-2">
@@ -135,7 +135,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 type="number"
                 value={formData.weight}
                 onChange={(e) => handleChange('weight', parseInt(e.target.value) || 0)}
-                className="flex-1 bg-black/50 border border-white/10 text-white text-lg font-mono p-3 focus:outline-none focus:border-neon-orange transition-colors"
+                className="flex-1 bg-black/50 border border-white/[0.06] rounded-lg text-white text-lg font-mono p-3 focus:outline-none focus:border-accent transition-colors"
               />
               <span className="text-text-muted font-mono text-sm w-12">kg</span>
             </div>
@@ -144,7 +144,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
           {/* Height */}
           <div>
             <label className="flex items-center gap-2 text-xs text-text-secondary uppercase tracking-wider mb-2">
-              <Ruler className="w-3 h-3 text-neon-orange" />
+              <Ruler className="w-3 h-3 text-accent" />
               Height
             </label>
             <div className="flex items-center gap-2">
@@ -152,7 +152,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 type="number"
                 value={formData.height}
                 onChange={(e) => handleChange('height', parseInt(e.target.value) || 0)}
-                className="flex-1 bg-black/50 border border-white/10 text-white text-lg font-mono p-3 focus:outline-none focus:border-neon-orange transition-colors"
+                className="flex-1 bg-black/50 border border-white/[0.06] rounded-lg text-white text-lg font-mono p-3 focus:outline-none focus:border-accent transition-colors"
               />
               <span className="text-text-muted font-mono text-sm w-12">cm</span>
             </div>
@@ -161,7 +161,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
           {/* FTP */}
           <div>
             <label className="flex items-center gap-2 text-xs text-text-secondary uppercase tracking-wider mb-2">
-              <Zap className="w-3 h-3 text-neon-orange" />
+              <Zap className="w-3 h-3 text-accent" />
               FTP (Functional Threshold Power)
             </label>
             <div className="flex items-center gap-2">
@@ -169,7 +169,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 type="number"
                 value={formData.ftp}
                 onChange={(e) => handleChange('ftp', parseInt(e.target.value) || 0)}
-                className="flex-1 bg-black/50 border border-white/10 text-white text-lg font-mono p-3 focus:outline-none focus:border-neon-orange transition-colors"
+                className="flex-1 bg-black/50 border border-white/[0.06] rounded-lg text-white text-lg font-mono p-3 focus:outline-none focus:border-accent transition-colors"
               />
               <span className="text-text-muted font-mono text-sm w-12">W</span>
             </div>
@@ -178,7 +178,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
           {/* Sweat Rate */}
           <div>
             <label className="flex items-center gap-2 text-xs text-text-secondary uppercase tracking-wider mb-2">
-              <Wind className="w-3 h-3 text-neon-orange" />
+              <Wind className="w-3 h-3 text-accent" />
               Sweat Rate
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -186,10 +186,10 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 <button
                   key={rate}
                   onClick={() => handleChange('sweatRate', rate)}
-                  className={`py-3 text-sm font-bold uppercase transition-colors ${
+                  className={`py-3 rounded-lg text-sm font-bold uppercase transition-colors ${
                     formData.sweatRate === rate
-                      ? 'bg-neon-orange/20 border border-neon-orange/50 text-neon-orange'
-                      : 'bg-black/30 border border-white/10 text-text-muted hover:bg-white/10 hover:text-white'
+                      ? 'bg-accent/20 border border-accent/50 text-accent'
+                      : 'bg-black/30 border border-white/[0.06] text-text-muted hover:bg-white/10 hover:text-white'
                   }`}
                 >
                   {rate === 'light' ? 'Low' : rate === 'moderate' ? 'Medium' : 'High'}
@@ -203,16 +203,16 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
         </div>
 
         {/* Actions */}
-        <div className="p-4 border-t border-white/10 bg-surfaceHighlight flex gap-3">
+        <div className="p-4 border-t border-white/[0.06] bg-surfaceHighlight flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 bg-white/5 border border-white/10 text-white text-sm font-bold uppercase tracking-wider hover:bg-white/10 transition-colors"
+            className="flex-1 py-3 bg-white/5 border border-white/[0.06] rounded-lg text-white text-sm font-bold uppercase tracking-wider hover:bg-white/10 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
-            className="flex-1 py-3 bg-neon-orange text-black text-sm font-bold uppercase tracking-wider hover:bg-neon-orange/90 transition-colors"
+            className="flex-1 py-3 rounded-lg bg-accent text-black text-sm font-bold uppercase tracking-wider hover:bg-accent/90 transition-colors"
           >
             Save Profile
           </button>

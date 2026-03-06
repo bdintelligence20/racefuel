@@ -1,8 +1,7 @@
 // Strava API client
 
-import { StravaAthlete, StravaActivitySummary, StravaStream, SPORT_ACTIVITY_TYPES } from './stravaTypes';
+import { StravaAthlete, StravaActivitySummary, StravaStream } from './stravaTypes';
 import { getValidAccessToken } from './stravaAuth';
-import { SportType } from '../../context/AppContext';
 
 const STRAVA_API_BASE = 'https://www.strava.com/api/v3';
 
@@ -53,30 +52,19 @@ export async function getAthlete(): Promise<StravaAthlete> {
  * Get the athlete's recent activities
  * @param page Page number (1-indexed)
  * @param perPage Number of activities per page (max 200)
- * @param sportType Filter by sport type, or null for all activities
  */
 export async function getActivities(
   page = 1,
-  perPage = 30,
-  sportType: SportType | null = 'cycling'
+  perPage = 30
 ): Promise<StravaActivitySummary[]> {
   const params = new URLSearchParams({
     page: page.toString(),
     per_page: perPage.toString(),
   });
 
-  const activities = await stravaFetch<StravaActivitySummary[]>(
+  return stravaFetch<StravaActivitySummary[]>(
     `/athlete/activities?${params.toString()}`
   );
-
-  if (sportType) {
-    const allowedTypes = SPORT_ACTIVITY_TYPES[sportType];
-    return activities.filter((activity) =>
-      allowedTypes.includes(activity.type)
-    );
-  }
-
-  return activities;
 }
 
 /**
