@@ -41,18 +41,13 @@ export function Sidebar() {
     <aside className="w-72 bg-surface border-r border-white/[0.06] flex flex-col h-full z-30">
       {/* Header */}
       <div className="p-5 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-accent/10 border border-accent/20 flex items-center justify-center">
-            <span className="text-accent font-extrabold text-sm">fc</span>
-          </div>
-          <div>
-            <h1 className="text-lg font-extrabold tracking-tight text-white">
-              Fuel<span className="text-accent">Cue</span>
-            </h1>
-            <p className="text-[10px] font-mono text-text-muted tracking-wide">
-              NUTRITION PLANNER
-            </p>
-          </div>
+        <div>
+          <h1 className="text-lg font-extrabold tracking-tight text-white">
+            Fuel<span className="text-accent">Cue</span>
+          </h1>
+          <p className="text-[10px] font-mono text-text-muted tracking-wide">
+            NUTRITION PLANNER
+          </p>
         </div>
       </div>
 

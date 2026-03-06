@@ -269,8 +269,13 @@ export function MapCanvas() {
     <main className="flex-1 relative flex flex-col bg-background bg-grid-pattern bg-[length:40px_40px]">
       {/* Map Area */}
       <div className="flex-1 relative overflow-hidden">
+        {/* Center Content (rendered first so overlays stack on top) */}
+        <div className="absolute inset-0 z-0">
+          {routeData.loaded ? <MapView /> : <GpxDropZone />}
+        </div>
+
         {/* Map UI Overlays */}
-        <div className="absolute top-5 left-5 z-10 flex gap-2">
+        <div className="absolute top-5 left-5 z-10 flex gap-2 pointer-events-auto">
           <div className="bg-surface/80 backdrop-blur-md border border-white/[0.06] rounded-xl px-4 py-2.5">
             <div className="text-[9px] text-text-muted uppercase tracking-widest mb-0.5">
               Distance
@@ -292,7 +297,7 @@ export function MapCanvas() {
         </div>
 
         {/* Compass / Orientation */}
-        <div className="absolute top-5 right-5 z-10 flex gap-2">
+        <div className="absolute top-5 right-5 z-10 flex gap-2 pointer-events-auto">
           {routeData.loaded && (
             <button
               onClick={resetRoute}
@@ -307,14 +312,9 @@ export function MapCanvas() {
           </div>
         </div>
 
-        {/* Center Content */}
-        <div className="absolute inset-0">
-          {routeData.loaded ? <MapView /> : <GpxDropZone />}
-        </div>
-
         {/* Floating Action Button */}
         {routeData.loaded && (
-          <div className="absolute bottom-8 right-8 z-20">
+          <div className="absolute bottom-8 right-8 z-10 pointer-events-auto">
             <AutoGenerateButton onClick={autoGeneratePlan} />
           </div>
         )}

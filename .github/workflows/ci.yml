@@ -53,4 +53,4 @@ jobs:
           gcloud builds submit \
             --config=cloudbuild.yaml \
             --project=promogroup \
-            --substitutions=COMMIT_SHA=${{ github.sha }}
+            --substitutions=COMMIT_SHA=${{ github.sha }},_VITE_STRAVA_CLIENT_ID=${{ secrets.VITE_STRAVA_CLIENT_ID }},_VITE_STRAVA_CLIENT_SECRET=${{ secrets.VITE_STRAVA_CLIENT_SECRET }},_VITE_MAPBOX_TOKEN=${{ secrets.VITE_MAPBOX_TOKEN }}

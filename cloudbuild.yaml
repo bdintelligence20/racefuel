@@ -1,6 +1,16 @@
 steps:
   - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/racefuel:$COMMIT_SHA', '.']
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'VITE_STRAVA_CLIENT_ID=${_VITE_STRAVA_CLIENT_ID}'
+      - '--build-arg'
+      - 'VITE_STRAVA_CLIENT_SECRET=${_VITE_STRAVA_CLIENT_SECRET}'
+      - '--build-arg'
+      - 'VITE_MAPBOX_TOKEN=${_VITE_MAPBOX_TOKEN}'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/racefuel:$COMMIT_SHA'
+      - '.'
 
   - name: 'gcr.io/cloud-builders/docker'
     args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/cloud-run-source-deploy/racefuel:$COMMIT_SHA']
