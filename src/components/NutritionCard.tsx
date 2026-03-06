@@ -40,7 +40,7 @@ export function NutritionCard({
 
   return (
     <div
-      className={`group relative bg-surfaceHighlight rounded-xl border-l-4 ${colors.border} p-3 cursor-grab active:cursor-grabbing hover:-translate-y-0.5 transition-all duration-200 ${colors.hover}`}>
+      className={`group relative bg-surfaceHighlight rounded-xl border border-white/[0.06] p-3 cursor-grab active:cursor-grabbing hover:-translate-y-0.5 transition-all duration-200 ${colors.hover}`}>
 
       {/* Drag Handle Pattern */}
       <div className="absolute top-2 right-2 flex gap-0.5 opacity-20 group-hover:opacity-50">
