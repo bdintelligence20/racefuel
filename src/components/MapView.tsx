@@ -367,7 +367,10 @@ export function MapView() {
           ${point.product.carbs}g
         </div>
       `;
-      el.onclick = () => removeNutritionPoint(point.id);
+      el.onclick = (e) => {
+        e.stopPropagation();
+        removeNutritionPoint(point.id);
+      };
 
       const marker = new mapboxgl.Marker({ element: el })
         .setLngLat([gps.lng, gps.lat])
