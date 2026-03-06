@@ -146,13 +146,8 @@ function ElevationProfile() {
         >
           <defs>
             <linearGradient id="elevGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.05" />
-            </linearGradient>
-            <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#f59e0b" />
-              <stop offset="50%" stopColor="#ffffff" />
-              <stop offset="100%" stopColor="#10b981" />
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.6" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0.08" />
             </linearGradient>
           </defs>
 
@@ -161,7 +156,7 @@ function ElevationProfile() {
             <line
               key={pct}
               x1="0" y1={150 * (1 - pct)} x2="1000" y2={150 * (1 - pct)}
-              stroke="rgba(255,255,255,0.05)" strokeWidth="1"
+              stroke="rgba(255,255,255,0.08)" strokeWidth="1"
             />
           ))}
 
@@ -169,8 +164,8 @@ function ElevationProfile() {
           {segments.map((seg, i) => {
             const x1 = (seg.startKm / routeData.distanceKm) * 1000;
             const x2 = (seg.endKm / routeData.distanceKm) * 1000;
-            const color = seg.type === 'climb' ? 'rgba(245,158,11,0.08)' :
-                         seg.type === 'descent' ? 'rgba(16,185,129,0.05)' : 'transparent';
+            const color = seg.type === 'climb' ? 'rgba(245,158,11,0.15)' :
+                         seg.type === 'descent' ? 'rgba(16,185,129,0.1)' : 'transparent';
             return (
               <rect key={i} x={x1} y="0" width={x2 - x1} height="150" fill={color} />
             );
@@ -180,7 +175,7 @@ function ElevationProfile() {
           <path d={areaD} fill="url(#elevGradient)" />
 
           {/* Elevation line */}
-          <path d={pathD} fill="none" stroke="url(#lineGradient)" strokeWidth="2" />
+          <path d={pathD} fill="none" stroke="#34d399" strokeWidth="2.5" />
 
           {/* Hover crosshair */}
           {hover && (
