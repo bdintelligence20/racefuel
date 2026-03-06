@@ -48,9 +48,10 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
-      - name: Build and deploy to Cloud Run
+      - name: Submit Cloud Build
         run: |
           gcloud builds submit \
             --config=cloudbuild.yaml \
             --project=promogroup \
+            --async \
             --substitutions=COMMIT_SHA=${{ github.sha }},_VITE_STRAVA_CLIENT_ID=${{ secrets.VITE_STRAVA_CLIENT_ID }},_VITE_STRAVA_CLIENT_SECRET=${{ secrets.VITE_STRAVA_CLIENT_SECRET }},_VITE_MAPBOX_TOKEN=${{ secrets.VITE_MAPBOX_TOKEN }}
