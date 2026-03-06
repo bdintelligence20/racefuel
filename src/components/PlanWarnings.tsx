@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
 import { PlanWarning, WarningSeverity } from '../services/nutrition/planValidator';
 

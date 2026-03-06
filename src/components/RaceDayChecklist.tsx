@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { X, Check, Package, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 import { useApp, NutritionPoint } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';

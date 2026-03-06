@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Download, Undo2, Redo2, Shield } from 'lucide-react';
 import { ExportModal } from './export/ExportModal';

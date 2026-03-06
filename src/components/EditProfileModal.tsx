@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X, User, Zap, Wind, Ruler, RefreshCw } from 'lucide-react';
 import { useApp, UserProfile } from '../context/AppContext';
 

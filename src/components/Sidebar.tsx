@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Activity, User, Wind, Zap, Edit2, LogOut, RotateCcw, FolderOpen, GitCompare } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { EditProfileModal } from './EditProfileModal';

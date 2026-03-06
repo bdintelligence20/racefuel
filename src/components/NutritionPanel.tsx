@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { NutritionCard, ProductProps, ProductCategory } from './NutritionCard';
 import { Search, ShoppingCart, Droplets, Coffee, Zap, ClipboardList, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { products, searchProducts } from '../data/products';
+import { products } from '../data/products';
 import { CartModal } from './CartModal';
 import { ProductDetailModal } from './ProductDetailModal';
 import { RaceDayChecklist } from './RaceDayChecklist';

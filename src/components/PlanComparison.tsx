@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { X, Zap, Droplets, Coffee, TrendingUp, DollarSign } from 'lucide-react';
 import { useApp, NutritionPoint } from '../context/AppContext';
 

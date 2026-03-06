@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { useState, createContext, useContext, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { nanoid } from 'nanoid';
 import { ProductProps } from '../components/NutritionCard';
 import { parseGpx } from '../services/route/gpxParser';

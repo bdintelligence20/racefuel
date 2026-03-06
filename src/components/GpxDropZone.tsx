@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Upload, FileCode, Play, Activity } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { StravaActivityList } from './strava/StravaActivityList';

@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Zap } from 'lucide-react';
 
 export type ProductCategory = 'gel' | 'bar' | 'drink' | 'chew';

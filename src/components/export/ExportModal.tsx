@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { X, FileText, Table, MapPin, Download, Image } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { downloadGpx } from '../../services/export/gpxExporter';

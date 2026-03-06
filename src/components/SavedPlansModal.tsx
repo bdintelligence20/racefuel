@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { X, FolderOpen, Trash2, Edit3, Check, Calendar, Mountain, Route } from 'lucide-react';
 import { SavedPlan, getAllPlans, deletePlan, updatePlan } from '../persistence/db';
-import { useApp, RouteData } from '../context/AppContext';
 import { toast } from 'sonner';
 
 interface SavedPlansModalProps {
@@ -10,7 +9,6 @@ interface SavedPlansModalProps {
 }
 
 export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
-  const { routeData } = useApp();
   const [plans, setPlans] = useState<SavedPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -62,7 +60,7 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
 
   const handleLoad = (plan: SavedPlan) => {
     try {
-      const restored = JSON.parse(plan.routeDataJson) as RouteData;
+      JSON.parse(plan.routeDataJson); // validate JSON
       // Store in sessionStorage and reload to force the app to pick it up
       sessionStorage.setItem('fuelcue_load_plan', plan.routeDataJson);
       window.location.reload();

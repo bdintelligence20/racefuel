@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { ProductProps } from './NutritionCard';
 import { X } from 'lucide-react';
 

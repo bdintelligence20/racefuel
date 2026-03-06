@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useState, useCallback } from 'react';
+import { useRef, useMemo, useState, useCallback } from 'react';
 import { GpxDropZone } from './GpxDropZone';
 import { AutoGenerateButton } from './AutoGenerateButton';
 import { MapView } from './MapView';

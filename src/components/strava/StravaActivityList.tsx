@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Activity, Calendar, Mountain, ArrowRight, Loader2, X, RefreshCw, Search, ArrowUpDown } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { StravaActivitySummary, ACTIVITY_TYPE_LABELS, formatDistance, formatDuration, formatDate } from '../../services/strava';

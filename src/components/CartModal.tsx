@@ -1,4 +1,4 @@
-import React from 'react';
+import { useMemo } from 'react';
 import { X, ShoppingCart, Trash2, Minus } from 'lucide-react';
 import { useApp, NutritionPoint } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
@@ -18,7 +18,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
   const { routeData, removeNutritionPoint } = useApp();
 
   // Group nutrition points by product - must be before early return!
-  const cartItems: CartItem[] = React.useMemo(() => {
+  const cartItems: CartItem[] = useMemo(() => {
     const grouped = new Map<string, CartItem>();
 
     routeData.nutritionPoints.forEach((point) => {

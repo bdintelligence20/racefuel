@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { X, Zap, Droplets, Coffee, Flame, Plus } from 'lucide-react';
 import { ProductProps } from './NutritionCard';
 
