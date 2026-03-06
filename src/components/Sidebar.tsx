@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Activity, User, Wind, Zap, Edit2, LogOut, RotateCcw, FolderOpen, GitCompare } from 'lucide-react';
+import { Activity, User, Wind, Zap, Edit2, LogOut, RotateCcw, FolderOpen, GitCompare, Save } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { EditProfileModal } from './EditProfileModal';
 import { SavedPlansModal } from './SavedPlansModal';
 import { PlanComparison } from './PlanComparison';
+import { savePlan } from '../persistence/db';
+import { toast } from 'sonner';
 
 interface StatProps {
   label: string;
@@ -32,7 +34,7 @@ function StatRow({ label, value, unit, icon: Icon }: StatProps) {
 }
 
 export function Sidebar() {
-  const { userProfile, strava, connectStrava, disconnectStrava, resetAll } = useApp();
+  const { userProfile, routeData, strava, connectStrava, disconnectStrava, resetAll } = useApp();
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [savedPlansOpen, setSavedPlansOpen] = useState(false);
   const [comparisonOpen, setComparisonOpen] = useState(false);
@@ -129,21 +131,47 @@ export function Sidebar() {
       </div>
 
       {/* Tools */}
-      <div className="px-4 pb-3 flex gap-2">
-        <button
-          onClick={() => setSavedPlansOpen(true)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-text-secondary hover:bg-white/[0.06] hover:text-white transition-colors text-[10px] font-medium"
-        >
-          <FolderOpen className="w-3 h-3" />
-          Plans
-        </button>
-        <button
-          onClick={() => setComparisonOpen(true)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-text-secondary hover:bg-white/[0.06] hover:text-white transition-colors text-[10px] font-medium"
-        >
-          <GitCompare className="w-3 h-3" />
-          Compare
-        </button>
+      <div className="px-4 pb-3 space-y-2">
+        {routeData.loaded && (
+          <button
+            onClick={async () => {
+              try {
+                await savePlan({
+                  name: routeData.name || `Plan — ${new Date().toLocaleDateString('en-ZA')}`,
+                  routeName: routeData.name,
+                  distanceKm: routeData.distanceKm,
+                  elevationGain: routeData.elevationGain,
+                  estimatedTime: routeData.estimatedTime,
+                  source: routeData.source,
+                  routeDataJson: JSON.stringify(routeData),
+                });
+                toast.success('Plan saved');
+              } catch {
+                toast.error('Failed to save plan');
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 transition-colors text-xs font-bold uppercase tracking-wider"
+          >
+            <Save className="w-3.5 h-3.5" />
+            Save Plan
+          </button>
+        )}
+        <div className="flex gap-2">
+          <button
+            onClick={() => setSavedPlansOpen(true)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-text-secondary hover:bg-white/[0.06] hover:text-white transition-colors text-[10px] font-medium"
+          >
+            <FolderOpen className="w-3 h-3" />
+            Plans
+          </button>
+          <button
+            onClick={() => setComparisonOpen(true)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg bg-white/[0.03] border border-white/[0.06] text-text-secondary hover:bg-white/[0.06] hover:text-white transition-colors text-[10px] font-medium"
+          >
+            <GitCompare className="w-3 h-3" />
+            Compare
+          </button>
+        </div>
       </div>
 
       {/* Footer */}

@@ -24,7 +24,7 @@ export function ActionBar() {
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 lg:left-72 right-0 lg:right-80 bg-surface/95 backdrop-blur-md border-t border-white/[0.06] p-3 lg:p-4 z-40 flex flex-col gap-2 lg:gap-3 animate-slide-up">
+      <div className="bg-surface/95 backdrop-blur-md border-t border-white/[0.06] p-3 lg:p-4 flex flex-col gap-2 lg:gap-3">
         {/* Warnings */}
         {planValidation && planValidation.warnings.length > 0 && (
           <PlanWarnings warnings={planValidation.warnings} compact />
