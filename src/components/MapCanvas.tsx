@@ -19,13 +19,23 @@ function ElevationProfile() {
       return { pathD: '', areaD: '', elevations: [], minElev: 0, maxElev: 100 };
     }
 
-    const elevs = gpsPath
+    const rawElevs = gpsPath
       .filter(p => p.elevation !== undefined)
       .map(p => p.elevation as number);
 
-    if (elevs.length === 0) {
+    if (rawElevs.length === 0) {
       return { pathD: '', areaD: '', elevations: [], minElev: 0, maxElev: 100 };
     }
+
+    // Smooth elevation data to reduce GPS noise
+    const smoothWindow = Math.max(1, Math.floor(rawElevs.length / 100));
+    const elevs = rawElevs.map((_, i) => {
+      const start = Math.max(0, i - smoothWindow);
+      const end = Math.min(rawElevs.length, i + smoothWindow + 1);
+      let sum = 0;
+      for (let j = start; j < end; j++) sum += rawElevs[j];
+      return sum / (end - start);
+    });
 
     const min = Math.min(...elevs);
     const max = Math.max(...elevs);

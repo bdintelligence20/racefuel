@@ -543,7 +543,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       pushHistory(routeData.nutritionPoints);
 
       const timeParts = (routeData.estimatedTime || '3:00:00').split(':').map(Number);
-      const durationHours = timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600;
+      let durationHours = timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600;
+      // Fallback: estimate duration from distance if time is missing/zero
+      if (!durationHours || durationHours <= 0) {
+        durationHours = routeData.distanceKm / 25; // assume ~25 km/h avg
+      }
 
       console.log('[AutoGenerate] Starting...', { distanceKm: routeData.distanceKm, durationHours, profile: userProfile });
 
