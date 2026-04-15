@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Download, Undo2, Redo2, Shield, MessageSquare } from 'lucide-react';
+import { Download, Undo2, Redo2, MessageSquare } from 'lucide-react';
 import { ExportModal } from './export/ExportModal';
 import { FeedbackModal } from './FeedbackModal';
 import { PlanWarnings } from './PlanWarnings';

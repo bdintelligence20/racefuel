@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Pencil, Check, X, Undo2, Bike, Footprints, Loader2 } from 'lucide-react';
 import { DrawingState } from '../hooks/useRouteDrawing';
 import { RoutingProfile } from '../services/route/mapboxDirections';
