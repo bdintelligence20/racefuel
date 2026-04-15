@@ -67,37 +67,6 @@ function AppContent() {
   const { onboardingComplete } = useApp();
   const [mobileTab, setMobileTab] = useState<MobileTab>('map');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showLanding, setShowLanding] = useState(() => {
-    return localStorage.getItem('fuelcue_seen_landing') !== 'true';
-  });
-
-  const handleEnterApp = () => {
-    setShowLanding(false);
-    localStorage.setItem('fuelcue_seen_landing', 'true');
-  };
-
-  if (showLanding) {
-    return (
-      <>
-        <LandingPage onEnterApp={handleEnterApp} />
-        <Toaster
-          position="bottom-center"
-          toastOptions={{
-            style: {
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              color: 'var(--color-text-primary)',
-              fontFamily: '"Montserrat", sans-serif',
-              fontSize: '12px',
-              borderRadius: '12px',
-              boxShadow: '0 4px 20px rgba(61, 33, 82, 0.08)',
-            },
-          }}
-        />
-      </>
-    );
-  }
-
   return (
     <div className="flex w-full h-screen bg-background overflow-hidden font-sans">
       <MobileNav
@@ -159,7 +128,39 @@ function AppContent() {
 
 function AuthGate() {
   const { user, loading } = useAuth();
+  const [showLanding, setShowLanding] = useState(() => {
+    return localStorage.getItem('fuelcue_seen_landing') !== 'true';
+  });
 
+  const handleEnterApp = () => {
+    setShowLanding(false);
+    localStorage.setItem('fuelcue_seen_landing', 'true');
+  };
+
+  // Landing page is public — shown before auth
+  if (showLanding) {
+    return (
+      <>
+        <LandingPage onEnterApp={handleEnterApp} />
+        <Toaster
+          position="bottom-center"
+          toastOptions={{
+            style: {
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-primary)',
+              fontFamily: '"Montserrat", sans-serif',
+              fontSize: '12px',
+              borderRadius: '12px',
+              boxShadow: '0 4px 20px rgba(61, 33, 82, 0.08)',
+            },
+          }}
+        />
+      </>
+    );
+  }
+
+  // Auth loading
   if (loading) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background">
@@ -171,10 +172,12 @@ function AuthGate() {
     );
   }
 
+  // Not signed in — show auth screen
   if (!user) {
     return <AuthScreen />;
   }
 
+  // Signed in — show app
   return (
     <AppProvider>
       <AppContent />

@@ -58,7 +58,6 @@ export function AuthScreen() {
         </div>
 
         <div className="px-6 pb-6 -mt-4 relative z-10">
-          <img src="/logo.png" alt="fuelcue" className="h-10 w-auto mx-auto mb-2" />
           <p className="text-center text-text-muted text-sm font-display mb-6">
             {mode === 'signin' ? 'Sign in to your account' : 'Create your account'}
           </p>
