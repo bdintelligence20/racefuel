@@ -50,26 +50,40 @@ export async function exportMapImage(
   // Draw map (stretched to fit, maintaining content)
   ctx.drawImage(mapCanvas, 0, 0, width, height);
 
-  // Add overlay gradient at bottom for text readability
-  const gradient = ctx.createLinearGradient(0, height * 0.6, 0, height);
-  gradient.addColorStop(0, 'rgba(0,0,0,0)');
-  gradient.addColorStop(1, 'rgba(0,0,0,0.85)');
+  // Brand-colored overlay gradient (plum tones instead of plain black)
+  const gradient = ctx.createLinearGradient(0, height * 0.5, 0, height);
+  gradient.addColorStop(0, 'rgba(61, 33, 82, 0)');
+  gradient.addColorStop(0.5, 'rgba(61, 33, 82, 0.4)');
+  gradient.addColorStop(1, 'rgba(61, 33, 82, 0.92)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
 
-  // Top-left: RACEFUEL branding
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold italic 28px Inter, sans-serif';
-  ctx.fillText('RACEFUEL', 30, 50);
+  // Top overlay for branding
+  const topGradient = ctx.createLinearGradient(0, 0, 0, height * 0.12);
+  topGradient.addColorStop(0, 'rgba(61, 33, 82, 0.7)');
+  topGradient.addColorStop(1, 'rgba(61, 33, 82, 0)');
+  ctx.fillStyle = topGradient;
+  ctx.fillRect(0, 0, width, height * 0.12);
+
+  // Top-left: fuelcue branding
+  ctx.fillStyle = '#F5A020';
+  ctx.font = 'bold 32px Montserrat, Inter, sans-serif';
+  ctx.fillText('fuelcue', 30, 50);
+
+  // Tagline
+  ctx.fillStyle = 'rgba(255, 205, 107, 0.6)';
+  ctx.font = '500 12px Montserrat, sans-serif';
+  ctx.letterSpacing = '3px';
+  ctx.fillText('ROUTE AWARE NUTRITION', 30, 72);
 
   // Bottom left: Route stats
   const bottomY = height - 30;
-  ctx.fillStyle = '#10b981';
-  ctx.font = 'bold 24px "JetBrains Mono", monospace';
+  ctx.fillStyle = '#FFCD6B';
+  ctx.font = 'bold 28px Montserrat, sans-serif';
   ctx.fillText(routeData.name || 'Untitled Route', 30, bottomY - 80);
 
   ctx.fillStyle = '#ffffff';
-  ctx.font = '18px "JetBrains Mono", monospace';
+  ctx.font = '500 18px Montserrat, sans-serif';
   ctx.fillText(
     `${routeData.distanceKm.toFixed(1)}km  |  ${routeData.elevationGain}m gain  |  ${routeData.nutritionPoints.length} nutrition points`,
     30,
@@ -78,8 +92,8 @@ export async function exportMapImage(
 
   const totalCarbs = routeData.nutritionPoints.reduce((s, p) => s + p.product.carbs, 0);
   const totalCost = routeData.nutritionPoints.reduce((s, p) => s + (p.product.priceZAR || 0), 0);
-  ctx.fillStyle = '#a0a0a0';
-  ctx.font = '16px "JetBrains Mono", monospace';
+  ctx.fillStyle = 'rgba(245, 160, 32, 0.8)';
+  ctx.font = '16px Montserrat, sans-serif';
   ctx.fillText(
     `${totalCarbs}g carbs  |  R${totalCost.toFixed(2)} total`,
     30,
@@ -94,7 +108,7 @@ export async function exportMapImage(
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `${(routeData.name || 'racefuel').replace(/\s+/g, '_')}_map_${dimension}.png`;
+  a.download = `${(routeData.name || 'fuelcue').replace(/\s+/g, '_')}_map_${dimension}.png`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

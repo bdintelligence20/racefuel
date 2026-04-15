@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { Toaster } from 'sonner';
 import { AppProvider, useApp } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { AuthScreen } from './components/AuthScreen';
 import { Sidebar } from './components/Sidebar';
 import { MapCanvas } from './components/MapCanvas';
 import { NutritionPanel } from './components/NutritionPanel';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ActionBar } from './components/ActionBar';
+import { LandingPage } from './components/LandingPage';
 import { Menu, X, Map, Package } from 'lucide-react';
 
 type MobileTab = 'map' | 'nutrition';
@@ -23,29 +26,38 @@ function MobileNav({
   setSidebarOpen: (o: boolean) => void;
 }) {
   return (
-    <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-surface/95 backdrop-blur-md border-b border-white/[0.06] flex items-center justify-between px-4 py-2 safe-top">
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="p-2 rounded-lg hover:bg-white/[0.06] transition-colors text-white"
-      >
-        {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </button>
-      <h1 className="text-base font-extrabold tracking-tight text-white">
-        Fuel<span className="text-accent">Cue</span>
-      </h1>
-      <div className="flex gap-1">
+    <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-surface border-b border-[var(--color-border)] safe-top">
+      <div className="flex items-center gap-3 px-3 py-2">
+        {/* Hamburger */}
         <button
-          onClick={() => setActiveTab('map')}
-          className={`p-2 rounded-lg transition-colors ${activeTab === 'map' ? 'text-accent bg-accent/10' : 'text-text-muted hover:text-white'}`}
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl hover:bg-accent/[0.06] transition-colors text-text-primary"
         >
-          <Map className="w-5 h-5" />
+          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
-        <button
-          onClick={() => setActiveTab('nutrition')}
-          className={`p-2 rounded-lg transition-colors ${activeTab === 'nutrition' ? 'text-accent bg-accent/10' : 'text-text-muted hover:text-white'}`}
-        >
-          <Package className="w-5 h-5" />
-        </button>
+
+        {/* Tab switcher — centered */}
+        <div className="flex-1 flex justify-center">
+          <div className="flex bg-surfaceHighlight rounded-xl p-1 border border-[var(--color-border)]">
+            <button
+              onClick={() => setActiveTab('map')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all text-sm font-display font-semibold ${activeTab === 'map' ? 'bg-surface text-warm shadow-sm' : 'text-text-muted'}`}
+            >
+              <Map className="w-4 h-4" />
+              Map
+            </button>
+            <button
+              onClick={() => setActiveTab('nutrition')}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all text-sm font-display font-semibold ${activeTab === 'nutrition' ? 'bg-surface text-warm shadow-sm' : 'text-text-muted'}`}
+            >
+              <Package className="w-4 h-4" />
+              Fuel
+            </button>
+          </div>
+        </div>
+
+        {/* Spacer to balance hamburger */}
+        <div className="w-10 flex-shrink-0" />
       </div>
     </div>
   );
@@ -55,6 +67,36 @@ function AppContent() {
   const { onboardingComplete } = useApp();
   const [mobileTab, setMobileTab] = useState<MobileTab>('map');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showLanding, setShowLanding] = useState(() => {
+    return localStorage.getItem('fuelcue_seen_landing') !== 'true';
+  });
+
+  const handleEnterApp = () => {
+    setShowLanding(false);
+    localStorage.setItem('fuelcue_seen_landing', 'true');
+  };
+
+  if (showLanding) {
+    return (
+      <>
+        <LandingPage onEnterApp={handleEnterApp} />
+        <Toaster
+          position="bottom-center"
+          toastOptions={{
+            style: {
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-primary)',
+              fontFamily: '"Montserrat", sans-serif',
+              fontSize: '12px',
+              borderRadius: '12px',
+              boxShadow: '0 4px 20px rgba(61, 33, 82, 0.08)',
+            },
+          }}
+        />
+      </>
+    );
+  }
 
   return (
     <div className="flex w-full h-screen bg-background overflow-hidden font-sans">
@@ -74,12 +116,12 @@ function AppContent() {
 
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
-      <div className={`flex-1 flex flex-col relative pt-12 lg:pt-0 ${mobileTab === 'map' ? 'flex' : 'hidden lg:flex'}`}>
+      <div className={`flex-1 flex flex-col relative pt-14 lg:pt-0 ${mobileTab === 'map' ? 'flex' : 'hidden lg:flex'}`}>
         <ErrorBoundary>
           <MapCanvas />
         </ErrorBoundary>
@@ -87,7 +129,7 @@ function AppContent() {
       </div>
 
       <div className={`
-        fixed lg:relative right-0 top-12 lg:top-0 bottom-0 z-30
+        fixed lg:relative left-0 right-0 lg:left-auto top-14 lg:top-0 bottom-0 z-30
         ${mobileTab === 'nutrition' ? 'block' : 'hidden lg:block'}
       `}>
         <ErrorBoundary>
@@ -101,12 +143,13 @@ function AppContent() {
         position="bottom-center"
         toastOptions={{
           style: {
-            background: '#18181b',
-            border: '1px solid rgba(255,255,255,0.06)',
-            color: '#fafafa',
-            fontFamily: '"JetBrains Mono", monospace',
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border)',
+            color: 'var(--color-text-primary)',
+            fontFamily: '"Montserrat", sans-serif',
             fontSize: '12px',
             borderRadius: '12px',
+            boxShadow: '0 4px 20px rgba(61, 33, 82, 0.08)',
           },
         }}
       />
@@ -114,12 +157,37 @@ function AppContent() {
   );
 }
 
+function AuthGate() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-background">
+        <div className="text-center">
+          <img src="/logo.png" alt="fuelcue" className="h-16 w-auto mx-auto mb-4" />
+          <div className="w-8 h-8 border-2 border-warm border-t-transparent rounded-full animate-spin mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
+
+  return (
+    <AppProvider>
+      <AppContent />
+    </AppProvider>
+  );
+}
+
 export function App() {
   return (
     <ErrorBoundary>
-      <AppProvider>
-        <AppContent />
-      </AppProvider>
+      <AuthProvider>
+        <AuthGate />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Download, Undo2, Redo2, Shield } from 'lucide-react';
+import { Download, Undo2, Redo2, Shield, MessageSquare } from 'lucide-react';
 import { ExportModal } from './export/ExportModal';
+import { FeedbackModal } from './FeedbackModal';
 import { PlanWarnings } from './PlanWarnings';
 
 export function ActionBar() {
   const { routeData, planValidation, canUndo, canRedo, undo, redo } = useApp();
   const [exportOpen, setExportOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   if (!routeData.loaded) return null;
 
@@ -24,106 +26,73 @@ export function ActionBar() {
 
   return (
     <>
-      <div className="bg-surface/95 backdrop-blur-md border-t border-white/[0.06] p-3 lg:p-4 flex flex-col gap-2 lg:gap-3">
+      <div className="bg-surface border-t border-[var(--color-border)] px-4 py-3 lg:px-5 lg:py-3 flex flex-col gap-2 safe-bottom">
         {/* Warnings */}
         {planValidation && planValidation.warnings.length > 0 && (
           <PlanWarnings warnings={planValidation.warnings} compact />
         )}
 
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div>
-              <div className="text-[10px] text-text-secondary uppercase tracking-wider">
-                Distance
-              </div>
-              <div className="text-xl font-mono font-bold text-white">
-                {routeData.distanceKm.toFixed(1)}km
-              </div>
+        {/* Stats row */}
+        <div className="flex items-center gap-3 overflow-x-auto">
+          {[
+            { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-text-primary' },
+            { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : carbsPerHour > 90 ? 'text-terrain-rust' : 'text-warm' },
+            { label: 'Total', value: totalCarbs + 'g', color: 'text-warm' },
+            { label: 'Cost', value: 'R' + totalCost.toFixed(0), color: 'text-accent' },
+            ...(planValidation ? [{ label: 'Score', value: String(planValidation.score), color: planValidation.score >= 80 ? 'text-accent' : planValidation.score >= 50 ? 'text-warm' : 'text-terrain-rust' }] : []),
+          ].map((stat) => (
+            <div key={stat.label} className="flex-shrink-0">
+              <div className="text-[9px] text-text-muted uppercase tracking-wider font-display">{stat.label}</div>
+              <div className={`text-sm font-display font-bold ${stat.color}`}>{stat.value}</div>
             </div>
-            <div>
-              <div className="text-[10px] text-text-secondary uppercase tracking-wider">
-                Points
-              </div>
-              <div className="text-xl font-mono font-bold text-accent">
-                {routeData.nutritionPoints.length}
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] text-text-secondary uppercase tracking-wider">
-                Carbs/hr
-              </div>
-              <div className={`text-xl font-mono font-bold ${
-                carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent-light' :
-                carbsPerHour > 90 ? 'text-red-400' : 'text-warm'
-              }`}>
-                {carbsPerHour}g
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] text-text-secondary uppercase tracking-wider">
-                Total Carbs
-              </div>
-              <div className="text-xl font-mono font-bold text-warm">
-                {totalCarbs}g
-              </div>
-            </div>
-            <div>
-              <div className="text-[10px] text-text-secondary uppercase tracking-wider">
-                Est. Cost
-              </div>
-              <div className="text-xl font-mono font-bold text-accent-light">
-                R{totalCost.toFixed(2)}
-              </div>
-            </div>
-            {planValidation && (
-              <div>
-                <div className="text-[10px] text-text-secondary uppercase tracking-wider">
-                  Plan Score
-                </div>
-                <div className={`text-xl font-mono font-bold flex items-center gap-1 ${
-                  planValidation.score >= 80 ? 'text-accent-light' :
-                  planValidation.score >= 50 ? 'text-yellow-400' : 'text-red-400'
-                }`}>
-                  <Shield className="w-4 h-4" />
-                  {planValidation.score}
-                </div>
-              </div>
-            )}
-          </div>
+          ))}
+        </div>
 
-          <div className="flex items-center gap-2">
-            {/* Undo/Redo */}
+        {/* Actions row */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <button
               onClick={undo}
               disabled={!canUndo}
-              className="p-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/[0.06] text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              title="Undo (Ctrl+Z)"
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent/[0.08] active:scale-95 transition-all"
+              title="Undo"
             >
               <Undo2 className="w-4 h-4" />
             </button>
             <button
               onClick={redo}
               disabled={!canRedo}
-              className="p-2.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/[0.06] text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              title="Redo (Ctrl+Shift+Z)"
+              className="w-10 h-10 flex items-center justify-center rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent/[0.08] active:scale-95 transition-all"
+              title="Redo"
             >
               <Redo2 className="w-4 h-4" />
             </button>
-
-            {/* Export */}
-            <button
-              onClick={() => setExportOpen(true)}
-              disabled={routeData.nutritionPoints.length === 0}
-              className="px-6 py-2.5 rounded-lg bg-accent hover:bg-accent-light text-black font-bold uppercase text-sm tracking-wider flex items-center gap-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-            >
-              <Download className="w-4 h-4" />
-              Export Plan
-            </button>
           </div>
+
+          <button
+            onClick={() => setFeedbackOpen(true)}
+            disabled={routeData.nutritionPoints.length === 0}
+            className="h-10 px-4 rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent/[0.08] active:scale-95 transition-all flex items-center gap-1.5 text-xs font-display font-medium"
+          >
+            <MessageSquare className="w-4 h-4" />
+            <span className="hidden sm:inline">Feedback</span>
+          </button>
+
+          <div className="flex-1" />
+
+          <button
+            onClick={() => setExportOpen(true)}
+            disabled={routeData.nutritionPoints.length === 0}
+            className="h-10 px-5 rounded-xl bg-accent hover:bg-accent-light text-white font-display font-bold uppercase text-xs tracking-wider flex items-center gap-2 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <Download className="w-4 h-4" />
+            Export
+          </button>
         </div>
       </div>
 
       <ExportModal isOpen={exportOpen} onClose={() => setExportOpen(false)} />
+      <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </>
   );
 }

@@ -94,23 +94,23 @@ export function CustomProductModal({ isOpen, onClose, onAdd }: CustomProductModa
 
   if (!isOpen) return null;
 
-  const inputClass = 'w-full bg-black/50 border border-white/[0.06] rounded-lg text-white text-xs font-mono p-2.5 focus:outline-none focus:border-accent transition-colors';
+  const inputClass = 'w-full bg-surface border border-[var(--color-border)] rounded-lg text-text-primary text-xs font-display p-2.5 focus:outline-none focus:border-accent transition-colors';
   const labelClass = 'text-[10px] text-text-secondary uppercase tracking-wider mb-1 block';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-md shadow-2xl">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
             <Plus className="w-5 h-5 text-accent" />
-            <h2 className="text-lg font-bold text-white">Custom Product</h2>
+            <h2 className="text-lg font-bold text-text-primary">Custom Product</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 transition-colors text-text-muted hover:text-white"
+            className="p-2 hover:bg-accent/[0.08] transition-colors text-text-muted hover:text-text-primary"
           >
             <X className="w-5 h-5" />
           </button>

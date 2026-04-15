@@ -24,9 +24,11 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
     routeData.nutritionPoints.forEach((point) => {
       const key = point.product.id;
       if (grouped.has(key)) {
-        const item = grouped.get(key)!;
-        item.quantity++;
-        item.points.push(point);
+        const item = grouped.get(key);
+        if (item) {
+          item.quantity++;
+          item.points.push(point);
+        }
       } else {
         grouped.set(key, {
           product: point.product,
@@ -71,21 +73,21 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
             <ShoppingCart className="w-5 h-5 text-accent" />
-            <h2 className="text-lg font-bold text-white">Nutrition Kit</h2>
+            <h2 className="text-lg font-bold text-text-primary">Nutrition Kit</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 transition-colors text-text-muted hover:text-white"
+            className="p-2 hover:bg-accent/[0.08] transition-colors text-text-muted hover:text-text-primary"
           >
             <X className="w-5 h-5" />
           </button>
@@ -93,11 +95,11 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
 
         {/* Route Info */}
         {routeData.loaded && (
-          <div className="px-4 py-3 bg-black/30 border-b border-white/[0.06]">
+          <div className="px-4 py-3 bg-surfaceHighlight border-b border-[var(--color-border)]">
             <div className="text-xs text-text-muted uppercase tracking-wider">
               Kit for route
             </div>
-            <div className="text-sm font-bold text-white">
+            <div className="text-sm font-bold text-text-primary">
               {routeData.name} ({routeData.distanceKm.toFixed(1)}km)
             </div>
           </div>
@@ -118,10 +120,10 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
               {cartItems.map((item) => (
                 <div
                   key={item.product.id}
-                  className="flex gap-3 p-3 bg-surfaceHighlight border border-white/[0.04] rounded-lg"
+                  className="flex gap-3 p-3 bg-surfaceHighlight border border-[var(--color-border)] rounded-lg"
                 >
                   {/* Product Image */}
-                  <div className="w-14 h-14 flex-shrink-0 bg-white/5 rounded overflow-hidden">
+                  <div className="w-14 h-14 flex-shrink-0 bg-surfaceHighlight rounded overflow-hidden">
                     <img
                       src={item.product.image}
                       alt={item.product.name}
@@ -134,7 +136,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                     <div className="text-[10px] text-text-muted uppercase">
                       {item.product.brand}
                     </div>
-                    <div className="text-sm font-bold text-white truncate">
+                    <div className="text-sm font-bold text-text-primary truncate">
                       {item.product.name}
                     </div>
                     <div className="text-xs text-text-secondary">
@@ -144,18 +146,18 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
 
                   {/* Quantity & Price */}
                   <div className="flex flex-col items-end justify-between">
-                    <div className="text-sm font-mono font-bold text-accent-light">
+                    <div className="text-sm font-display font-bold text-accent-light">
                       R{(item.product.priceZAR * item.quantity).toFixed(2)}
                     </div>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => removeOne(item)}
-                        className="p-1 hover:bg-white/10 text-text-muted hover:text-white transition-colors"
+                        className="p-1 hover:bg-accent/[0.08] text-text-muted hover:text-text-primary transition-colors"
                         title="Remove one"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
-                      <span className="w-6 text-center text-sm font-mono text-white">
+                      <span className="w-6 text-center text-sm font-display text-text-primary">
                         {item.quantity}
                       </span>
                       <button
@@ -175,33 +177,33 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
 
         {/* Summary */}
         {cartItems.length > 0 && (
-          <div className="p-4 border-t border-white/[0.06] bg-surfaceHighlight space-y-3">
+          <div className="p-4 border-t border-[var(--color-border)] bg-surfaceHighlight space-y-3">
             {/* Nutrition Summary */}
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="p-2 bg-black/30 rounded">
+              <div className="p-2 bg-surfaceHighlight rounded">
                 <div className="text-[10px] text-text-muted uppercase">Items</div>
-                <div className="text-lg font-mono font-bold text-white">
+                <div className="text-lg font-display font-bold text-text-primary">
                   {routeData.nutritionPoints.length}
                 </div>
               </div>
-              <div className="p-2 bg-black/30 rounded">
+              <div className="p-2 bg-surfaceHighlight rounded">
                 <div className="text-[10px] text-text-muted uppercase">Total Carbs</div>
-                <div className="text-lg font-mono font-bold text-accent">
+                <div className="text-lg font-display font-bold text-accent">
                   {totalCarbs}g
                 </div>
               </div>
-              <div className="p-2 bg-black/30 rounded">
+              <div className="p-2 bg-surfaceHighlight rounded">
                 <div className="text-[10px] text-text-muted uppercase">Calories</div>
-                <div className="text-lg font-mono font-bold text-white">
+                <div className="text-lg font-display font-bold text-text-primary">
                   {totalCalories}
                 </div>
               </div>
             </div>
 
             {/* Total */}
-            <div className="flex items-center justify-between py-3 border-t border-white/[0.06]">
+            <div className="flex items-center justify-between py-3 border-t border-[var(--color-border)]">
               <span className="text-sm text-text-secondary uppercase">Total</span>
-              <span className="text-2xl font-mono font-bold text-accent-light">
+              <span className="text-2xl font-display font-bold text-accent-light">
                 R{totalCost.toFixed(2)}
               </span>
             </div>

@@ -5,14 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "npx vite",
-    "build": "npx vite build",
+    "build": "node scripts/generate-xml-feed.mjs && npx vite build",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "preview": "npx vite preview",
+    "feed": "node scripts/generate-xml-feed.mjs",
+    "generate-products": "node scripts/generate-products.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
     "dexie": "^4.3.0",
+    "firebase": "^12.12.0",
+    "framer-motion": "^12.38.0",
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "0.522.0",
@@ -37,6 +41,7 @@
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.1",
     "jsdom": "^28.1.0",
+    "playwright-core": "^1.59.1",
     "postcss": "latest",
     "tailwindcss": "3.4.17",
     "typescript": "^5.5.4",

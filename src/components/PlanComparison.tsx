@@ -65,19 +65,19 @@ function MetricRow({
   const isBetter = higherIsBetter ? diff >= 0 : diff <= 0;
 
   return (
-    <div className="grid grid-cols-4 gap-2 items-center py-2 border-b border-white/[0.04]">
+    <div className="grid grid-cols-4 gap-2 items-center py-2 border-b border-[var(--color-border)]">
       <div className="flex items-center gap-2 text-text-secondary">
         <Icon className="w-3.5 h-3.5" />
         <span className="text-[10px] uppercase tracking-wider">{label}</span>
       </div>
       <div className="text-center">
-        <span className="text-sm font-mono font-bold text-white">{current}{unit}</span>
+        <span className="text-sm font-display font-bold text-text-primary">{current}{unit}</span>
       </div>
       <div className="text-center">
-        <span className="text-sm font-mono font-bold text-warm">{recommended}{unit}</span>
+        <span className="text-sm font-display font-bold text-warm">{recommended}{unit}</span>
       </div>
       <div className="text-center">
-        <span className={`text-xs font-mono font-bold ${isBetter ? 'text-accent-light' : 'text-red-400'}`}>
+        <span className={`text-xs font-display font-bold ${isBetter ? 'text-accent-light' : 'text-red-400'}`}>
           {diff > 0 ? '+' : ''}{pctDiff}%
         </span>
       </div>
@@ -114,20 +114,20 @@ export function PlanComparison({ isOpen, onClose }: PlanComparisonProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div>
-            <h2 className="text-lg font-bold text-white">Plan Comparison</h2>
-            <p className="text-[10px] text-text-muted font-mono uppercase tracking-wider">
+            <h2 className="text-lg font-bold text-text-primary">Plan Comparison</h2>
+            <p className="text-[10px] text-text-muted font-display uppercase tracking-wider">
               {routeData.name} &middot; {routeData.distanceKm.toFixed(1)}km
             </p>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 transition-colors text-text-muted hover:text-white"
+            className="p-2 hover:bg-accent/[0.08] transition-colors text-text-muted hover:text-text-primary"
           >
             <X className="w-5 h-5" />
           </button>
@@ -136,25 +136,25 @@ export function PlanComparison({ isOpen, onClose }: PlanComparisonProps) {
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
           {/* Timeline Overlay */}
           <div>
-            <h3 className="text-xs font-bold text-white uppercase tracking-wider mb-3">
+            <h3 className="text-xs font-bold text-text-primary uppercase tracking-wider mb-3">
               Nutrition Timeline
             </h3>
             <div className="space-y-2">
               {/* Current plan timeline */}
               <div>
                 <div className="text-[10px] text-text-muted mb-1 uppercase">Your Plan</div>
-                <div className="h-6 bg-black/50 border border-white/[0.06] relative rounded-sm overflow-hidden">
+                <div className="h-6 bg-surface border border-[var(--color-border)] relative rounded-sm overflow-hidden">
                   {currentSorted.map((p) => {
                     const left = (p.distanceKm / maxKm) * 100;
                     const colorMap: Record<string, string> = {
-                      orange: '#10b981', blue: '#f59e0b', white: '#ffffff',
-                      green: '#34d399', red: '#ef4444', yellow: '#eab308',
+                      orange: '#F5A020', blue: '#3D2152', white: '#6B5A7A',
+                      green: '#E8671A', red: '#C94A1A', yellow: '#F5B830',
                     };
                     return (
                       <div
                         key={p.id}
                         className="absolute top-0 bottom-0 w-1"
-                        style={{ left: `${left}%`, backgroundColor: colorMap[p.product.color] || '#10b981' }}
+                        style={{ left: `${left}%`, backgroundColor: colorMap[p.product.color] || '#F5A020' }}
                         title={`${p.product.name} @ ${p.distanceKm.toFixed(1)}km`}
                       />
                     );
@@ -166,7 +166,7 @@ export function PlanComparison({ isOpen, onClose }: PlanComparisonProps) {
               {recSorted.length > 0 && (
                 <div>
                   <div className="text-[10px] text-warm mb-1 uppercase">Recommended</div>
-                  <div className="h-6 bg-black/50 border border-warm/20 relative rounded-sm overflow-hidden">
+                  <div className="h-6 bg-surface border border-warm/20 relative rounded-sm overflow-hidden">
                     {recSorted.map((p) => {
                       const left = (p.distanceKm / maxKm) * 100;
                       return (
@@ -183,7 +183,7 @@ export function PlanComparison({ isOpen, onClose }: PlanComparisonProps) {
               )}
 
               {/* Distance axis */}
-              <div className="flex justify-between text-[9px] font-mono text-text-muted">
+              <div className="flex justify-between text-[9px] font-display text-text-muted">
                 <span>0km</span>
                 <span>{(maxKm * 0.25).toFixed(0)}km</span>
                 <span>{(maxKm * 0.5).toFixed(0)}km</span>
@@ -195,9 +195,9 @@ export function PlanComparison({ isOpen, onClose }: PlanComparisonProps) {
 
           {/* Metrics Comparison */}
           <div>
-            <div className="grid grid-cols-4 gap-2 pb-2 border-b border-white/[0.06]">
+            <div className="grid grid-cols-4 gap-2 pb-2 border-b border-[var(--color-border)]">
               <div className="text-[10px] text-text-muted uppercase tracking-wider">Metric</div>
-              <div className="text-[10px] text-white uppercase tracking-wider text-center">Your Plan</div>
+              <div className="text-[10px] text-text-primary uppercase tracking-wider text-center">Your Plan</div>
               <div className="text-[10px] text-warm uppercase tracking-wider text-center">
                 {recommendedMetrics ? 'Recommended' : 'Target'}
               </div>
@@ -251,28 +251,28 @@ export function PlanComparison({ isOpen, onClose }: PlanComparisonProps) {
 
           {/* Summary Cards */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-black/30 border border-white/[0.06] p-4">
+            <div className="bg-surfaceHighlight border border-[var(--color-border)] p-4">
               <div className="text-[10px] text-text-muted uppercase tracking-wider mb-2">Your Plan</div>
-              <div className="text-2xl font-mono font-bold text-white">{currentMetrics.pointCount}</div>
+              <div className="text-2xl font-display font-bold text-text-primary">{currentMetrics.pointCount}</div>
               <div className="text-xs text-text-secondary">nutrition points</div>
-              <div className="mt-2 text-xs font-mono text-text-muted">
+              <div className="mt-2 text-xs font-display text-text-muted">
                 Avg gap: {currentMetrics.avgGapKm.toFixed(1)}km
               </div>
             </div>
-            <div className="bg-black/30 border border-warm/20 p-4">
+            <div className="bg-surfaceHighlight border border-warm/20 p-4">
               <div className="text-[10px] text-warm uppercase tracking-wider mb-2">Recommended</div>
-              <div className="text-2xl font-mono font-bold text-warm">
+              <div className="text-2xl font-display font-bold text-warm">
                 {recommendedMetrics?.pointCount ?? '—'}
               </div>
               <div className="text-xs text-text-secondary">nutrition points</div>
-              <div className="mt-2 text-xs font-mono text-text-muted">
+              <div className="mt-2 text-xs font-display text-text-muted">
                 Avg gap: {recommendedMetrics ? recommendedMetrics.avgGapKm.toFixed(1) : '—'}km
               </div>
             </div>
           </div>
 
           {!recommendedMetrics && (
-            <div className="bg-surfaceHighlight border border-white/[0.06] p-4 text-center">
+            <div className="bg-surfaceHighlight border border-[var(--color-border)] p-4 text-center">
               <p className="text-xs text-text-secondary">
                 Generate an auto plan first to see a full comparison.
                 <br />Showing default targets for now.

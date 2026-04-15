@@ -86,7 +86,7 @@ export function PlanWarnings({ warnings, onDismiss, compact }: PlanWarningsProps
             {onDismiss && (
               <button
                 onClick={() => onDismiss(w.id)}
-                className="text-text-muted hover:text-white p-1"
+                className="text-text-muted hover:text-text-primary p-1"
               >
                 <X className="w-3 h-3" />
               </button>

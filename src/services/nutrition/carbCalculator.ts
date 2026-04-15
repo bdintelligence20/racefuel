@@ -72,7 +72,7 @@ export function calculateCarbTarget(input: CarbTargetInput): CarbTarget {
 export function calculateProgressiveCarbTargets(
   durationHours: number,
   peakTarget: number,
-  numSegments: number = 4
+  numSegments = 4
 ): { startHour: number; endHour: number; targetGPerHr: number }[] {
   const segments: { startHour: number; endHour: number; targetGPerHr: number }[] = [];
   const segmentDuration = durationHours / numSegments;

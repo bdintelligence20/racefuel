@@ -7,6 +7,8 @@ import { analyzeRoute, RouteAnalysis } from '../services/route/routeAnalyzer';
 import { generatePlan, GeneratedPlan } from '../services/nutrition/planGenerator';
 import { validatePlan, ValidationResult } from '../services/nutrition/planValidator';
 import { autoSavePlan, loadAutoSavedPlan, clearAutoSave } from '../persistence/db';
+import * as firestoreService from '../services/firebase/firestore';
+import { getCurrentUser } from '../services/firebase/auth';
 import {
   StravaActivitySummary,
   StravaAuthState,
@@ -88,6 +90,7 @@ interface AppContextType {
   moveNutritionPoint: (id: string, newDistanceKm: number) => void;
   autoGeneratePlan: () => void;
   resetRoute: () => void;
+  loadSavedRoute: (routeData: RouteData) => void;
 
   // Strava methods
   connectStrava: () => void;
@@ -143,6 +146,13 @@ function loadStoredProfile(): UserProfile {
 function saveProfile(profile: UserProfile): void {
   try {
     localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    // Sync to Firestore if authenticated
+    if (getCurrentUser()) {
+      firestoreService.saveProfile({
+        ...profile,
+        onboardingComplete: localStorage.getItem('fuelcue_onboarding_complete') === 'true',
+      }).catch(console.error);
+    }
   } catch (e) {
     console.error('Failed to save profile:', e);
   }
@@ -160,7 +170,9 @@ interface HistoryEntry {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [onboardingComplete, setOnboardingComplete] = useState(false);
+  const [onboardingComplete, setOnboardingComplete] = useState(() => {
+    return localStorage.getItem('fuelcue_onboarding_complete') === 'true';
+  });
   const [userProfile, setUserProfile] = useState<UserProfile>(loadStoredProfile);
   const [routeData, setRouteData] = useState<RouteData>(defaultRoute);
   // Analysis & validation
@@ -189,7 +201,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const undo = useCallback(() => {
     if (undoStack.current.length === 0) return;
-    const entry = undoStack.current.pop()!;
+    const entry = undoStack.current.pop();
+    if (!entry) return;
     setRouteData(prev => {
       redoStack.current.push({ nutritionPoints: [...prev.nutritionPoints] });
       setCanRedo(true);
@@ -200,7 +213,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const redo = useCallback(() => {
     if (redoStack.current.length === 0) return;
-    const entry = redoStack.current.pop()!;
+    const entry = redoStack.current.pop();
+    if (!entry) return;
     setRouteData(prev => {
       undoStack.current.push({ nutritionPoints: [...prev.nutritionPoints] });
       setCanUndo(true);
@@ -265,6 +279,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
+      // Save to IndexedDB (local)
       autoSavePlan(
         JSON.stringify(routeData),
         routeData.name,
@@ -273,6 +288,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         routeData.estimatedTime,
         routeData.source
       ).catch(console.error);
+      // Sync to Firestore (cloud)
+      if (getCurrentUser()) {
+        firestoreService.autoSave(JSON.stringify(routeData), {
+          routeName: routeData.name,
+          distanceKm: routeData.distanceKm,
+          elevationGain: routeData.elevationGain,
+          estimatedTime: routeData.estimatedTime,
+          source: routeData.source,
+        }).catch(console.error);
+      }
     }, 1000);
 
     return () => {
@@ -280,9 +305,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [routeData]);
 
-  // Restore auto-saved plan on mount
+  // Restore auto-saved plan on mount — try Firestore first, then IndexedDB
   useEffect(() => {
-    loadAutoSavedPlan().then(saved => {
+    const restoreFromCloud = async () => {
+      if (getCurrentUser()) {
+        try {
+          const cloudSave = await firestoreService.loadAutoSave();
+          if (cloudSave?.routeDataJson) {
+            const restored = JSON.parse(cloudSave.routeDataJson) as RouteData;
+            if (restored.loaded && restored.nutritionPoints.length > 0) {
+              setRouteData(restored);
+              return; // Cloud data found, skip local
+            }
+          }
+        } catch (e) {
+          console.error('Failed to restore from Firestore:', e);
+        }
+      }
+      // Fall back to local IndexedDB
+      const saved = await loadAutoSavedPlan();
       if (saved) {
         try {
           const restored = JSON.parse(saved.routeDataJson) as RouteData;
@@ -291,6 +332,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }
         } catch (e) {
           console.error('Failed to restore autosave:', e);
+        }
+      }
+    };
+    restoreFromCloud().catch(console.error);
+  }, []);
+
+  // Load profile from Firestore on mount
+  useEffect(() => {
+    if (!getCurrentUser()) return;
+    firestoreService.loadProfile().then(cloudProfile => {
+      if (cloudProfile) {
+        const restored: UserProfile = {
+          weight: cloudProfile.weight ?? defaultProfile.weight,
+          height: cloudProfile.height ?? defaultProfile.height,
+          sweatRate: cloudProfile.sweatRate ?? defaultProfile.sweatRate,
+          ftp: cloudProfile.ftp ?? defaultProfile.ftp,
+        };
+        setUserProfile(restored);
+        localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(restored));
+        if (cloudProfile.onboardingComplete) {
+          setOnboardingComplete(true);
+          localStorage.setItem('fuelcue_onboarding_complete', 'true');
         }
       }
     }).catch(console.error);
@@ -438,7 +501,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [strava.athlete]);
 
-  const completeOnboarding = () => setOnboardingComplete(true);
+  const completeOnboarding = () => {
+    setOnboardingComplete(true);
+    localStorage.setItem('fuelcue_onboarding_complete', 'true');
+  };
 
   const updateProfile = (data: Partial<UserProfile>) => {
     setUserProfile((prev) => {
@@ -471,7 +537,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loadDemoRoute = (name: string = 'Demo Route') => {
+  const loadDemoRoute = (name = 'Demo Route') => {
     const gpsPath: GpsPoint[] = [];
     const numPoints = 100;
     const baseLat = -33.9249;
@@ -574,6 +640,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loadSavedRoute = (saved: RouteData) => {
+    undoStack.current = [];
+    redoStack.current = [];
+    setCanUndo(false);
+    setCanRedo(false);
+    setLastGeneratedPlan(null);
+    setRouteData(saved);
+  };
+
   const resetRoute = () => {
     setRouteData(defaultRoute);
     setRouteAnalysis(null);
@@ -592,6 +667,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setStravaActivities([]);
     clearStoredProfile();
     setOnboardingComplete(false);
+    localStorage.removeItem('fuelcue_onboarding_complete');
+    localStorage.removeItem('fuelcue_seen_landing');
     setUserProfile(defaultProfile);
     setRouteData(defaultRoute);
     setRouteAnalysis(null);
@@ -631,6 +708,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         moveNutritionPoint,
         autoGeneratePlan,
         resetRoute,
+        loadSavedRoute,
 
         connectStrava,
         disconnectStrava,

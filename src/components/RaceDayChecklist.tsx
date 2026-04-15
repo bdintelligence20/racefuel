@@ -60,9 +60,11 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
     routeData.nutritionPoints.forEach((point) => {
       const key = point.product.id;
       if (grouped.has(key)) {
-        const item = grouped.get(key)!;
-        item.quantity++;
-        item.points.push(point);
+        const item = grouped.get(key);
+        if (item) {
+          item.quantity++;
+          item.points.push(point);
+        }
       } else {
         grouped.set(key, {
           product: point.product,
@@ -143,15 +145,15 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
             <Package className="w-5 h-5 text-accent" />
             <div>
-              <h2 className="text-lg font-bold text-white">Race Day Checklist</h2>
+              <h2 className="text-lg font-bold text-text-primary">Race Day Checklist</h2>
               <p className="text-[10px] text-text-muted uppercase tracking-wider">
                 {routeData.name || 'No route loaded'}
               </p>
@@ -160,14 +162,14 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
           <div className="flex items-center gap-2">
             <button
               onClick={handlePrint}
-              className="p-2 hover:bg-white/10 transition-colors text-text-muted hover:text-white"
+              className="p-2 hover:bg-accent/[0.08] transition-colors text-text-muted hover:text-text-primary"
               title="Print checklist"
             >
               <Printer className="w-4 h-4" />
             </button>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/10 transition-colors text-text-muted hover:text-white"
+              className="p-2 hover:bg-accent/[0.08] transition-colors text-text-muted hover:text-text-primary"
             >
               <X className="w-5 h-5" />
             </button>
@@ -175,12 +177,12 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
         </div>
 
         {/* Progress Bar */}
-        <div className="px-4 py-3 border-b border-white/[0.06] bg-black/30">
+        <div className="px-4 py-3 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-text-secondary uppercase tracking-wider">
               Packing Progress
             </span>
-            <span className="text-xs font-mono text-white">
+            <span className="text-xs font-display text-text-primary">
               {checkedCount}/{totalItems} packed
             </span>
           </div>
@@ -210,7 +212,7 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
               const groupChecked = items.every(item => checkedState[item.product.id]);
 
               return (
-                <div key={category} className="border-b border-white/[0.04]">
+                <div key={category} className="border-b border-[var(--color-border)]">
                   {/* Category Header */}
                   <button
                     onClick={() => toggleGroup(category)}
@@ -218,10 +220,10 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
                   >
                     <div className="flex items-center gap-3">
                       <div className={`w-2 h-2 rounded-full ${groupChecked ? 'bg-accent-light' : 'bg-text-muted'}`} />
-                      <span className="text-xs font-bold text-white uppercase tracking-wider">
+                      <span className="text-xs font-bold text-text-primary uppercase tracking-wider">
                         {categoryLabels[category] || category}
                       </span>
-                      <span className="text-[10px] text-text-muted font-mono">
+                      <span className="text-[10px] text-text-muted font-display">
                         ({items.length} {items.length === 1 ? 'item' : 'items'})
                       </span>
                     </div>
@@ -234,7 +236,7 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
 
                   {/* Items */}
                   {isExpanded && (
-                    <div className="divide-y divide-white/[0.04]">
+                    <div className="divide-y divide-[var(--color-border)]">
                       {items.map((item, idx) => {
                         const isChecked = checkedState[item.product.id] || false;
                         const placement = suggestPlacement(item.product, idx, items.length);
@@ -244,20 +246,20 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
                             key={item.product.id}
                             onClick={() => toggleItem(item.product.id)}
                             className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-all ${
-                              isChecked ? 'bg-accent-light/5' : 'hover:bg-white/5'
+                              isChecked ? 'bg-accent-light/5' : 'hover:bg-surfaceHighlight'
                             }`}
                           >
                             {/* Checkbox */}
                             <div className={`w-5 h-5 border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                               isChecked
                                 ? 'bg-accent-light border-accent-light'
-                                : 'border-white/20 hover:border-white/40'
+                                : 'border-[var(--color-border)] hover:border-accent/40'
                             }`}>
                               {isChecked && <Check className="w-3 h-3 text-black" />}
                             </div>
 
                             {/* Product Image */}
-                            <div className="w-10 h-10 flex-shrink-0 bg-white/5 rounded overflow-hidden">
+                            <div className="w-10 h-10 flex-shrink-0 bg-surfaceHighlight rounded overflow-hidden">
                               <img
                                 src={item.product.image}
                                 alt={item.product.name}
@@ -270,10 +272,10 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
                             {/* Product Info */}
                             <div className={`flex-1 min-w-0 ${isChecked ? 'opacity-50' : ''}`}>
                               <div className="flex items-center gap-2">
-                                <span className={`text-sm font-bold ${isChecked ? 'text-text-muted line-through' : 'text-white'}`}>
+                                <span className={`text-sm font-bold ${isChecked ? 'text-text-muted line-through' : 'text-text-primary'}`}>
                                   {item.product.name}
                                 </span>
-                                <span className="text-xs font-mono text-accent">
+                                <span className="text-xs font-display text-accent">
                                   x{item.quantity}
                                 </span>
                               </div>
@@ -283,7 +285,7 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
                             </div>
 
                             {/* Price */}
-                            <div className={`text-sm font-mono font-bold ${isChecked ? 'text-text-muted' : 'text-accent-light'}`}>
+                            <div className={`text-sm font-display font-bold ${isChecked ? 'text-text-muted' : 'text-accent-light'}`}>
                               R{(item.product.priceZAR * item.quantity).toFixed(2)}
                             </div>
                           </div>
@@ -299,24 +301,24 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
 
         {/* Footer */}
         {totalItems > 0 && (
-          <div className="p-4 border-t border-white/[0.06] bg-surfaceHighlight">
+          <div className="p-4 border-t border-[var(--color-border)] bg-surfaceHighlight">
             <div className="flex items-center justify-between mb-3">
               <div className="flex gap-2">
                 <button
                   onClick={checkAll}
-                  className="text-[10px] font-mono text-warm hover:text-white transition-colors uppercase"
+                  className="text-[10px] font-display text-warm hover:text-text-primary transition-colors uppercase"
                 >
                   Check All
                 </button>
                 <span className="text-text-muted">|</span>
                 <button
                   onClick={clearAll}
-                  className="text-[10px] font-mono text-text-muted hover:text-white transition-colors uppercase"
+                  className="text-[10px] font-display text-text-muted hover:text-text-primary transition-colors uppercase"
                 >
                   Clear All
                 </button>
               </div>
-              <span className="text-lg font-mono font-bold text-accent-light">
+              <span className="text-lg font-display font-bold text-accent-light">
                 R{totalCost.toFixed(2)}
               </span>
             </div>

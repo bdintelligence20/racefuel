@@ -79,7 +79,7 @@ describe('validatePlan', () => {
     const result = validatePlan(points, 100, 4, carbTarget);
     const carbWarning = result.warnings.find(w => w.id === 'carbs-low');
     expect(carbWarning).toBeDefined();
-    expect(carbWarning!.severity).toBe('critical');
+    expect(carbWarning?.severity).toBe('critical');
   });
 
   it('warns when carbs above maximum target', () => {
@@ -100,7 +100,7 @@ describe('validatePlan', () => {
     const result = validatePlan(points, 100, 4, undefined, undefined, undefined, 70);
     const cafWarning = result.warnings.find(w => w.id === 'caffeine-high');
     expect(cafWarning).toBeDefined();
-    expect(cafWarning!.severity).toBe('critical');
+    expect(cafWarning?.severity).toBe('critical');
   });
 
   it('calculates correct totals', () => {

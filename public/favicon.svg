@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#09090b"/>
-  <text x="256" y="240" font-family="Inter, Arial, sans-serif" font-weight="800" font-size="180" fill="#fafafa" text-anchor="middle" dominant-baseline="middle" letter-spacing="-10">fc</text>
-  <rect x="80" y="390" width="352" height="3" rx="1.5" fill="#10b981" opacity="0.6"/>
-  <circle cx="80" cy="391.5" r="6" fill="#10b981"/>
-  <circle cx="432" cy="391.5" r="6" fill="#10b981"/>
+  <rect width="512" height="512" rx="96" fill="#3D2152"/>
+  <!-- Mountain symbol -->
+  <path d="M256,80 L320,200 C330,220 350,230 370,224 L400,212 L290,420 C275,440 237,440 222,420 L112,212 L142,224 C162,230 182,220 192,200 Z" fill="#F5A020"/>
+  <!-- Subtle terrain line at bottom -->
+  <path d="M80,400 C150,380 250,410 350,385 C400,375 432,390 432,390" fill="none" stroke="#FFCD6B" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
 </svg>

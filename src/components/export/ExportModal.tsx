@@ -1,10 +1,12 @@
 
-import { X, FileText, Table, MapPin, Download, Image } from 'lucide-react';
+import { useState } from 'react';
+import { X, FileText, Table, MapPin, Download, Image, Share2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { downloadGpx } from '../../services/export/gpxExporter';
 import { downloadCsv } from '../../services/export/csvExporter';
 import { downloadPdf } from '../../services/export/pdfExporter';
 import { exportMapImage } from '../../services/export/mapImageExporter';
+import { ShareModal } from '../ShareModal';
 import { toast } from 'sonner';
 
 interface ExportModalProps {
@@ -23,6 +25,7 @@ interface ExportFormat {
 
 export function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const { routeData } = useApp();
+  const [shareOpen, setShareOpen] = useState(false);
 
   if (!isOpen) return null;
 
@@ -79,36 +82,46 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
         }
       },
     },
+    {
+      id: 'social-share',
+      name: 'Share for Social',
+      description: 'Branded image with nutrition overlay. Choose format and share directly.',
+      icon: Share2,
+      color: 'text-purple-400',
+      action: () => {
+        setShareOpen(true);
+      },
+    },
   ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-md shadow-2xl">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
             <Download className="w-5 h-5 text-accent" />
             <div>
-              <h2 className="text-lg font-bold text-white">Export Plan</h2>
-              <div className="text-xs text-text-muted font-mono">
+              <h2 className="text-lg font-bold text-text-primary">Export Plan</h2>
+              <div className="text-xs text-text-muted font-display">
                 {routeData.nutritionPoints.length} nutrition points
               </div>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 transition-colors text-text-muted hover:text-white"
+            className="p-2 hover:bg-accent/[0.08] transition-colors text-text-muted hover:text-text-primary"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Route Summary */}
-        <div className="px-4 py-3 bg-black/30 border-b border-white/[0.06]">
-          <div className="text-sm font-bold text-white">{routeData.name}</div>
-          <div className="text-xs text-text-muted font-mono">
+        <div className="px-4 py-3 bg-surfaceHighlight border-b border-[var(--color-border)]">
+          <div className="text-sm font-bold text-text-primary">{routeData.name}</div>
+          <div className="text-xs text-text-muted font-display">
             {routeData.distanceKm.toFixed(1)}km | {routeData.elevationGain}m gain | Est. {routeData.estimatedTime}
           </div>
         </div>
@@ -121,13 +134,13 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
               <button
                 key={format.id}
                 onClick={format.action}
-                className="w-full flex items-start gap-4 p-4 bg-surfaceHighlight border border-white/[0.04] rounded-xl hover:border-accent/50 hover:bg-white/5 transition-all text-left group"
+                className="w-full flex items-start gap-4 p-4 bg-surfaceHighlight border border-[var(--color-border)] rounded-xl hover:border-accent/50 hover:bg-surfaceHighlight transition-all text-left group"
               >
                 <div className={`mt-0.5 ${format.color}`}>
                   <Icon className="w-6 h-6" />
                 </div>
                 <div className="flex-1">
-                  <div className="text-sm font-bold text-white group-hover:text-accent transition-colors">
+                  <div className="text-sm font-bold text-text-primary group-hover:text-accent transition-colors">
                     {format.name}
                   </div>
                   <div className="text-xs text-text-secondary mt-1">
@@ -140,6 +153,8 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
           })}
         </div>
       </div>
+
+      <ShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} />
     </div>
   );
 }

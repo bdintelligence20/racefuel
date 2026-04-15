@@ -8,31 +8,39 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#09090b',
-        surface: '#111113',
-        surfaceHighlight: '#18181b',
+        background: 'var(--color-background)',
+        surface: 'var(--color-surface)',
+        surfaceHighlight: 'var(--color-surfaceHighlight)',
         accent: {
-          DEFAULT: '#10b981',
-          light: '#34d399',
-          muted: '#059669',
+          DEFAULT: 'var(--color-accent)',
+          light: 'var(--color-accent-light)',
+          muted: 'var(--color-accent-muted)',
         },
         warm: {
-          DEFAULT: '#f59e0b',
-          light: '#fbbf24',
-          muted: '#d97706',
+          DEFAULT: 'var(--color-warm)',
+          light: 'var(--color-warm-light)',
+          muted: 'var(--color-warm-muted)',
+        },
+        golden: 'var(--color-golden)',
+        terrain: {
+          rust: 'var(--color-terrain-rust)',
+          deep: 'var(--color-terrain-deep)',
+          orange: 'var(--color-terrain-orange)',
         },
         text: {
-          primary: '#fafafa',
-          secondary: '#a1a1aa',
-          muted: '#52525b',
+          primary: 'var(--color-text-primary)',
+          secondary: 'var(--color-text-secondary)',
+          muted: 'var(--color-text-muted)',
         }
       },
       fontFamily: {
-        mono: ['"JetBrains Mono"', 'monospace'],
+        display: ['"Montserrat"', 'system-ui', 'sans-serif'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       backgroundImage: {
-        'grid-pattern': "linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px)",
+        'terrain-gradient': 'linear-gradient(180deg, #FFCD6B 0%, #F5A020 25%, #E8671A 50%, #C94A1A 75%, #3D2152 100%)',
+        'terrain-gradient-soft': 'linear-gradient(180deg, #FFF9F0 0%, #FFCD6B 50%, #F5A020 100%)',
+        'sky-gradient': 'linear-gradient(180deg, #FFCD6B 0%, #F5A020 100%)',
       },
       animation: {
         'pulse-glow': 'pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
@@ -42,8 +50,8 @@ export default {
       },
       keyframes: {
         'pulse-glow': {
-          '0%, 100%': { opacity: '1', boxShadow: '0 0 15px rgba(16, 185, 129, 0.4)' },
-          '50%': { opacity: '.8', boxShadow: '0 0 5px rgba(16, 185, 129, 0.15)' },
+          '0%, 100%': { opacity: '1', boxShadow: '0 0 15px rgba(245, 160, 32, 0.3)' },
+          '50%': { opacity: '.8', boxShadow: '0 0 5px rgba(245, 160, 32, 0.1)' },
         },
         'float': {
           '0%, 100%': { transform: 'translateY(0)' },

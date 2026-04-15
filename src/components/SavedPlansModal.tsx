@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, FolderOpen, Trash2, Edit3, Check, Calendar, Mountain, Route } from 'lucide-react';
 import { SavedPlan, getAllPlans, deletePlan, updatePlan } from '../persistence/db';
+import { useApp, RouteData } from '../context/AppContext';
 import { toast } from 'sonner';
 
 interface SavedPlansModalProps {
@@ -9,14 +10,11 @@ interface SavedPlansModalProps {
 }
 
 export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
+  const { loadSavedRoute } = useApp();
   const [plans, setPlans] = useState<SavedPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
-
-  // We need a way to load route data from saved plans.
-  // We'll use a custom setter approach since we can't call setRouteData directly.
-  // Instead we'll reload the page state via the stored JSON.
 
   useEffect(() => {
     if (isOpen) {
@@ -60,10 +58,10 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
 
   const handleLoad = (plan: SavedPlan) => {
     try {
-      JSON.parse(plan.routeDataJson); // validate JSON
-      // Store in sessionStorage and reload to force the app to pick it up
-      sessionStorage.setItem('fuelcue_load_plan', plan.routeDataJson);
-      window.location.reload();
+      const route = JSON.parse(plan.routeDataJson) as RouteData;
+      loadSavedRoute(route);
+      toast.success('Plan loaded');
+      onClose();
     } catch {
       toast.error('Failed to load plan — data may be corrupted');
     }
@@ -78,18 +76,18 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
             <FolderOpen className="w-5 h-5 text-accent" />
-            <h2 className="text-lg font-bold text-white">Saved Plans</h2>
+            <h2 className="text-lg font-bold text-text-primary">Saved Plans</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 transition-colors text-text-muted hover:text-white"
+            className="p-2 hover:bg-accent/[0.08] transition-colors text-text-muted hover:text-text-primary"
           >
             <X className="w-5 h-5" />
           </button>
@@ -98,7 +96,7 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
         {/* Plans List */}
         <div className="flex-1 overflow-y-auto">
           {loading ? (
-            <div className="text-center py-12 text-text-muted font-mono text-sm">
+            <div className="text-center py-12 text-text-muted font-display text-sm">
               Loading plans...
             </div>
           ) : plans.length === 0 ? (
@@ -110,11 +108,11 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-white/[0.04]">
+            <div className="divide-y divide-[var(--color-border)]">
               {plans.map((plan) => (
                 <div
                   key={plan.id}
-                  className="p-4 hover:bg-white/5 transition-colors group"
+                  className="p-4 hover:bg-surfaceHighlight transition-colors group"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -124,26 +122,26 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
                             type="text"
                             value={editName}
                             onChange={e => setEditName(e.target.value)}
-                            className="bg-black/50 border border-white/20 text-white text-sm font-mono p-1.5 focus:outline-none focus:border-accent flex-1"
+                            className="bg-surface border border-[var(--color-border)] text-text-primary text-sm font-display p-1.5 focus:outline-none focus:border-accent flex-1"
                             autoFocus
                             onKeyDown={e => {
-                              if (e.key === 'Enter') handleRename(plan.id!);
+                              if (e.key === 'Enter') handleRename(plan.id ?? 0);
                               if (e.key === 'Escape') setEditingId(null);
                             }}
                           />
                           <button
-                            onClick={() => handleRename(plan.id!)}
+                            onClick={() => handleRename(plan.id ?? 0)}
                             className="p-1.5 bg-accent-light/20 text-accent-light hover:bg-accent-light/30 transition-colors"
                           >
                             <Check className="w-3 h-3" />
                           </button>
                         </div>
                       ) : (
-                        <h3 className="text-sm font-bold text-white truncate">
+                        <h3 className="text-sm font-bold text-text-primary truncate">
                           {plan.name}
                         </h3>
                       )}
-                      <div className="flex items-center gap-3 mt-1.5 text-[10px] text-text-muted font-mono">
+                      <div className="flex items-center gap-3 mt-1.5 text-[10px] text-text-muted font-display">
                         <span className="flex items-center gap-1">
                           <Route className="w-3 h-3" />
                           {plan.distanceKm.toFixed(1)}km
@@ -162,16 +160,16 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => {
-                          setEditingId(plan.id!);
+                          setEditingId(plan.id ?? 0);
                           setEditName(plan.name);
                         }}
-                        className="p-1.5 hover:bg-white/10 text-text-muted hover:text-white transition-colors"
+                        className="p-1.5 hover:bg-accent/[0.08] text-text-muted hover:text-text-primary transition-colors"
                         title="Rename"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                       </button>
                       <button
-                        onClick={() => handleDelete(plan.id!)}
+                        onClick={() => handleDelete(plan.id ?? 0)}
                         className="p-1.5 hover:bg-red-500/20 text-text-muted hover:text-red-400 transition-colors"
                         title="Delete"
                       >
@@ -183,7 +181,7 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
                   {/* Load button */}
                   <button
                     onClick={() => handleLoad(plan)}
-                    className="mt-2 w-full py-1.5 text-[10px] font-bold uppercase tracking-wider bg-white/5 border border-white/[0.06] rounded-lg text-text-secondary hover:bg-accent/10 hover:border-accent/50 hover:text-accent transition-colors"
+                    className="mt-2 w-full py-1.5 text-[10px] font-bold uppercase tracking-wider bg-surfaceHighlight border border-[var(--color-border)] rounded-lg text-text-secondary hover:bg-accent/10 hover:border-accent/50 hover:text-accent transition-colors"
                   >
                     Load Plan
                   </button>
@@ -194,8 +192,8 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-white/[0.06] text-center">
-          <span className="text-[10px] text-text-muted font-mono">
+        <div className="p-3 border-t border-[var(--color-border)] text-center">
+          <span className="text-[10px] text-text-muted font-display">
             {plans.length} {plans.length === 1 ? 'plan' : 'plans'} saved
           </span>
         </div>

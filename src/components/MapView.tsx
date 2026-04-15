@@ -1,9 +1,17 @@
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useApp } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { ProductPickerModal } from './ProductPickerModal';
+import { RouteDrawingToolbar } from './RouteDrawingToolbar';
+import { useRouteDrawing } from '../hooks/useRouteDrawing';
+import { toast } from 'sonner';
+
+function getMapStyle(): string {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return isDark ? 'mapbox://styles/mapbox/dark-v11' : 'mapbox://styles/mapbox/outdoors-v12';
+}
 
 interface HoverInfo {
   x: number;
@@ -24,7 +32,9 @@ mapboxgl.accessToken = MAPBOX_TOKEN;
 console.log('Mapbox token loaded:', MAPBOX_TOKEN ? 'Yes (length: ' + MAPBOX_TOKEN.length + ')' : 'NO TOKEN');
 
 export function MapView() {
-  const { routeData, addNutritionPoint, removeNutritionPoint } = useApp();
+  const { routeData, addNutritionPoint, removeNutritionPoint, loadSavedRoute } = useApp();
+  const drawing = useRouteDrawing();
+  const drawingMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
@@ -34,30 +44,12 @@ export function MapView() {
   const [clickInfo, setClickInfo] = useState<ClickInfo | null>(null);
   const [showProductPicker, setShowProductPicker] = useState(false);
 
-  // Get GPS path - use real data or generate mock
+  // Get GPS path - only use real data, no mock
   const gpsPath = useMemo(() => {
-    console.log('Computing gpsPath, routeData.gpsPath:', routeData.gpsPath?.length || 0, 'points');
-
     if (routeData.gpsPath && routeData.gpsPath.length > 0) {
-      console.log('Using real GPS path');
       return routeData.gpsPath;
     }
-
-    // Generate mock GPS coordinates for Cape Town, South Africa
-    console.log('Generating mock GPS path');
-    const baseLat = -33.9249;
-    const baseLng = 18.4241;
-    const points: { lat: number; lng: number; elevation?: number }[] = [];
-    const numPoints = 100;
-
-    for (let i = 0; i <= numPoints; i++) {
-      const t = i / numPoints;
-      const lat = baseLat + t * 0.3 + Math.sin(t * Math.PI * 4) * 0.02;
-      const lng = baseLng + t * 0.5 + Math.sin(t * Math.PI * 3) * 0.03;
-      const elevation = 100 + Math.sin(t * Math.PI * 6) * 200 + t * 300;
-      points.push({ lat, lng, elevation });
-    }
-    return points;
+    return null;
   }, [routeData.gpsPath]);
 
   // Initialize map
@@ -84,7 +76,7 @@ export function MapView() {
     try {
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/dark-v11',
+        style: getMapStyle(),
         center: [18.4241, -33.9249], // Cape Town
         zoom: 10,
         attributionControl: false,
@@ -116,6 +108,20 @@ export function MapView() {
     };
   }, []);
 
+  // Switch map style when theme changes — setStyle wipes all layers,
+  // so we bump a counter to force route re-rendering
+  const [styleVersion, setStyleVersion] = useState(0);
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      if (map.current) {
+        map.current.setStyle(getMapStyle());
+        map.current.once('style.load', () => setStyleVersion(v => v + 1));
+      }
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
+  }, []);
+
   // Add route to map when ready
   useEffect(() => {
     if (!map.current || !mapReady) {
@@ -123,15 +129,26 @@ export function MapView() {
       return;
     }
 
+    // Clean up existing route layers and markers
+    const cleanupRoute = () => {
+      if (!map.current) return;
+      try {
+        if (map.current.getLayer('route-hover-area')) map.current.removeLayer('route-hover-area');
+        if (map.current.getLayer('route-line')) map.current.removeLayer('route-line');
+        if (map.current.getLayer('route-glow')) map.current.removeLayer('route-glow');
+        if (map.current.getSource('route')) map.current.removeSource('route');
+      } catch { /* layers may not exist */ }
+      markersRef.current.forEach((m) => m.remove());
+      markersRef.current = [];
+    };
+
     if (!gpsPath || gpsPath.length === 0) {
-      console.log('No GPS path to display');
+      cleanupRoute();
       return;
     }
 
     const addRoute = () => {
       if (!map.current) return;
-
-      console.log('Adding route to map with', gpsPath.length, 'points');
 
       const coordinates = gpsPath.map((p) => [p.lng, p.lat] as [number, number]);
 
@@ -177,9 +194,9 @@ export function MapView() {
           'line-cap': 'round',
         },
         paint: {
-          'line-color': '#f59e0b',
+          'line-color': '#F5A020',
           'line-width': 10,
-          'line-opacity': 0.4,
+          'line-opacity': 0.3,
           'line-blur': 6,
         },
       });
@@ -199,9 +216,9 @@ export function MapView() {
             'interpolate',
             ['linear'],
             ['line-progress'],
-            0, '#f59e0b',
-            0.5, '#ffffff',
-            1, '#10b981',
+            0, '#F5A020',
+            0.5, '#E8671A',
+            1, '#3D2152',
           ],
         },
       });
@@ -232,7 +249,7 @@ export function MapView() {
 
       // Add start marker
       const startEl = document.createElement('div');
-      startEl.style.cssText = 'width:16px;height:16px;background:#34d399;border-radius:50%;border:2px solid black;';
+      startEl.style.cssText = 'width:16px;height:16px;background:#F5A020;border-radius:50%;border:2px solid #3D2152;';
       const startMarker = new mapboxgl.Marker({ element: startEl })
         .setLngLat(coordinates[0])
         .addTo(map.current);
@@ -240,7 +257,7 @@ export function MapView() {
 
       // Add end marker
       const endEl = document.createElement('div');
-      endEl.style.cssText = 'width:16px;height:16px;background:#10b981;border-radius:50%;border:2px solid black;';
+      endEl.style.cssText = 'width:16px;height:16px;background:#3D2152;border-radius:50%;border:2px solid #F5A020;';
       const endMarker = new mapboxgl.Marker({ element: endEl })
         .setLngLat(coordinates[coordinates.length - 1])
         .addTo(map.current);
@@ -270,7 +287,7 @@ export function MapView() {
       map.current.once('style.load', addRoute);
     }
 
-  }, [mapReady, gpsPath]);
+  }, [mapReady, gpsPath, styleVersion]);
 
   // Handle mousemove for hover info
   useEffect(() => {
@@ -363,8 +380,12 @@ export function MapView() {
       const el = document.createElement('div');
       el.style.cssText = 'cursor:pointer;';
       el.innerHTML = `
-        <div style="width:32px;height:32px;background:white;border-radius:50%;border:2px solid #10b981;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;">
-          ${point.product.carbs}g
+        <div style="width:36px;height:36px;border-radius:50%;border:2px solid #3D2152;overflow:hidden;background:white;display:flex;align-items:center;justify-content:center;">
+          ${point.product.image
+            ? `<img src="${point.product.image}" style="width:100%;height:100%;object-fit:contain;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"/>
+               <div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:10px;font-weight:bold;">${point.product.carbs}g</div>`
+            : `<div style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;font-size:10px;font-weight:bold;">${point.product.carbs}g</div>`
+          }
         </div>
       `;
       el.onclick = (e) => {
@@ -372,12 +393,119 @@ export function MapView() {
         removeNutritionPoint(point.id);
       };
 
-      const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat([gps.lng, gps.lat])
-        .addTo(map.current!);
-      markersRef.current.push(marker);
+      if (map.current) {
+        const marker = new mapboxgl.Marker({ element: el })
+          .setLngLat([gps.lng, gps.lat])
+          .addTo(map.current);
+        markersRef.current.push(marker);
+      }
     });
   }, [mapReady, gpsPath, routeData.nutritionPoints, routeData.distanceKm, removeNutritionPoint]);
+
+  // Drawing mode: handle map clicks
+  const drawingState = drawing.state;
+  const drawingAddWaypoint = drawing.addWaypoint;
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+    if (drawingState !== 'placing') return;
+
+    const handleDrawClick = (e: mapboxgl.MapMouseEvent) => {
+      drawingAddWaypoint({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+    };
+
+    map.current.on('click', handleDrawClick);
+    map.current.getCanvas().style.cursor = 'crosshair';
+
+    return () => {
+      if (map.current) {
+        map.current.off('click', handleDrawClick);
+        map.current.getCanvas().style.cursor = '';
+      }
+    };
+  }, [mapReady, drawingState, drawingAddWaypoint]);
+
+  // Drawing mode: render route line
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    const sourceId = 'drawing-route';
+    const layerId = 'drawing-route-line';
+
+    if (drawing.routeLine.length < 2) {
+      // Clean up if no route
+      try {
+        if (map.current.getLayer(layerId)) map.current.removeLayer(layerId);
+        if (map.current.getSource(sourceId)) map.current.removeSource(sourceId);
+      } catch { /* layer may not exist */ }
+      return;
+    }
+
+    const geojson: GeoJSON.Feature = {
+      type: 'Feature',
+      properties: {},
+      geometry: { type: 'LineString', coordinates: drawing.routeLine },
+    };
+
+    if (map.current.getSource(sourceId)) {
+      (map.current.getSource(sourceId) as mapboxgl.GeoJSONSource).setData(geojson);
+    } else {
+      map.current.addSource(sourceId, { type: 'geojson', data: geojson });
+      map.current.addLayer({
+        id: layerId,
+        type: 'line',
+        source: sourceId,
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': '#F5A020', 'line-width': 4, 'line-dasharray': [2, 2] },
+      });
+    }
+  }, [mapReady, drawing.routeLine]);
+
+  // Drawing mode: render waypoint markers
+  useEffect(() => {
+    if (!map.current || !mapReady) return;
+
+    // Clean up old markers
+    drawingMarkersRef.current.forEach((m) => m.remove());
+    drawingMarkersRef.current = [];
+
+    if (drawing.state === 'idle' || drawing.state === 'complete') return;
+
+    drawing.waypoints.forEach((wp, i) => {
+      const el = document.createElement('div');
+      el.style.cssText = `width:24px;height:24px;background:${i === 0 ? '#3D2152' : '#F5A020'};border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;color:black;`;
+      el.textContent = String(i + 1);
+
+      if (map.current) {
+        const marker = new mapboxgl.Marker({ element: el, draggable: false })
+          .setLngLat([wp.lng, wp.lat])
+          .addTo(map.current);
+        drawingMarkersRef.current.push(marker);
+      }
+    });
+  }, [mapReady, drawing.waypoints, drawing.state]);
+
+  // Clean up drawing layers when drawing ends
+  useEffect(() => {
+    if (drawing.state !== 'idle' && drawing.state !== 'complete') return;
+    if (!map.current) return;
+
+    try {
+      if (map.current.getLayer('drawing-route-line')) map.current.removeLayer('drawing-route-line');
+      if (map.current.getSource('drawing-route')) map.current.removeSource('drawing-route');
+    } catch { /* layer may not exist */ }
+
+    drawingMarkersRef.current.forEach((m) => m.remove());
+    drawingMarkersRef.current = [];
+  }, [drawing.state]);
+
+  const handleFinishDrawing = useCallback(async () => {
+    const route = await drawing.finishDrawing();
+    if (route) {
+      loadSavedRoute(route);
+      drawing.cancelDrawing();
+      toast.success(`Route created — ${route.distanceKm.toFixed(1)}km, ${route.elevationGain}m gain. Save it from the sidebar.`);
+    }
+  }, [drawing, loadSavedRoute]);
 
   // Handle drag and drop
   const handleDrop = (e: React.DragEvent) => {
@@ -460,23 +588,43 @@ export function MapView() {
             top: hoverInfo.y - 40,
           }}
         >
-          <div className="bg-surface/95 backdrop-blur border border-white/20 px-3 py-2 shadow-xl">
-            <div className="text-lg font-mono font-bold text-white">
+          <div className="bg-surface/95 backdrop-blur border border-[var(--color-border)] rounded-lg px-3 py-2 shadow-xl">
+            <div className="text-lg font-display font-bold text-text-primary">
               {hoverInfo.distanceKm.toFixed(1)}
               <span className="text-xs text-text-muted ml-1">km</span>
             </div>
             {hoverInfo.elevation !== null && (
-              <div className="text-sm font-mono text-accent">
+              <div className="text-sm font-display font-semibold text-warm">
                 {Math.round(hoverInfo.elevation)}
                 <span className="text-xs text-text-muted ml-1">m elev</span>
               </div>
             )}
-            <div className="text-[9px] text-text-muted mt-1">
+            <div className="text-[9px] text-text-muted font-display mt-1">
               Click to add nutrition
             </div>
           </div>
         </div>
       )}
+
+      {/* Route Drawing Toolbar — hidden when GpxDropZone is showing (it has its own Draw button) */}
+      <div className={`absolute bottom-4 left-4 z-30 ${!routeData.loaded && drawing.state === 'idle' ? 'hidden' : ''}`}>
+        <RouteDrawingToolbar
+          state={drawing.state}
+          waypointCount={drawing.waypoints.length}
+          totalDistance={drawing.totalDistance}
+          totalDuration={drawing.totalDuration}
+          profile={drawing.profile}
+          isProcessing={drawing.isProcessing}
+          error={drawing.error}
+          routeName={drawing.routeName}
+          onStart={drawing.startDrawing}
+          onFinish={handleFinishDrawing}
+          onCancel={drawing.cancelDrawing}
+          onUndo={drawing.removeLastWaypoint}
+          onProfileChange={drawing.setProfile}
+          onRouteNameChange={drawing.setRouteName}
+        />
+      </div>
 
       {/* Product Picker Modal */}
       <ProductPickerModal

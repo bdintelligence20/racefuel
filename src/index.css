@@ -1,38 +1,90 @@
 
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Fuelcue Brand Theme — warm, terrain-inspired */
+:root {
+  /* Backgrounds */
+  --color-background: #FFF9F0;
+  --color-surface: #FFFFFF;
+  --color-surfaceHighlight: #FFF5E8;
+
+  /* Primary — Fuelcue Plum */
+  --color-accent: #3D2152;
+  --color-accent-light: #5C2D6E;
+  --color-accent-muted: #2A1639;
+
+  /* Warm — Route Amber / Terrain Orange */
+  --color-warm: #F5A020;
+  --color-warm-light: #FFCD6B;
+  --color-warm-muted: #E8671A;
+
+  /* Terrain */
+  --color-terrain-rust: #C94A1A;
+  --color-terrain-deep: #A63020;
+  --color-terrain-orange: #E8671A;
+
+  /* Golden accent (shoes, highlights) */
+  --color-golden: #F5B830;
+
+  /* Text */
+  --color-text-primary: #2A1639;
+  --color-text-secondary: #6B5A7A;
+  --color-text-muted: #A0929E;
+
+  /* Utility */
+  --color-scrollbar: #E0D6CC;
+  --color-selection: rgba(61, 33, 82, 0.15);
+  --color-border: rgba(61, 33, 82, 0.08);
+  --mapbox-style: outdoors-v12;
+}
+
+[data-theme="dark"] {
+  --color-background: #1A1025;
+  --color-surface: #231430;
+  --color-surfaceHighlight: #2D1C3D;
+
+  /* Keep plum as accent in dark mode — warm and grounded */
+  --color-accent: #D4A0F0;
+  --color-accent-light: #E0B8F5;
+  --color-accent-muted: #A878C8;
+
+  /* Warm tones remain vibrant */
+  --color-warm: #F5A020;
+  --color-warm-light: #FFCD6B;
+  --color-warm-muted: #E8671A;
+
+  /* Terrain stays warm */
+  --color-terrain-rust: #E06030;
+  --color-terrain-deep: #C04828;
+  --color-terrain-orange: #F08030;
+
+  /* Warm text tones, not cold gray */
+  --color-text-primary: #F5EDE6;
+  --color-text-secondary: #C4B0A0;
+  --color-text-muted: #7A6870;
+
+  /* Golden highlight */
+  --color-golden: #FFD050;
+
+  --color-scrollbar: #3D2852;
+  --color-selection: rgba(245, 160, 32, 0.2);
+  --color-border: rgba(245, 184, 48, 0.08);
+  --mapbox-style: dark-v11;
+}
+
 @layer base {
   body {
     @apply bg-background text-text-primary antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
   }
 }
 
 @layer utilities {
-  .clip-corner {
-    clip-path: polygon(
-      0 0,
-      100% 0,
-      100% calc(100% - 8px),
-      calc(100% - 8px) 100%,
-      0 100%
-    );
-  }
-
-  .clip-corner-top-right {
-    clip-path: polygon(
-      0 0,
-      calc(100% - 8px) 0,
-      100% 8px,
-      100% 100%,
-      0 100%
-    );
-  }
-
   .safe-top {
     padding-top: env(safe-area-inset-top, 0px);
   }
@@ -53,16 +105,34 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #27272a;
+  background: var(--color-scrollbar);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #10b981;
+  background: var(--color-accent);
 }
 
 /* Selection */
 ::selection {
-  background: rgba(16, 185, 129, 0.3);
-  color: #fff;
+  background: var(--color-selection);
+  color: var(--color-text-primary);
+}
+
+/* Terrain wave decorative element */
+.terrain-wave {
+  position: relative;
+  overflow: hidden;
+}
+
+.terrain-wave::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 1200 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0,40 C200,10 400,50 600,30 C800,10 1000,50 1200,30 L1200,60 L0,60 Z' fill='%233D2152' fill-opacity='0.05'/%3E%3C/svg%3E") no-repeat bottom center;
+  background-size: cover;
+  pointer-events: none;
 }

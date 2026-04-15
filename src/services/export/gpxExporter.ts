@@ -27,9 +27,9 @@ export function generateGpx(routeData: RouteData): string {
   const lines: string[] = [];
 
   lines.push('<?xml version="1.0" encoding="UTF-8"?>');
-  lines.push('<gpx version="1.1" creator="RACEFUEL" xmlns="http://www.topografix.com/GPX/1/1">');
+  lines.push('<gpx version="1.1" creator="fuelcue" xmlns="http://www.topografix.com/GPX/1/1">');
   lines.push('  <metadata>');
-  lines.push(`    <name>${escapeXml(name || 'RACEFUEL Nutrition Plan')}</name>`);
+  lines.push(`    <name>${escapeXml(name || 'fuelcue Nutrition Plan')}</name>`);
   lines.push(`    <desc>Nutrition plan: ${distanceKm.toFixed(1)}km, ${nutritionPoints.length} points, ${totalCarbs}g carbs</desc>`);
   lines.push(`    <time>${new Date().toISOString()}</time>`);
   lines.push('  </metadata>');
@@ -63,8 +63,14 @@ export function generateGpx(routeData: RouteData): string {
     }
 
     const category = point.product.category?.toUpperCase() || 'FUEL';
-    const wptName = `${category} @ ${point.distanceKm.toFixed(1)}km — ${point.product.brand} ${point.product.name}`;
-    const desc = `${point.product.carbs}g carbs | ${point.product.calories} cal | ${point.product.sodium}mg Na${point.product.priceZAR ? ` | R${point.product.priceZAR.toFixed(2)}` : ''}`;
+    const km = Math.round(point.distanceKm);
+    // Watch display: "GEL 15k 226ers" — what, when, which (fits ~16 chars)
+    const brandShort = point.product.brand.length > 7
+      ? point.product.brand.substring(0, 7)
+      : point.product.brand;
+    const wptName = `${category} ${km}k ${brandShort}`;
+    // Full details in description
+    const desc = `${point.product.brand} ${point.product.name} (${point.product.carbs}g carbs, ${point.product.sodium}mg Na, ${point.product.caffeine > 0 ? point.product.caffeine + 'mg caf' : 'no caf'})`;
 
     lines.push(`  <wpt lat="${lat.toFixed(7)}" lon="${lng.toFixed(7)}">`);
     if (elevation !== undefined) {

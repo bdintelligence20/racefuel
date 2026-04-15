@@ -54,16 +54,16 @@ export function NutritionMarker({
         <div className="w-2 h-2 bg-white rounded-full border-2 border-black"></div>
 
         {/* Distance Label - Always Visible */}
-        <div className="absolute top-full mt-1 bg-black/80 px-1.5 py-0.5 rounded text-[9px] font-mono text-white whitespace-nowrap">
+        <div className="absolute top-full mt-1 bg-black/80 px-1.5 py-0.5 rounded text-[9px] font-display text-white whitespace-nowrap">
           {distanceKm.toFixed(1)}km
         </div>
       </div>
 
       {/* Tooltip */}
       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto min-w-[160px]">
-        <div className="bg-surfaceHighlight border border-white/[0.08] p-3 shadow-xl rounded-lg">
+        <div className="bg-surfaceHighlight border border-[var(--color-border)] p-3 shadow-xl rounded-lg">
           <div className="flex justify-between items-start gap-2 mb-1">
-            <span className="text-[10px] font-mono text-text-muted uppercase">
+            <span className="text-[10px] font-display text-text-muted uppercase">
               {product.brand}
             </span>
             <button
@@ -76,21 +76,21 @@ export function NutritionMarker({
               <X className="w-3 h-3" />
             </button>
           </div>
-          <div className="text-xs font-bold text-white mb-2 leading-tight">
+          <div className="text-xs font-bold text-text-primary mb-2 leading-tight">
             {product.name}
           </div>
-          <div className="flex flex-wrap gap-x-2 gap-y-1 text-[10px] font-mono">
+          <div className="flex flex-wrap gap-x-2 gap-y-1 text-[10px] font-display">
             <span className="text-accent">{product.carbs}g CHO</span>
             <span className="text-text-secondary">@ {distanceKm.toFixed(1)}km</span>
           </div>
           {product.priceZAR && (
-            <div className="mt-1 text-[10px] font-mono text-accent-light">
+            <div className="mt-1 text-[10px] font-display text-accent-light">
               R{product.priceZAR.toFixed(2)}
             </div>
           )}
         </div>
         {/* Arrow */}
-        <div className="w-2 h-2 bg-surfaceHighlight border-r border-b border-white/[0.08] transform rotate-45 absolute bottom-[-5px] left-1/2 -translate-x-1/2"></div>
+        <div className="w-2 h-2 bg-surfaceHighlight border-r border-b border-[var(--color-border)] transform rotate-45 absolute bottom-[-5px] left-1/2 -translate-x-1/2"></div>
       </div>
     </div>
   );

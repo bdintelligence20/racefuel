@@ -67,21 +67,21 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="relative bg-surface border border-white/[0.06] rounded-2xl w-full max-w-md shadow-2xl">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/[0.06] bg-surfaceHighlight">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
             <User className="w-5 h-5 text-accent" />
-            <h2 className="text-lg font-bold text-white">Edit Profile</h2>
+            <h2 className="text-lg font-bold text-text-primary">Edit Profile</h2>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-white/10 transition-colors text-text-muted hover:text-white"
+            className="p-2 hover:bg-accent/[0.08] transition-colors text-text-muted hover:text-text-primary"
           >
             <X className="w-5 h-5" />
           </button>
@@ -95,7 +95,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 <div className="text-xs text-[#FC4C02] uppercase tracking-wider font-bold">
                   Strava Connected
                 </div>
-                <div className="text-sm text-white">
+                <div className="text-sm text-text-primary">
                   {strava.athlete.firstname} {strava.athlete.lastname}
                 </div>
               </div>
@@ -135,9 +135,9 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 type="number"
                 value={formData.weight}
                 onChange={(e) => handleChange('weight', parseInt(e.target.value) || 0)}
-                className="flex-1 bg-black/50 border border-white/[0.06] rounded-lg text-white text-lg font-mono p-3 focus:outline-none focus:border-accent transition-colors"
+                className="flex-1 bg-surface border border-[var(--color-border)] rounded-lg text-text-primary text-lg font-display p-3 focus:outline-none focus:border-accent transition-colors"
               />
-              <span className="text-text-muted font-mono text-sm w-12">kg</span>
+              <span className="text-text-muted font-display text-sm w-12">kg</span>
             </div>
           </div>
 
@@ -152,9 +152,9 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 type="number"
                 value={formData.height}
                 onChange={(e) => handleChange('height', parseInt(e.target.value) || 0)}
-                className="flex-1 bg-black/50 border border-white/[0.06] rounded-lg text-white text-lg font-mono p-3 focus:outline-none focus:border-accent transition-colors"
+                className="flex-1 bg-surface border border-[var(--color-border)] rounded-lg text-text-primary text-lg font-display p-3 focus:outline-none focus:border-accent transition-colors"
               />
-              <span className="text-text-muted font-mono text-sm w-12">cm</span>
+              <span className="text-text-muted font-display text-sm w-12">cm</span>
             </div>
           </div>
 
@@ -169,9 +169,9 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                 type="number"
                 value={formData.ftp}
                 onChange={(e) => handleChange('ftp', parseInt(e.target.value) || 0)}
-                className="flex-1 bg-black/50 border border-white/[0.06] rounded-lg text-white text-lg font-mono p-3 focus:outline-none focus:border-accent transition-colors"
+                className="flex-1 bg-surface border border-[var(--color-border)] rounded-lg text-text-primary text-lg font-display p-3 focus:outline-none focus:border-accent transition-colors"
               />
-              <span className="text-text-muted font-mono text-sm w-12">W</span>
+              <span className="text-text-muted font-display text-sm w-12">W</span>
             </div>
           </div>
 
@@ -189,7 +189,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
                   className={`py-3 rounded-lg text-sm font-bold uppercase transition-colors ${
                     formData.sweatRate === rate
                       ? 'bg-accent/20 border border-accent/50 text-accent'
-                      : 'bg-black/30 border border-white/[0.06] text-text-muted hover:bg-white/10 hover:text-white'
+                      : 'bg-surfaceHighlight border border-[var(--color-border)] text-text-muted hover:bg-accent/[0.08] hover:text-text-primary'
                   }`}
                 >
                   {rate === 'light' ? 'Low' : rate === 'moderate' ? 'Medium' : 'High'}
@@ -203,10 +203,10 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
         </div>
 
         {/* Actions */}
-        <div className="p-4 border-t border-white/[0.06] bg-surfaceHighlight flex gap-3">
+        <div className="p-4 border-t border-[var(--color-border)] bg-surfaceHighlight flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-3 bg-white/5 border border-white/[0.06] rounded-lg text-white text-sm font-bold uppercase tracking-wider hover:bg-white/10 transition-colors"
+            className="flex-1 py-3 bg-surfaceHighlight border border-[var(--color-border)] rounded-lg text-text-primary text-sm font-bold uppercase tracking-wider hover:bg-accent/[0.08] transition-colors"
           >
             Cancel
           </button>

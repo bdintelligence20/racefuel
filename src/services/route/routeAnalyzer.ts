@@ -51,7 +51,7 @@ function calcDifficulty(gradient: number, distanceKm: number): number {
 export function analyzeRoute(
   gpsPath: GpsPoint[],
   distanceKm: number,
-  avgSpeedKmh: number = 25
+  avgSpeedKmh = 25
 ): RouteAnalysis {
   if (!gpsPath || gpsPath.length < 2) {
     return {
