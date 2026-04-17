@@ -15,7 +15,9 @@ const TOKENS_STORAGE_KEY = 'strava_tokens';
 // For production, use a backend to handle token exchange.
 const STRAVA_CLIENT_ID = import.meta.env.VITE_STRAVA_CLIENT_ID || '';
 const STRAVA_CLIENT_SECRET = import.meta.env.VITE_STRAVA_CLIENT_SECRET || '';
-const REDIRECT_URI = import.meta.env.VITE_STRAVA_REDIRECT_URI || `${window.location.origin}`;
+// Strava redirect must land on /app so the app's OAuth handler picks up the ?code= param
+// (the landing page at / would otherwise swallow it).
+const REDIRECT_URI = import.meta.env.VITE_STRAVA_REDIRECT_URI || `${window.location.origin}/app`;
 
 // Scopes we need
 const SCOPES = 'read,activity:read_all,profile:read_all';

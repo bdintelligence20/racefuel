@@ -177,6 +177,17 @@ function AuthGate() {
 
   const goToApp = () => navigate('/app');
 
+  // If a Strava OAuth callback (?code=... or ?error=...) lands at '/', push it to /app.
+  useEffect(() => {
+    if (pathname === '/' || pathname === '') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('code') || params.has('error')) {
+        window.history.replaceState({}, '', `/app${window.location.search}`);
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }
+    }
+  }, [pathname]);
+
   // Redirect unknown paths to landing
   useEffect(() => {
     if (pathname !== '/' && pathname !== '/app' && pathname !== '') {
