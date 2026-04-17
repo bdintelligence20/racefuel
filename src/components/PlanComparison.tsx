@@ -313,15 +313,20 @@ export function PlanComparison({ isOpen, onClose }: PlanComparisonProps) {
     : [];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-3xl max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="relative bg-surface border-t sm:border border-[var(--color-border)] rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[95dvh] sm:max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:fade-in sm:zoom-in-95 duration-200">
+        {/* Mobile drag handle */}
+        <div className="sm:hidden flex justify-center pt-2 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-[var(--color-border)]" />
+        </div>
+
         {/* Header */}
-        <div className="flex items-start justify-between p-5 border-b border-[var(--color-border)] bg-surfaceHighlight">
+        <div className="flex items-start justify-between gap-3 p-4 sm:p-5 border-b border-[var(--color-border)] flex-shrink-0">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-3 mb-1">
-              <h2 className="text-lg font-display font-black text-text-primary tracking-tight">Plan comparison</h2>
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h2 className="text-base sm:text-lg font-display font-black text-text-primary tracking-tight">Plan comparison</h2>
               <StatusPill status={overallStatus} />
             </div>
             <p className="text-[11px] text-text-muted font-display uppercase tracking-[0.15em] truncate">
@@ -330,15 +335,16 @@ export function PlanComparison({ isOpen, onClose }: PlanComparisonProps) {
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-accent/[0.08] transition-colors text-text-muted hover:text-text-primary flex-shrink-0"
+            aria-label="Close"
+            className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl hover:bg-accent/[0.08] active:bg-accent/[0.12] transition-colors text-text-muted hover:text-text-primary"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain p-5 space-y-6">
-          {/* Metric cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-5 space-y-5 sm:space-y-6 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          {/* Metric cards — stacked on all screens */}
+          <div className="space-y-3">
             {metrics.map((m) => (
               <MetricCard key={m.label} m={m} />
             ))}
