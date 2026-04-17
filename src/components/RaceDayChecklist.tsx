@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, Check, Package, ChevronDown, ChevronUp, Printer } from 'lucide-react';
 import { useApp, NutritionPoint } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
@@ -140,6 +141,8 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
     });
     setCheckedState(newState);
   };
+  useModalBehavior(isOpen, onClose);
+
 
   if (!isOpen) return null;
 
@@ -147,7 +150,7 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
@@ -197,7 +200,7 @@ export function RaceDayChecklist({ isOpen, onClose }: ChecklistProps) {
         </div>
 
         {/* Checklist Items */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overscroll-contain">
           {totalItems === 0 ? (
             <div className="text-center py-12">
               <Package className="w-12 h-12 text-text-muted mx-auto mb-4" />

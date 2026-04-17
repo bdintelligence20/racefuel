@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, Cloud, Thermometer, Wind, Droplets, Loader2, MapPin } from 'lucide-react';
 import { getWeatherForecast, WeatherForecast, getWeatherEmoji } from '../services/weather/weatherService';
 import { useApp } from '../context/AppContext';
@@ -46,6 +47,8 @@ export function EventSearchModal({ isOpen, onClose }: EventSearchModalProps) {
       );
     }
   }, [isOpen, routeData.gpsPath]);
+  useModalBehavior(isOpen, onClose);
+
 
   if (!isOpen) return null;
 
@@ -55,7 +58,7 @@ export function EventSearchModal({ isOpen, onClose }: EventSearchModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div>
@@ -118,7 +121,7 @@ export function EventSearchModal({ isOpen, onClose }: EventSearchModalProps) {
         )}
 
         {/* Forecast List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overscroll-contain">
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 text-warm animate-spin" />

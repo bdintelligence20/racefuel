@@ -1,16 +1,27 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { Toaster } from 'sonner';
 import { AppProvider, useApp } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthScreen } from './components/AuthScreen';
 import { Sidebar } from './components/Sidebar';
-import { MapCanvas } from './components/MapCanvas';
 import { NutritionPanel } from './components/NutritionPanel';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ActionBar } from './components/ActionBar';
 import { LandingPage } from './components/LandingPage';
 import { Menu, X, Map, Package } from 'lucide-react';
+
+const MapCanvas = lazy(() =>
+  import('./components/MapCanvas').then((m) => ({ default: m.MapCanvas }))
+);
+
+function MapLoadingFallback() {
+  return (
+    <div className="flex-1 flex items-center justify-center bg-background">
+      <div className="w-8 h-8 border-2 border-warm border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
 
 type MobileTab = 'map' | 'nutrition';
 
@@ -31,7 +42,8 @@ function MobileNav({
         {/* Hamburger */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl hover:bg-accent/[0.06] transition-colors text-text-primary"
+          aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
+          className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl hover:bg-accent/[0.06] active:bg-accent/[0.08] transition-colors text-text-primary"
         >
           {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
@@ -57,7 +69,7 @@ function MobileNav({
         </div>
 
         {/* Spacer to balance hamburger */}
-        <div className="w-10 flex-shrink-0" />
+        <div className="w-11 flex-shrink-0" />
       </div>
     </div>
   );
@@ -68,7 +80,7 @@ function AppContent() {
   const [mobileTab, setMobileTab] = useState<MobileTab>('map');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
-    <div className="flex w-full h-screen bg-background overflow-hidden font-sans">
+    <div className="flex w-full h-[100dvh] bg-background overflow-hidden font-sans">
       <MobileNav
         activeTab={mobileTab}
         setActiveTab={setMobileTab}
@@ -90,15 +102,17 @@ function AppContent() {
         />
       )}
 
-      <div className={`flex-1 flex flex-col relative pt-14 lg:pt-0 ${mobileTab === 'map' ? 'flex' : 'hidden lg:flex'}`}>
+      <div className={`flex-1 flex flex-col relative pt-mobile-nav lg:pt-0 ${mobileTab === 'map' ? 'flex' : 'hidden lg:flex'}`}>
         <ErrorBoundary>
-          <MapCanvas />
+          <Suspense fallback={<MapLoadingFallback />}>
+            <MapCanvas />
+          </Suspense>
         </ErrorBoundary>
         <ActionBar />
       </div>
 
       <div className={`
-        fixed lg:relative left-0 right-0 lg:left-auto top-14 lg:top-0 bottom-0 z-30
+        fixed lg:relative left-0 right-0 lg:left-auto top-mobile-nav lg:top-0 bottom-0 z-30
         ${mobileTab === 'nutrition' ? 'block' : 'hidden lg:block'}
       `}>
         <ErrorBoundary>
@@ -116,9 +130,10 @@ function AppContent() {
             border: '1px solid var(--color-border)',
             color: 'var(--color-text-primary)',
             fontFamily: '"Montserrat", sans-serif',
-            fontSize: '12px',
+            fontSize: '13px',
             borderRadius: '12px',
             boxShadow: '0 4px 20px rgba(61, 33, 82, 0.08)',
+            paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
           },
         }}
       />
@@ -150,9 +165,10 @@ function AuthGate() {
               border: '1px solid var(--color-border)',
               color: 'var(--color-text-primary)',
               fontFamily: '"Montserrat", sans-serif',
-              fontSize: '12px',
+              fontSize: '13px',
               borderRadius: '12px',
               boxShadow: '0 4px 20px rgba(61, 33, 82, 0.08)',
+              paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
             },
           }}
         />

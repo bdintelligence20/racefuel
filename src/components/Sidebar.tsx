@@ -48,7 +48,7 @@ export function Sidebar() {
   const [eventSearchOpen, setEventSearchOpen] = useState(false);
 
   return (
-    <aside className="w-72 bg-surface border-r border-[var(--color-border)] flex flex-col h-full z-30">
+    <aside className="w-[min(18rem,85vw)] bg-surface border-r border-[var(--color-border)] flex flex-col h-full z-30 safe-left">
       {/* Header — brand logo (hidden on mobile since MobileNav already shows it) */}
       <div className="hidden lg:flex p-4 pb-3 justify-center">
         <img
@@ -59,7 +59,7 @@ export function Sidebar() {
       </div>
 
       {/* Strava Connection */}
-      <div className="px-4 pb-4 pt-16 lg:pt-0">
+      <div className="px-4 pb-4 pt-mobile-nav lg:pt-0">
         {strava.isConnected ? (
           <div className="flex items-center gap-3 p-3 rounded-xl bg-surfaceHighlight border border-[var(--color-border)]">
             <div className="w-8 h-8 rounded-lg bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
@@ -73,10 +73,11 @@ export function Sidebar() {
             </div>
             <button
               onClick={disconnectStrava}
-              className="p-1.5 rounded-md hover:bg-red-500/10 transition-colors text-text-muted hover:text-red-400"
+              className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-md hover:bg-red-500/10 active:bg-red-500/15 transition-colors text-text-muted hover:text-red-400"
               title="Disconnect"
+              aria-label="Disconnect Strava"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         ) : (
@@ -105,16 +106,17 @@ export function Sidebar() {
       <div className="h-px bg-[var(--color-border)] mx-4" />
 
       {/* Athlete Profile — scrollable area includes tools on mobile */}
-      <div className="flex-1 p-4 overflow-y-auto">
+      <div className="flex-1 p-4 overflow-y-auto overscroll-contain">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xs font-display font-semibold text-text-muted uppercase tracking-wider">
             Athlete Profile
           </h2>
           <button
             onClick={() => setEditProfileOpen(true)}
-            className="text-[10px] text-warm hover:text-warm-muted transition-colors font-display font-medium flex items-center gap-1"
+            aria-label="Edit athlete profile"
+            className="min-h-[2.25rem] px-2 text-[11px] text-warm hover:text-warm-muted active:text-warm-muted transition-colors font-display font-medium flex items-center gap-1 rounded-md hover:bg-warm/[0.06]"
           >
-            <Edit2 className="w-3 h-3" /> Edit
+            <Edit2 className="w-3.5 h-3.5" /> Edit
           </button>
         </div>
 
@@ -184,8 +186,7 @@ export function Sidebar() {
       </div>
 
       {/* Footer */}
-      {/* Footer */}
-      <div className="p-4 border-t border-[var(--color-border)] space-y-3">
+      <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-[var(--color-border)] space-y-3">
         {/* User info */}
         {user && (
           <div className="flex items-center gap-2">
@@ -203,10 +204,11 @@ export function Sidebar() {
             </div>
             <button
               onClick={logout}
-              className="p-1.5 rounded-lg hover:bg-red-500/10 text-text-muted hover:text-red-400 transition-colors"
+              className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-lg hover:bg-red-500/10 active:bg-red-500/15 text-text-muted hover:text-red-400 transition-colors"
               title="Sign out"
+              aria-label="Sign out"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-4 h-4" />
             </button>
           </div>
         )}

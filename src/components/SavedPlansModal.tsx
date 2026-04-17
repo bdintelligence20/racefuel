@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, FolderOpen, Trash2, Edit3, Check, Calendar, Mountain, Route } from 'lucide-react';
 import { SavedPlan, getAllPlans, deletePlan, updatePlan } from '../persistence/db';
 import { useApp, RouteData } from '../context/AppContext';
@@ -26,7 +27,9 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
     setLoading(true);
     try {
       const allPlans = await getAllPlans();
-      setPlans(allPlans);
+      // Hide internal auto-saves — they're resume-state, not user-facing saved plans
+      const userPlans = allPlans.filter((p) => !p.name.startsWith('Auto-save:'));
+      setPlans(userPlans);
     } catch (err) {
       console.error('Failed to load plans:', err);
     } finally {
@@ -71,6 +74,8 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
     const d = new Date(date);
     return d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
   };
+  useModalBehavior(isOpen, onClose);
+
 
   if (!isOpen) return null;
 
@@ -78,7 +83,7 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[80dvh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
@@ -94,7 +99,7 @@ export function SavedPlansModal({ isOpen, onClose }: SavedPlansModalProps) {
         </div>
 
         {/* Plans List */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overscroll-contain">
           {loading ? (
             <div className="text-center py-12 text-text-muted font-display text-sm">
               Loading plans...

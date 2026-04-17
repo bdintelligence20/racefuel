@@ -44,7 +44,7 @@ export function OnboardingModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/30 backdrop-blur-sm sm:p-4">
-      <div className="w-full sm:max-w-lg bg-surface border-t sm:border border-[var(--color-border)] rounded-t-2xl sm:rounded-2xl shadow-2xl relative overflow-hidden max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+      <div className="w-full sm:max-w-lg bg-surface border-t sm:border border-[var(--color-border)] rounded-t-2xl sm:rounded-2xl shadow-2xl relative overflow-hidden max-h-[95dvh] sm:max-h-[90dvh] overflow-y-auto overscroll-contain">
 
         {/* Step 0: Brand Splash */}
         {step === 0 && (
@@ -172,7 +172,7 @@ export function OnboardingModal() {
                       </label>
                       <div className="relative group">
                         <input
-                          type="number"
+                          type="number" inputMode="numeric"
                           value={userProfile.weight}
                           onChange={(e) =>
                             updateProfile({ weight: Number(e.target.value) })
@@ -188,7 +188,7 @@ export function OnboardingModal() {
                       </label>
                       <div className="relative group">
                         <input
-                          type="number"
+                          type="number" inputMode="numeric"
                           value={userProfile.height}
                           onChange={(e) =>
                             updateProfile({ height: Number(e.target.value) })
@@ -206,7 +206,7 @@ export function OnboardingModal() {
                     </label>
                     <div className="relative group">
                       <input
-                        type="number"
+                        type="number" inputMode="numeric"
                         value={userProfile.ftp}
                         onChange={(e) =>
                           updateProfile({ ftp: Number(e.target.value) })

@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { Upload, FileCode, Play, Activity, Pencil } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { StravaActivityList } from './strava/StravaActivityList';
+import { toast } from 'sonner';
 
-export function GpxDropZone() {
+export function GpxDropZone({ onDrawRoute }: { onDrawRoute?: () => void }) {
   const { loadRoute, strava } = useApp();
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showStravaModal, setShowStravaModal] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -54,7 +54,12 @@ export function GpxDropZone() {
     }, 1500);
   };
 
-  if (dismissed) return null;
+  const handleDrawRoute = () => {
+    if (onDrawRoute) {
+      onDrawRoute();
+      toast.info('Click the map to place waypoints — route will snap to roads.');
+    }
+  };
 
   return (
     <>
@@ -136,8 +141,9 @@ export function GpxDropZone() {
 
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setDismissed(true)}
-                      className="flex-1 h-11 flex items-center justify-center gap-2 rounded-xl bg-warm text-white font-display font-semibold text-sm active:scale-[0.98] transition-all"
+                      onClick={handleDrawRoute}
+                      disabled={!onDrawRoute}
+                      className="flex-1 h-11 flex items-center justify-center gap-2 rounded-xl bg-warm text-white font-display font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Pencil className="w-4 h-4" />
                       Draw Route

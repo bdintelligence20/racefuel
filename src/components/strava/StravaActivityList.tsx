@@ -111,7 +111,7 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl bg-surface border border-[var(--color-border)] shadow-2xl max-h-[80vh] flex flex-col">
+      <div className="w-full max-w-2xl bg-surface border border-[var(--color-border)] shadow-2xl max-h-[80dvh] flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-[var(--color-border)] flex items-center justify-between">
           <div>
@@ -232,7 +232,7 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
         </div>
 
         {/* Activity List */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4">
           {stravaActivitiesLoading && stravaActivities.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="w-8 h-8 text-[#FC4C02] animate-spin mb-4" />

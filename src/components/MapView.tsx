@@ -5,8 +5,10 @@ import { useApp } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { ProductPickerModal } from './ProductPickerModal';
 import { RouteDrawingToolbar } from './RouteDrawingToolbar';
-import { useRouteDrawing } from '../hooks/useRouteDrawing';
+import type { useRouteDrawing } from '../hooks/useRouteDrawing';
 import { toast } from 'sonner';
+
+type DrawingApi = ReturnType<typeof useRouteDrawing>;
 
 function getMapStyle(): string {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -29,12 +31,9 @@ interface ClickInfo {
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
-console.log('Mapbox token loaded:', MAPBOX_TOKEN ? 'Yes (length: ' + MAPBOX_TOKEN.length + ')' : 'NO TOKEN');
-
-export function MapView() {
+export function MapView({ drawing }: { drawing: DrawingApi }) {
   const { routeData, addNutritionPoint, removeNutritionPoint, loadSavedRoute } = useApp();
-  const drawing = useRouteDrawing();
-  const drawingMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
@@ -54,24 +53,13 @@ export function MapView() {
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current) {
-      console.log('No map container');
-      return;
-    }
-
-    if (map.current) {
-      console.log('Map already initialized');
-      return;
-    }
+    if (!mapContainer.current) return;
+    if (map.current) return;
 
     if (!MAPBOX_TOKEN) {
-      console.error('No Mapbox token!');
       setMapError('Mapbox token not configured');
       return;
     }
-
-    console.log('Initializing Mapbox map...');
-    console.log('Container dimensions:', mapContainer.current.offsetWidth, 'x', mapContainer.current.offsetHeight);
 
     try {
       map.current = new mapboxgl.Map({
@@ -83,24 +71,20 @@ export function MapView() {
       });
 
       map.current.on('load', () => {
-        console.log('Map loaded successfully!');
         setMapReady(true);
       });
 
       map.current.on('error', (e) => {
-        console.error('Map error:', e);
         setMapError('Map failed to load: ' + (e.error?.message || 'Unknown error'));
       });
 
       map.current.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
 
     } catch (err) {
-      console.error('Failed to create map:', err);
       setMapError('Failed to create map: ' + (err instanceof Error ? err.message : 'Unknown error'));
     }
 
     return () => {
-      console.log('Cleaning up map');
       if (map.current) {
         map.current.remove();
         map.current = null;
@@ -124,10 +108,7 @@ export function MapView() {
 
   // Add route to map when ready
   useEffect(() => {
-    if (!map.current || !mapReady) {
-      console.log('Map not ready for route, mapReady:', mapReady);
-      return;
-    }
+    if (!map.current || !mapReady) return;
 
     // Clean up existing route layers and markers
     const cleanupRoute = () => {
@@ -166,9 +147,7 @@ export function MapView() {
         if (map.current.getSource('route')) {
           map.current.removeSource('route');
         }
-      } catch (e) {
-        console.log('Error removing layers:', e);
-      }
+      } catch { /* layers may not exist */ }
 
       // Add route source
       map.current.addSource('route', {
@@ -277,7 +256,6 @@ export function MapView() {
         setHoverInfo(null);
       });
 
-      console.log('Route added successfully');
     };
 
     // Wait for style to be loaded
@@ -435,6 +413,7 @@ export function MapView() {
       // Clean up if no route
       try {
         if (map.current.getLayer(layerId)) map.current.removeLayer(layerId);
+        if (map.current.getLayer(layerId + '-glow')) map.current.removeLayer(layerId + '-glow');
         if (map.current.getSource(sourceId)) map.current.removeSource(sourceId);
       } catch { /* layer may not exist */ }
       return;
@@ -450,39 +429,96 @@ export function MapView() {
       (map.current.getSource(sourceId) as mapboxgl.GeoJSONSource).setData(geojson);
     } else {
       map.current.addSource(sourceId, { type: 'geojson', data: geojson });
+      // Soft glow underlay
+      map.current.addLayer({
+        id: layerId + '-glow',
+        type: 'line',
+        source: sourceId,
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: { 'line-color': '#F5A020', 'line-width': 10, 'line-opacity': 0.25, 'line-blur': 4 },
+      });
+      // Main line
       map.current.addLayer({
         id: layerId,
         type: 'line',
         source: sourceId,
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#F5A020', 'line-width': 4, 'line-dasharray': [2, 2] },
+        paint: { 'line-color': '#F5A020', 'line-width': 4 },
       });
     }
   }, [mapReady, drawing.routeLine]);
 
-  // Drawing mode: render waypoint markers
+  // Drawing mode: show a single "start" marker at the first waypoint
   useEffect(() => {
     if (!map.current || !mapReady) return;
 
-    // Clean up old markers
-    drawingMarkersRef.current.forEach((m) => m.remove());
-    drawingMarkersRef.current = [];
+    const first = drawing.waypoints[0];
+    const active = drawing.state === 'placing' || drawing.state === 'routing';
 
-    if (drawing.state === 'idle' || drawing.state === 'complete') return;
-
-    drawing.waypoints.forEach((wp, i) => {
-      const el = document.createElement('div');
-      el.style.cssText = `width:24px;height:24px;background:${i === 0 ? '#3D2152' : '#F5A020'};border-radius:50%;border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;color:black;`;
-      el.textContent = String(i + 1);
-
-      if (map.current) {
-        const marker = new mapboxgl.Marker({ element: el, draggable: false })
-          .setLngLat([wp.lng, wp.lat])
-          .addTo(map.current);
-        drawingMarkersRef.current.push(marker);
+    if (!active || !first) {
+      if (startMarkerRef.current) {
+        startMarkerRef.current.remove();
+        startMarkerRef.current = null;
       }
-    });
-  }, [mapReady, drawing.waypoints, drawing.state]);
+      return;
+    }
+
+    if (!startMarkerRef.current) {
+      const el = document.createElement('div');
+      el.style.cssText = `
+        position: relative;
+        width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `;
+      const halo = document.createElement('span');
+      halo.style.cssText = `
+        position: absolute;
+        inset: -8px;
+        border-radius: 9999px;
+        background: #3D2152;
+        opacity: 0.25;
+        filter: blur(6px);
+      `;
+      const dot = document.createElement('span');
+      dot.style.cssText = `
+        position: relative;
+        width: 14px;
+        height: 14px;
+        border-radius: 9999px;
+        background: #3D2152;
+        box-shadow: 0 0 0 4px #FFF9F0, 0 0 0 5px rgba(61,33,82,0.3), 0 2px 10px rgba(61,33,82,0.35);
+      `;
+      const label = document.createElement('span');
+      label.textContent = 'START';
+      label.style.cssText = `
+        position: absolute;
+        left: 50%;
+        top: -22px;
+        transform: translateX(-50%);
+        font-family: Montserrat, system-ui, sans-serif;
+        font-size: 9px;
+        font-weight: 900;
+        letter-spacing: 0.15em;
+        color: #3D2152;
+        background: #FFF9F0;
+        padding: 2px 6px;
+        border-radius: 4px;
+        box-shadow: 0 1px 6px rgba(61,33,82,0.15);
+        white-space: nowrap;
+      `;
+      el.appendChild(halo);
+      el.appendChild(dot);
+      el.appendChild(label);
+      startMarkerRef.current = new mapboxgl.Marker({ element: el, draggable: false })
+        .setLngLat([first.lng, first.lat])
+        .addTo(map.current);
+    } else {
+      startMarkerRef.current.setLngLat([first.lng, first.lat]);
+    }
+  }, [mapReady, drawing.state, drawing.waypoints]);
 
   // Clean up drawing layers when drawing ends
   useEffect(() => {
@@ -491,11 +527,14 @@ export function MapView() {
 
     try {
       if (map.current.getLayer('drawing-route-line')) map.current.removeLayer('drawing-route-line');
+      if (map.current.getLayer('drawing-route-line-glow')) map.current.removeLayer('drawing-route-line-glow');
       if (map.current.getSource('drawing-route')) map.current.removeSource('drawing-route');
     } catch { /* layer may not exist */ }
 
-    drawingMarkersRef.current.forEach((m) => m.remove());
-    drawingMarkersRef.current = [];
+    if (startMarkerRef.current) {
+      startMarkerRef.current.remove();
+      startMarkerRef.current = null;
+    }
   }, [drawing.state]);
 
   const handleFinishDrawing = useCallback(async () => {

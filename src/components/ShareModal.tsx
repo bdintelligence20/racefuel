@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, Download, Share2, Copy, Check, Image } from 'lucide-react';
 import { useApp, NutritionPoint } from '../context/AppContext';
 import { getMapCanvas, ImageDimension, dimensionMap } from '../services/export/mapImageExporter';
@@ -112,6 +113,8 @@ export function ShareModal({ isOpen, onClose }: ShareModalProps) {
       URL.revokeObjectURL(url);
     };
   }, [isOpen, dimension, routeData]);
+  useModalBehavior(isOpen, onClose);
+
 
   if (!isOpen) return null;
 
@@ -181,7 +184,7 @@ export function ShareModal({ isOpen, onClose }: ShareModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-2xl max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div>
@@ -216,7 +219,7 @@ export function ShareModal({ isOpen, onClose }: ShareModalProps) {
             <img
               src={previewUrl}
               alt="Share preview"
-              className="max-w-full max-h-[50vh] rounded-lg border border-[var(--color-border)] shadow-lg"
+              className="max-w-full max-h-[50dvh] rounded-lg border border-[var(--color-border)] shadow-lg"
             />
           ) : (
             <div className="text-center text-text-muted">

@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { useModalBehavior } from '../../hooks/useModalBehavior';
 import { X, FileText, Table, MapPin, Download, Image, Share2 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { downloadGpx } from '../../services/export/gpxExporter';
@@ -26,6 +27,8 @@ interface ExportFormat {
 export function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const { routeData } = useApp();
   const [shareOpen, setShareOpen] = useState(false);
+  useModalBehavior(isOpen, onClose);
+
 
   if (!isOpen) return null;
 
@@ -98,7 +101,7 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center gap-3">

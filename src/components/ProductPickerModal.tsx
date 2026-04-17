@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import { createPortal } from 'react-dom';
 import { X, Search, MapPin } from 'lucide-react';
 import { ProductProps, ProductCategory } from './NutritionCard';
@@ -32,7 +33,7 @@ export function ProductPickerModal({
       result = result.filter((p) => p.category === activeFilter);
     }
     return result;
-  }, [searchQuery, activeFilter]);
+  }, [searchQuery, activeFilter, products]);
 
   const filterTabs: { key: FilterTab; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -50,6 +51,8 @@ export function ProductPickerModal({
   };
 
   // Early return after all hooks
+  useModalBehavior(isOpen, onClose);
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -61,7 +64,7 @@ export function ProductPickerModal({
       />
 
       {/* Modal */}
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-2xl">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[80dvh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
@@ -114,7 +117,7 @@ export function ProductPickerModal({
         </div>
 
         {/* Product List */}
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-2">
           {filteredProducts.length === 0 ? (
             <div className="text-center py-8 text-text-muted text-sm">
               No products found

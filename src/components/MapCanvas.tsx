@@ -6,6 +6,7 @@ import { Navigation, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { NutritionMarker } from './NutritionMarker';
+import { useRouteDrawing } from '../hooks/useRouteDrawing';
 
 function ElevationProfile() {
   const { routeData, routeAnalysis, addNutritionPoint, moveNutritionPoint } = useApp();
@@ -27,15 +28,22 @@ function ElevationProfile() {
       return { pathD: '', areaD: '', elevations: [], minElev: 0, maxElev: 100 };
     }
 
-    // Smooth elevation data to reduce GPS noise
-    const smoothWindow = Math.max(1, Math.floor(rawElevs.length / 100));
-    const elevs = rawElevs.map((_, i) => {
-      const start = Math.max(0, i - smoothWindow);
-      const end = Math.min(rawElevs.length, i + smoothWindow + 1);
-      let sum = 0;
-      for (let j = start; j < end; j++) sum += rawElevs[j];
-      return sum / (end - start);
-    });
+    // Smooth elevation data to reduce GPS noise — two-pass moving average
+    // for a clean, ripple-free profile regardless of input sampling density.
+    const passOne = (window: number, input: number[]): number[] => {
+      const out = new Array<number>(input.length);
+      for (let i = 0; i < input.length; i++) {
+        const start = Math.max(0, i - window);
+        const end = Math.min(input.length, i + window + 1);
+        let sum = 0;
+        for (let j = start; j < end; j++) sum += input[j];
+        out[i] = sum / (end - start);
+      }
+      return out;
+    };
+    const window1 = Math.max(3, Math.floor(rawElevs.length / 40));
+    const window2 = Math.max(2, Math.floor(rawElevs.length / 80));
+    const elevs = passOne(window2, passOne(window1, rawElevs));
 
     const min = Math.min(...elevs);
     const max = Math.max(...elevs);
@@ -47,8 +55,8 @@ function ElevationProfile() {
     const padBottom = 20;
     const usableH = viewH - padTop - padBottom;
 
-    // Sample to ~200 points for smooth curve
-    const numSamples = Math.min(200, elevs.length);
+    // Sample to ~240 points for smooth curve
+    const numSamples = Math.min(240, elevs.length);
     const points: { x: number; y: number }[] = [];
 
     for (let i = 0; i < numSamples; i++) {
@@ -58,13 +66,11 @@ function ElevationProfile() {
       points.push({ x, y });
     }
 
-    // Build SVG path with smooth bezier curves
-    let pathStr = `M ${points[0].x} ${points[0].y}`;
+    // Straight polyline — with 240 sample points it reads as a smooth curve
+    // and avoids bezier overshoot ripples on flat/similar-elevation neighbours.
+    let pathStr = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`;
     for (let i = 1; i < points.length; i++) {
-      const prev = points[i - 1];
-      const curr = points[i];
-      const cpx = (prev.x + curr.x) / 2;
-      pathStr += ` C ${cpx} ${prev.y} ${cpx} ${curr.y} ${curr.x} ${curr.y}`;
+      pathStr += ` L ${points[i].x.toFixed(2)} ${points[i].y.toFixed(2)}`;
     }
 
     // Area path (for fill)
@@ -273,6 +279,8 @@ export function MapCanvas() {
     resetRoute
   } = useApp();
   const elevationRef = useRef<HTMLDivElement>(null);
+  const drawing = useRouteDrawing();
+  const isDrawing = drawing.state === 'placing' || drawing.state === 'routing';
 
   return (
     <main className="flex-1 relative flex flex-col bg-background">
@@ -280,8 +288,10 @@ export function MapCanvas() {
       <div className="flex-1 relative overflow-hidden">
         {/* Center Content (rendered first so overlays stack on top) */}
         <div className="absolute inset-0 z-0">
-          <MapView />
-          {!routeData.loaded && <GpxDropZone />}
+          <MapView drawing={drawing} />
+          {!routeData.loaded && !isDrawing && (
+            <GpxDropZone onDrawRoute={drawing.startDrawing} />
+          )}
         </div>
 
         {/* Map UI Overlays — only show when route is loaded */}

@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, Zap, Droplets, Coffee, Flame, Plus } from 'lucide-react';
 import { ProductProps } from './NutritionCard';
 import { ProductRatingDisplay, ProductRatingForm } from './ProductRating';
@@ -13,6 +14,8 @@ interface ProductDetailModalProps {
 }
 
 export function ProductDetailModal({ product, isOpen, onClose, onAddToRoute }: ProductDetailModalProps) {
+  useModalBehavior(isOpen, onClose);
+
   const { average, addRating } = useProductRatings(product?.id || '');
   const [showRatingForm, setShowRatingForm] = useState(false);
 
@@ -41,7 +44,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToRoute }: P
       />
 
       {/* Modal */}
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div>
@@ -59,7 +62,7 @@ export function ProductDetailModal({ product, isOpen, onClose, onAddToRoute }: P
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto overscroll-contain">
         {/* Product Image */}
         <div className="bg-surfaceHighlight p-8 flex items-center justify-center">
           <img

@@ -10,9 +10,18 @@ export interface DirectionsResult {
 
 export type RoutingProfile = 'cycling' | 'walking' | 'driving';
 
+// Session-level LRU-ish cache — prevents duplicate API calls for undo/redo of the same segment.
+const directionsCache = new Map<string, DirectionsResult>();
+const CACHE_MAX = 200;
+
+function cacheKey(waypoints: { lat: number; lng: number }[], profile: RoutingProfile): string {
+  return waypoints.map((w) => `${w.lng.toFixed(5)},${w.lat.toFixed(5)}`).join(';') + '|' + profile;
+}
+
 export async function getDirections(
   waypoints: { lat: number; lng: number }[],
-  profile: RoutingProfile = 'cycling'
+  profile: RoutingProfile = 'cycling',
+  signal?: AbortSignal
 ): Promise<DirectionsResult> {
   if (waypoints.length < 2) {
     throw new Error('At least 2 waypoints required');
@@ -20,13 +29,22 @@ export async function getDirections(
 
   // Mapbox Directions API supports max 25 waypoints per request
   if (waypoints.length > 25) {
-    return getDirectionsChunked(waypoints, profile);
+    return getDirectionsChunked(waypoints, profile, signal);
+  }
+
+  const key = cacheKey(waypoints, profile);
+  const cached = directionsCache.get(key);
+  if (cached) {
+    // Refresh recency
+    directionsCache.delete(key);
+    directionsCache.set(key, cached);
+    return cached;
   }
 
   const coordinates = waypoints.map((w) => `${w.lng},${w.lat}`).join(';');
-  const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coordinates}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`;
+  const url = `https://api.mapbox.com/directions/v5/mapbox/${profile}/${coordinates}?geometries=geojson&overview=full&steps=false&alternatives=false&access_token=${MAPBOX_TOKEN}`;
 
-  const response = await fetch(url);
+  const response = await fetch(url, { signal });
   if (!response.ok) {
     throw new Error(`Directions API error: ${response.status}`);
   }
@@ -37,16 +55,26 @@ export async function getDirections(
   }
 
   const route = data.routes[0];
-  return {
+  const result: DirectionsResult = {
     distance: route.distance,
     duration: route.duration,
     geometry: route.geometry,
   };
+
+  // Cache eviction: drop oldest if over capacity
+  if (directionsCache.size >= CACHE_MAX) {
+    const oldestKey = directionsCache.keys().next().value;
+    if (oldestKey) directionsCache.delete(oldestKey);
+  }
+  directionsCache.set(key, result);
+
+  return result;
 }
 
 async function getDirectionsChunked(
   waypoints: { lat: number; lng: number }[],
-  profile: RoutingProfile
+  profile: RoutingProfile,
+  signal?: AbortSignal
 ): Promise<DirectionsResult> {
   const chunkSize = 24; // 25 max, but overlap by 1
   const allCoords: [number, number][] = [];
@@ -57,7 +85,7 @@ async function getDirectionsChunked(
     const chunk = waypoints.slice(i, Math.min(i + chunkSize + 1, waypoints.length));
     if (chunk.length < 2) break;
 
-    const result = await getDirections(chunk, profile);
+    const result = await getDirections(chunk, profile, signal);
     totalDistance += result.distance;
     totalDuration += result.duration;
 
@@ -76,6 +104,8 @@ async function getDirectionsChunked(
 export async function getElevationForCoordinates(
   coordinates: [number, number][]
 ): Promise<number[]> {
+  if (!coordinates || coordinates.length === 0) return [];
+
   // Sample down to ~90 points (Open-Meteo limit is 100 per request)
   const maxSamples = 90;
   const sampleRate = Math.max(1, Math.floor(coordinates.length / maxSamples));

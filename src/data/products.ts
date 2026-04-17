@@ -141,7 +141,7 @@ export const products = new Proxy([] as ProductProps[], {
     if (prop === 'length') return _products.length;
     if (prop === Symbol.iterator) return _products[Symbol.iterator].bind(_products);
     if (typeof prop === 'string' && !isNaN(Number(prop))) return _products[Number(prop)];
-    const val = (_products as any)[prop];
+    const val = (_products as unknown as Record<string | symbol, unknown>)[prop];
     return typeof val === 'function' ? val.bind(_products) : val;
   },
 });

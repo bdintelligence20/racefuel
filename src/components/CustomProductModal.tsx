@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, Plus } from 'lucide-react';
 import { ProductProps, ProductCategory } from './NutritionCard';
 import { nanoid } from 'nanoid';
@@ -91,6 +92,8 @@ export function CustomProductModal({ isOpen, onClose, onAdd }: CustomProductModa
     setColor('orange');
     onClose();
   };
+  useModalBehavior(isOpen, onClose);
+
 
   if (!isOpen) return null;
 
@@ -101,7 +104,7 @@ export function CustomProductModal({ isOpen, onClose, onAdd }: CustomProductModa
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
@@ -176,7 +179,7 @@ export function CustomProductModal({ isOpen, onClose, onAdd }: CustomProductModa
             <div>
               <label className={labelClass}>Carbs (g)</label>
               <input
-                type="number"
+                type="number" inputMode="numeric"
                 value={carbs}
                 onChange={e => setCarbs(e.target.value)}
                 className={inputClass}
@@ -186,7 +189,7 @@ export function CustomProductModal({ isOpen, onClose, onAdd }: CustomProductModa
             <div>
               <label className={labelClass}>Calories</label>
               <input
-                type="number"
+                type="number" inputMode="numeric"
                 value={calories}
                 onChange={e => setCalories(e.target.value)}
                 className={inputClass}
@@ -196,7 +199,7 @@ export function CustomProductModal({ isOpen, onClose, onAdd }: CustomProductModa
             <div>
               <label className={labelClass}>Sodium (mg)</label>
               <input
-                type="number"
+                type="number" inputMode="numeric"
                 value={sodium}
                 onChange={e => setSodium(e.target.value)}
                 className={inputClass}
@@ -206,7 +209,7 @@ export function CustomProductModal({ isOpen, onClose, onAdd }: CustomProductModa
             <div>
               <label className={labelClass}>Caffeine (mg)</label>
               <input
-                type="number"
+                type="number" inputMode="numeric"
                 value={caffeine}
                 onChange={e => setCaffeine(e.target.value)}
                 className={inputClass}
@@ -219,7 +222,7 @@ export function CustomProductModal({ isOpen, onClose, onAdd }: CustomProductModa
           <div className="w-1/2">
             <label className={labelClass}>Price (ZAR)</label>
             <input
-              type="number"
+              type="number" inputMode="numeric"
               value={price}
               onChange={e => setPrice(e.target.value)}
               className={inputClass}

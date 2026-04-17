@@ -7,6 +7,7 @@ import {
   onAuthStateChanged,
   User,
   updateProfile,
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth } from './config';
 
@@ -32,6 +33,10 @@ export async function signUpWithEmail(email: string, password: string, displayNa
 
 export async function signOut(): Promise<void> {
   await firebaseSignOut(auth);
+}
+
+export async function sendPasswordResetEmail(email: string): Promise<void> {
+  await firebaseSendPasswordResetEmail(auth, email);
 }
 
 export function onAuthChange(callback: (user: User | null) => void): () => void {

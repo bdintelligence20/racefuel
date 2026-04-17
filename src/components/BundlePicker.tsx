@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, Package, Tag, ChevronRight } from 'lucide-react';
 import { bundles, ProductBundle, BundleTier } from '../data/bundles';
 import { useProducts } from '../data/products';
@@ -98,6 +99,8 @@ export function BundlePicker({ isOpen, onClose }: BundlePickerProps) {
   const { routeData, addNutritionPoint } = useApp();
   const [selectedTier, setSelectedTier] = useState<BundleTier | 'all'>('all');
   const products = useProducts();
+  useModalBehavior(isOpen, onClose);
+
 
   if (!isOpen) return null;
 
@@ -136,7 +139,7 @@ export function BundlePicker({ isOpen, onClose }: BundlePickerProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div>
@@ -166,7 +169,7 @@ export function BundlePicker({ isOpen, onClose }: BundlePickerProps) {
         </div>
 
         {/* Bundles */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-3">
           {filtered.map((bundle) => (
             <BundleCard
               key={bundle.id}

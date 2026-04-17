@@ -36,78 +36,99 @@ export interface GeneratedPlan {
 }
 
 /**
- * Get appropriate products for a position on the route
+ * Phase-aware fuel-gap in minutes.
+ *
+ * Research basis:
+ * - Early phase: glycogen stores are full, gut tolerance is peak. Wider gaps are fine.
+ * - Mid phase: glycogen depletion accelerates; tighter spacing sustains carb availability.
+ * - Late phase: the bonk zone. Research (Jeukendrup, Burke) shows frequent small doses
+ *   outperform large ones as gut motility slows under stress. Pull gaps tighter to prevent
+ *   hypoglycaemia-driven performance drops.
+ */
+function gapMinutesForPhase(phase: number, durationHours: number): number {
+  if (phase < 0.33) return durationHours > 2 ? 28 : 25;
+  if (phase < 0.66) return durationHours > 2 ? 24 : 22;
+  return durationHours > 2 ? 20 : 18;
+}
+
+/**
+ * Pick the time of the first fuel point, in minutes into the effort.
+ *
+ * Research basis:
+ * - <60 min: no fuel needed — glycogen covers it (handled upstream, not here).
+ * - 60-90 min: single fuel around halfway is often sufficient.
+ * - >90 min: first fuel at 30-40 min in to stretch glycogen without emptying the tank.
+ * - Hot conditions shift this earlier (sweat loss starts earlier GI stress).
+ */
+function firstFuelMinutes(durationHours: number, temperatureCelsius: number): number {
+  const hot = temperatureCelsius >= 25;
+  if (durationHours < 1.5) return Math.round(durationHours * 60 * (hot ? 0.42 : 0.5));
+  if (durationHours < 2.5) return hot ? 28 : 35;
+  return hot ? 28 : 35;
+}
+
+function pickFromSorted<T>(sorted: T[], topN = 3): T {
+  if (sorted.length === 0) throw new Error('Cannot pick from empty list');
+  return sorted[Math.floor(Math.random() * Math.min(topN, sorted.length))];
+}
+
+/**
+ * Choose the next product.
+ *
+ * Research basis (dual-transporter absorption, Jeukendrup 2010+):
+ * - Glucose uptake saturates at ~60 g/h via SGLT1.
+ * - Adding fructose (GLUT5) enables up to 90 g/h.
+ * - Alternating liquid (often fructose-containing) with solid (glucose-heavy) approximates
+ *   the 2:1 glucose:fructose ratio in real use.
  */
 function selectProduct(
   distanceKm: number,
   totalDistanceKm: number,
-  durationHours: number,
   caffeineStrat: CaffeineRecommendation,
   currentCaffeineMg: number,
-  segment?: RouteSegment,
-  preferredProducts?: ProductProps[]
+  segment: RouteSegment | undefined,
+  preferredProducts: ProductProps[] | undefined,
+  preferSolidNow: boolean
 ): ProductProps {
-  const progress = distanceKm / totalDistanceKm;
   const catalog = preferredProducts && preferredProducts.length > 0 ? preferredProducts : products;
+  const gels = catalog.filter((p) => p.category === 'gel');
+  const drinks = catalog.filter((p) => p.category === 'drink');
+  const bars = catalog.filter((p) => p.category === 'bar');
+  const chews = catalog.filter((p) => p.category === 'chew');
 
-  const gels = catalog.filter(p => p.category === 'gel');
-  const drinks = catalog.filter(p => p.category === 'drink');
-  const bars = catalog.filter(p => p.category === 'bar');
-  const chews = catalog.filter(p => p.category === 'chew');
-
-  // Should we use caffeine here?
-  const useCaffeine = shouldUseCaffeineProduct(
-    distanceKm, totalDistanceKm, caffeineStrat, currentCaffeineMg
-  );
-
-  if (useCaffeine) {
-    const cafProducts = catalog.filter(p => p.caffeine > 0);
-    if (cafProducts.length > 0) {
-      return cafProducts[Math.floor(Math.random() * cafProducts.length)];
-    }
+  // Caffeine timing — strategic, not filler
+  if (shouldUseCaffeineProduct(distanceKm, totalDistanceKm, caffeineStrat, currentCaffeineMg)) {
+    const cafProducts = catalog.filter((p) => p.caffeine > 0).sort((a, b) => b.carbs - a.carbs);
+    if (cafProducts.length > 0) return pickFromSorted(cafProducts, 2);
   }
 
-  // First 40%: prefer bars/chews (solid food, easier at lower relative intensity)
-  if (progress < 0.4 && durationHours > 2) {
-    const solids = [...bars, ...chews];
+  // Dual-transporter alternation: solid (glucose) ↔ liquid (often fructose blend)
+  if (preferSolidNow) {
+    const solids = [...bars, ...chews].sort((a, b) => b.carbs - a.carbs);
     if (solids.length > 0 && (!segment || segment.type !== 'climb')) {
-      return solids[Math.floor(Math.random() * solids.length)];
+      return pickFromSorted(solids, 3);
     }
-  }
-
-  // On climbs: prefer gels (quick, easy to consume)
-  if (segment?.type === 'climb') {
+    // On climbs, solids are hard to chew — fall back to gels
+    if (gels.length > 0) return pickFromSorted([...gels].sort((a, b) => b.carbs - a.carbs), 3);
+  } else {
+    if (drinks.length > 0 && segment?.type !== 'climb') {
+      const sorted = [...drinks].sort((a, b) => b.carbs - a.carbs);
+      return pickFromSorted(sorted, 3);
+    }
+    // Liquid not ideal on a climb — pivot to a gel (quick, no chewing, high-carb)
     if (gels.length > 0) {
-      return gels[Math.floor(Math.random() * gels.length)];
+      const sorted = [...gels].sort((a, b) => b.carbs - a.carbs);
+      return pickFromSorted(sorted, 3);
     }
   }
 
-  // On descents/flats: prefer drinks (easier to drink)
-  if (segment?.type === 'descent' || segment?.type === 'flat') {
-    if (drinks.length > 0 && Math.random() > 0.5) {
-      return drinks[Math.floor(Math.random() * drinks.length)];
-    }
-  }
-
-  // Default: alternate between gels and drinks
-  const isEven = Math.floor(distanceKm / 10) % 2 === 0;
-  if (isEven && gels.length > 0) {
-    // Pick a random gel, prefer higher-carb for longer efforts
-    const sorted = [...gels].sort((a, b) => b.carbs - a.carbs);
-    return sorted[Math.floor(Math.random() * Math.min(3, sorted.length))];
-  }
-
-  if (drinks.length > 0) {
-    const sorted = [...drinks].sort((a, b) => b.carbs - a.carbs);
-    return sorted[Math.floor(Math.random() * Math.min(3, sorted.length))];
-  }
-
-  // Fallback
-  return catalog[Math.floor(Math.random() * catalog.length)];
+  // Last resort: whatever we have, prefer higher-carb for long efforts
+  const fallback = [...catalog].sort((a, b) => b.carbs - a.carbs);
+  return pickFromSorted(fallback, Math.min(5, fallback.length));
 }
 
-function getSegmentAtDistance(segments: RouteSegment[], km: number): RouteSegment | undefined {
-  return segments.find(s => km >= s.startKm && km <= s.endKm);
+function segmentAt(segments: RouteSegment[], km: number): RouteSegment | undefined {
+  return segments.find((s) => km >= s.startKm && km <= s.endKm);
 }
 
 export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
@@ -123,10 +144,9 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
     budget,
   } = input;
 
-  // Calculate targets
   const carbTarget = calculateCarbTarget({
     durationHours,
-    intensityPercent: 0.75, // Default to tempo effort
+    intensityPercent: 0.75,
     gutTolerance: 'trained',
     isCompetition,
     bodyWeightKg: profile.weight,
@@ -149,67 +169,104 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
     targetMgPerKg: isCompetition ? 4 : 3,
   });
 
-  // Build preferred products list
+  // Short efforts → no mid-run fueling (glycogen sufficient). Caller already guards this
+  // but we double-check here so this function is safe standalone.
+  if (durationHours < 1) {
+    return {
+      nutritionPoints: [],
+      carbTarget,
+      hydrationTarget,
+      caffeineStrategy,
+      metrics: {
+        totalCarbs: 0,
+        carbsPerHour: 0,
+        totalSodium: 0,
+        totalCaffeine: 0,
+        totalCalories: 0,
+        totalCost: 0,
+      },
+    };
+  }
+
   const preferredProducts = preferredProductIds
-    ? products.filter(p => preferredProductIds.includes(p.id))
+    ? products.filter((p) => preferredProductIds.includes(p.id))
     : undefined;
 
-  // Determine placement intervals
-  const avgSpeed = distanceKm / durationHours;
-  // Place nutrition every 15-20 minutes
-  const intervalMinutes = durationHours > 3 ? 15 : 20;
-  const intervalKm = (avgSpeed * intervalMinutes) / 60;
+  const avgSpeed = distanceKm / durationHours; // km/h
+  const segments = routeAnalysis?.segments || [];
 
-  // Start fueling at ~15-20min in
-  const firstPointKm = Math.max(5, intervalKm * 0.8);
+  // Phase 1: when does the first fuel go?
+  const firstMin = firstFuelMinutes(durationHours, temperatureCelsius);
+  const firstKm = Math.max(2, (avgSpeed * firstMin) / 60);
 
-  // Generate nutrition points
   const points: NutritionPoint[] = [];
   let totalCarbs = 0;
   let totalSodium = 0;
   let totalCaffeine = 0;
   let totalCalories = 0;
   let totalCost = 0;
+  let preferSolid = false; // dual-transporter alternation; alternate every point
 
-  const segments = routeAnalysis?.segments || [];
+  let cursorKm = firstKm;
 
-  // Place points along the route
-  for (let km = firstPointKm; km < distanceKm - 3; km += intervalKm) {
-    const segment = getSegmentAtDistance(segments, km);
+  // Stop placing roughly 2 km before the finish — last fuel won't be digested in time
+  const endBufferKm = Math.max(1, Math.min(3, avgSpeed * 0.15));
 
-    // If approaching a climb, place nutrition 5min before
-    if (segment?.type === 'climb' && km === segment.startKm) {
-      const preClimbKm = Math.max(firstPointKm, km - (avgSpeed * 5) / 60);
-      if (points.length > 0 && preClimbKm - points[points.length - 1].distanceKm < intervalKm * 0.5) {
-        continue; // Too close to previous point
-      }
-      km = preClimbKm;
+  let safety = 0;
+  while (cursorKm < distanceKm - endBufferKm && safety++ < 200) {
+    const phase = cursorKm / distanceKm;
+    let placeKm = cursorKm;
+
+    // TERRAIN SMARTS:
+    // 1) If a climb starts in the next ~8 min, place the fuel ~5 min BEFORE the climb
+    //    so it's absorbed when you need it.
+    const lookaheadKm = (avgSpeed * 8) / 60;
+    const upcomingClimb = segments.find(
+      (s) => s.type === 'climb' && s.startKm > cursorKm && s.startKm - cursorKm <= lookaheadKm
+    );
+    if (upcomingClimb) {
+      const preClimbKm = upcomingClimb.startKm - (avgSpeed * 5) / 60;
+      if (preClimbKm > cursorKm) placeKm = preClimbKm;
     }
 
-    // Check minimum spacing
+    // 2) If we'd be fueling mid-descent, push to end-of-descent — stomach tolerates food
+    //    poorly while pounding downhill.
+    const currentSeg = segmentAt(segments, placeKm);
+    if (currentSeg?.type === 'descent' && currentSeg.endKm - placeKm > 1.5) {
+      placeKm = Math.min(distanceKm - endBufferKm, currentSeg.endKm);
+    }
+
+    // Minimum-gap protection (avoid stacking when terrain pulled two placements together)
     if (points.length > 0) {
       const lastKm = points[points.length - 1].distanceKm;
-      const gapMinutes = ((km - lastKm) / avgSpeed) * 60;
-      if (gapMinutes < 12) continue;
+      const gapMin = ((placeKm - lastKm) / avgSpeed) * 60;
+      if (gapMin < 12) {
+        cursorKm = lastKm + (avgSpeed * 15) / 60;
+        continue;
+      }
     }
 
+    const segForPlacement = segmentAt(segments, placeKm);
     const product = selectProduct(
-      km, distanceKm, durationHours, caffeineStrategy,
-      totalCaffeine, segment, preferredProducts
+      placeKm,
+      distanceKm,
+      caffeineStrategy,
+      totalCaffeine,
+      segForPlacement,
+      preferredProducts,
+      preferSolid
     );
 
-    // Budget check
+    // Budget check — swap to cheapest high-carb alternative if needed
     if (budget && totalCost + (product.priceZAR || 0) > budget) {
-      // Try to find a cheaper alternative
       const cheaper = products
-        .filter(p => (p.priceZAR || 0) <= budget - totalCost)
+        .filter((p) => (p.priceZAR || 0) <= budget - totalCost)
         .sort((a, b) => b.carbs - a.carbs);
-      if (cheaper.length === 0) break; // Over budget
-      // Use cheapest high-carb option
+      if (cheaper.length === 0) break; // can't afford any more
       const cheapProduct = cheaper[0];
       points.push({
         id: nanoid(),
-        distanceKm: Math.round(km * 10) / 10,
+        distanceKm: Math.round(placeKm * 10) / 10,
         product: cheapProduct,
       });
       totalCarbs += cheapProduct.carbs;
@@ -217,51 +274,10 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       totalCaffeine += cheapProduct.caffeine;
       totalCalories += cheapProduct.calories;
       totalCost += cheapProduct.priceZAR || 0;
-      continue;
-    }
-
-    points.push({
-      id: nanoid(),
-      distanceKm: Math.round(km * 10) / 10,
-      product,
-    });
-
-    totalCarbs += product.carbs;
-    totalSodium += product.sodium;
-    totalCaffeine += product.caffeine;
-    totalCalories += product.calories;
-    totalCost += product.priceZAR || 0;
-  }
-
-  // Check if we're meeting carb targets, if under, add more points
-  const carbsPerHour = durationHours > 0 ? totalCarbs / durationHours : 0;
-  if (carbsPerHour < carbTarget.target * 0.8 && points.length > 0) {
-    // Find biggest gaps and add points
-    const sorted = [...points].sort((a, b) => a.distanceKm - b.distanceKm);
-    const gaps: { midKm: number; gapKm: number }[] = [];
-
-    for (let i = 1; i < sorted.length; i++) {
-      const gap = sorted[i].distanceKm - sorted[i - 1].distanceKm;
-      if (gap > intervalKm * 1.3) {
-        gaps.push({
-          midKm: sorted[i - 1].distanceKm + gap / 2,
-          gapKm: gap,
-        });
-      }
-    }
-
-    gaps.sort((a, b) => b.gapKm - a.gapKm);
-
-    for (const gap of gaps.slice(0, 3)) {
-      const segment = getSegmentAtDistance(segments, gap.midKm);
-      const product = selectProduct(
-        gap.midKm, distanceKm, durationHours, caffeineStrategy,
-        totalCaffeine, segment, preferredProducts
-      );
-
+    } else {
       points.push({
         id: nanoid(),
-        distanceKm: Math.round(gap.midKm * 10) / 10,
+        distanceKm: Math.round(placeKm * 10) / 10,
         product,
       });
       totalCarbs += product.carbs;
@@ -270,9 +286,14 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       totalCalories += product.calories;
       totalCost += product.priceZAR || 0;
     }
+
+    preferSolid = !preferSolid; // alternate for dual-transporter next time
+
+    // Advance by phase-aware gap
+    const gapMin = gapMinutesForPhase(phase, durationHours);
+    cursorKm = placeKm + (avgSpeed * gapMin) / 60;
   }
 
-  // Sort by distance
   points.sort((a, b) => a.distanceKm - b.distanceKm);
 
   return {

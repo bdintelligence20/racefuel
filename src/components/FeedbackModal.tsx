@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, Frown, Meh, Smile, SmilePlus, Heart } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { addFeedback } from '../persistence/db';
@@ -32,6 +33,8 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
   const [gutIssues, setGutIssues] = useState<'none' | 'mild' | 'moderate' | 'severe'>('none');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  useModalBehavior(isOpen, onClose);
+
 
   if (!isOpen) return null;
 
@@ -68,7 +71,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md max-h-[90dvh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div>
@@ -93,7 +96,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         </div>
 
         {/* Form */}
-        <div className="p-6 space-y-5 overflow-y-auto">
+        <div className="p-6 space-y-5 overflow-y-auto overscroll-contain">
           {/* Overall Feel */}
           <div>
             <label className="text-xs font-medium text-text-secondary uppercase tracking-wider block mb-2">

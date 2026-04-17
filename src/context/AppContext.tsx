@@ -1,5 +1,6 @@
 import { useState, createContext, useContext, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { nanoid } from 'nanoid';
+import { toast } from 'sonner';
 import { ProductProps } from '../components/NutritionCard';
 import { parseGpx } from '../services/route/gpxParser';
 import { parseTcx } from '../services/route/tcxParser';
@@ -606,16 +607,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!routeData.loaded) return;
 
     try {
-      pushHistory(routeData.nutritionPoints);
-
       const timeParts = (routeData.estimatedTime || '3:00:00').split(':').map(Number);
       let durationHours = timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600;
-      // Fallback: estimate duration from distance if time is missing/zero
       if (!durationHours || durationHours <= 0) {
-        durationHours = routeData.distanceKm / 25; // assume ~25 km/h avg
+        durationHours = routeData.distanceKm / 25;
       }
 
-      console.log('[AutoGenerate] Starting...', { distanceKm: routeData.distanceKm, durationHours, profile: userProfile });
+      // Sports-nutrition research: below ~60 min, stored glycogen covers the effort.
+      // No mid-run fueling is recommended or needed.
+      if (durationHours < 1) {
+        const minutes = Math.round(durationHours * 60);
+        toast.info(
+          `Under an hour (${minutes} min) doesn't need mid-run fuel — glycogen stores cover it. Hydrate well and go.`,
+          { duration: 6000 }
+        );
+        return;
+      }
+
+      pushHistory(routeData.nutritionPoints);
 
       const plan = generatePlan({
         distanceKm: routeData.distanceKm,
@@ -628,15 +637,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
         humidity: 50,
       });
 
-      console.log('[AutoGenerate] Generated', plan.nutritionPoints.length, 'points');
+      if (plan.nutritionPoints.length === 0) {
+        toast.info('No fuel points needed — this effort fits within a well-fueled athlete\'s glycogen window.');
+        return;
+      }
 
       setLastGeneratedPlan(plan);
       setRouteData((prev) => ({
         ...prev,
         nutritionPoints: plan.nutritionPoints,
       }));
+      toast.success(
+        `Plan generated — ${plan.metrics.totalCarbs}g carbs (${plan.metrics.carbsPerHour}g/h), ${plan.nutritionPoints.length} fuel points`
+      );
     } catch (err) {
       console.error('[AutoGenerate] Error:', err);
+      toast.error('Failed to generate plan — please try again');
     }
   };
 

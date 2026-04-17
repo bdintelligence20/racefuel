@@ -78,9 +78,20 @@
 }
 
 @layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
   body {
     @apply bg-background text-text-primary antialiased;
     font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  /* Height of the fixed mobile nav — used by offset utilities below.
+     Matches the py-2 + content height from App.tsx MobileNav. */
+  :root {
+    --mobile-nav-height: 3.5rem; /* 56px */
   }
 }
 
@@ -91,6 +102,44 @@
 
   .safe-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .safe-left {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+
+  .safe-right {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+
+  /* Offset below the mobile nav, accounting for notch. Use instead of pt-14 on mobile. */
+  .pt-mobile-nav {
+    padding-top: calc(var(--mobile-nav-height) + env(safe-area-inset-top, 0px));
+  }
+
+  /* Same offset but via top: (for fixed children below the nav). */
+  .top-mobile-nav {
+    top: calc(var(--mobile-nav-height) + env(safe-area-inset-top, 0px));
+  }
+
+  /* Prevent scroll chaining into the body when the user scrolls inside a modal. */
+  .overscroll-contain {
+    overscroll-behavior: contain;
+  }
+
+  /* Hide scrollbar on horizontally-scrolling strips (e.g. action-bar stats). */
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Modal content areas — scroll inside, respect safe-area bottom. */
+  .modal-body {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
 }
 

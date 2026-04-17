@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, User, Zap, Wind, Ruler, RefreshCw } from 'lucide-react';
 import { useApp, UserProfile } from '../context/AppContext';
 
@@ -19,6 +20,8 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
       setFormData(userProfile);
     }
   }, [isOpen, userProfile]);
+  useModalBehavior(isOpen, onClose);
+
 
   if (!isOpen) return null;
 
@@ -72,7 +75,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
       />
 
       {/* Modal */}
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
@@ -132,7 +135,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
             </label>
             <div className="flex items-center gap-2">
               <input
-                type="number"
+                type="number" inputMode="numeric"
                 value={formData.weight}
                 onChange={(e) => handleChange('weight', parseInt(e.target.value) || 0)}
                 className="flex-1 bg-surface border border-[var(--color-border)] rounded-lg text-text-primary text-lg font-display p-3 focus:outline-none focus:border-accent transition-colors"
@@ -149,7 +152,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
             </label>
             <div className="flex items-center gap-2">
               <input
-                type="number"
+                type="number" inputMode="numeric"
                 value={formData.height}
                 onChange={(e) => handleChange('height', parseInt(e.target.value) || 0)}
                 className="flex-1 bg-surface border border-[var(--color-border)] rounded-lg text-text-primary text-lg font-display p-3 focus:outline-none focus:border-accent transition-colors"
@@ -166,7 +169,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
             </label>
             <div className="flex items-center gap-2">
               <input
-                type="number"
+                type="number" inputMode="numeric"
                 value={formData.ftp}
                 onChange={(e) => handleChange('ftp', parseInt(e.target.value) || 0)}
                 className="flex-1 bg-surface border border-[var(--color-border)] rounded-lg text-text-primary text-lg font-display p-3 focus:outline-none focus:border-accent transition-colors"

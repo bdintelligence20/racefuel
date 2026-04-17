@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, MapPin, ChevronDown, ChevronUp, RotateCcw, Smile, Frown, Meh } from 'lucide-react';
 import { getAllPlans, getAllFeedback, SavedPlan, PlanFeedback } from '../persistence/db';
 import { useApp } from '../context/AppContext';
@@ -163,6 +164,8 @@ export function HistoryView({ isOpen, onClose }: HistoryViewProps) {
 
     load();
   }, [isOpen]);
+  useModalBehavior(isOpen, onClose);
+
 
   if (!isOpen) return null;
 
@@ -180,7 +183,7 @@ export function HistoryView({ isOpen, onClose }: HistoryViewProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div>
@@ -193,7 +196,7 @@ export function HistoryView({ isOpen, onClose }: HistoryViewProps) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4">
           {loading ? (
             <div className="text-center py-8">
               <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto" />

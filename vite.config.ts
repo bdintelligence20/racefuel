@@ -4,17 +4,33 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('mapbox-gl')) return 'mapbox';
+            if (id.includes('jspdf') || id.includes('html2canvas')) return 'pdf';
+            if (id.includes('firebase') || id.includes('@firebase')) return 'firebase';
+            if (id.includes('framer-motion')) return 'motion';
+            if (id.includes('react-dom') || id.includes('react/')) return 'react';
+          }
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'RACEFUEL - Nutrition Planner',
-        short_name: 'RACEFUEL',
-        description: 'AI-powered race nutrition planning for cyclists, runners, and triathletes',
-        theme_color: '#0a0a0a',
-        background_color: '#0a0a0a',
+        name: 'FuelCue — Nutrition Planner',
+        short_name: 'FuelCue',
+        description: 'Smart nutrition planning for endurance athletes. Upload a GPX route and get a personalized fueling plan with real products.',
+        theme_color: '#FFF9F0',
+        background_color: '#FFF9F0',
         display: 'standalone',
         orientation: 'any',
         categories: ['sports', 'health', 'fitness'],
