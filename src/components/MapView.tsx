@@ -646,7 +646,7 @@ export function MapView({ drawing }: { drawing: DrawingApi }) {
       )}
 
       {/* Route Drawing Toolbar — hidden when GpxDropZone is showing (it has its own Draw button) */}
-      <div className={`absolute bottom-4 left-4 z-30 ${!routeData.loaded && drawing.state === 'idle' ? 'hidden' : ''}`}>
+      <div className={`absolute bottom-8 left-8 z-30 ${!routeData.loaded && drawing.state === 'idle' ? 'hidden' : ''}`}>
         <RouteDrawingToolbar
           state={drawing.state}
           waypointCount={drawing.waypoints.length}

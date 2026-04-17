@@ -353,7 +353,7 @@ export function MapCanvas() {
         ref={elevationRef}
         className={`bg-surface relative group ${routeData.loaded ? 'h-48' : 'h-0 overflow-hidden'}`}
       >
-        <div className="absolute top-2 left-3 bg-warm/10 text-warm text-[9px] font-display font-semibold px-2.5 py-1 rounded-md uppercase tracking-wider z-10 border border-warm/20">
+        <div className="absolute top-2 left-3 bg-surface text-warm text-[9px] font-display font-semibold px-2.5 py-1 rounded-md uppercase tracking-wider z-10 border border-warm/20 shadow-sm">
           Elevation
         </div>
 
