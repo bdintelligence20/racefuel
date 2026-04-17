@@ -134,6 +134,17 @@ function ElevationProfile() {
     e.dataTransfer.dropEffect = 'copy';
   };
 
+  // Compute totals for metrics strip
+  const { totalGain, totalLoss } = useMemo(() => {
+    if (elevations.length < 2) return { totalGain: 0, totalLoss: 0 };
+    let gain = 0, loss = 0;
+    for (let i = 1; i < elevations.length; i++) {
+      const delta = elevations[i] - elevations[i - 1];
+      if (delta > 0) gain += delta; else loss -= delta;
+    }
+    return { totalGain: Math.round(gain), totalLoss: Math.round(loss) };
+  }, [elevations]);
+
   return (
     <div
       className="w-full h-full relative"
@@ -141,6 +152,7 @@ function ElevationProfile() {
       onDragOver={handleDragOver}
     >
       {elevations.length > 0 ? (
+        <>
         <svg
           ref={svgRef}
           viewBox="0 0 1000 150"
@@ -242,6 +254,29 @@ function ElevationProfile() {
             );
           })}
         </svg>
+
+        {/* Y-axis elevation labels (left side) */}
+        <div className="absolute left-2 top-8 bottom-8 flex flex-col justify-between pointer-events-none z-10">
+          <div className="text-[9px] font-display font-semibold text-text-muted bg-surface/80 px-1.5 py-0.5 rounded tabular-nums">
+            {Math.round(maxElev)}m
+          </div>
+          <div className="text-[9px] font-display font-semibold text-text-muted bg-surface/80 px-1.5 py-0.5 rounded tabular-nums">
+            {Math.round(minElev)}m
+          </div>
+        </div>
+
+        {/* Gain/Loss totals (top-right) */}
+        <div className="absolute top-2 right-3 flex items-center gap-2 z-10">
+          <div className="flex items-center gap-1 bg-surface border border-warm/20 rounded-md px-2 py-1 shadow-sm">
+            <span className="text-[9px] font-display text-text-muted uppercase tracking-wider">Gain</span>
+            <span className="text-[11px] font-display font-bold text-warm tabular-nums">+{totalGain}m</span>
+          </div>
+          <div className="flex items-center gap-1 bg-surface border border-accent/15 rounded-md px-2 py-1 shadow-sm">
+            <span className="text-[9px] font-display text-text-muted uppercase tracking-wider">Loss</span>
+            <span className="text-[11px] font-display font-bold text-accent tabular-nums">-{totalLoss}m</span>
+          </div>
+        </div>
+        </>
       ) : (
         // Fallback terrain-inspired bar chart when no elevation data
         <div className="w-full h-full p-6 flex items-end gap-1 relative z-0">
