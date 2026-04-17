@@ -645,25 +645,46 @@ export function MapView({ drawing }: { drawing: DrawingApi }) {
         </div>
       )}
 
-      {/* Route Drawing Toolbar — hidden when GpxDropZone is showing (it has its own Draw button) */}
-      <div className={`absolute bottom-6 left-4 z-30 ${!routeData.loaded && drawing.state === 'idle' ? 'hidden' : ''}`}>
-        <RouteDrawingToolbar
-          state={drawing.state}
-          waypointCount={drawing.waypoints.length}
-          totalDistance={drawing.totalDistance}
-          totalDuration={drawing.totalDuration}
-          profile={drawing.profile}
-          isProcessing={drawing.isProcessing}
-          error={drawing.error}
-          routeName={drawing.routeName}
-          onStart={drawing.startDrawing}
-          onFinish={handleFinishDrawing}
-          onCancel={drawing.cancelDrawing}
-          onUndo={drawing.removeLastWaypoint}
-          onProfileChange={drawing.setProfile}
-          onRouteNameChange={drawing.setRouteName}
-        />
-      </div>
+      {/* Route Drawing — floating Draw Route button (idle) bottom-left; active drawing becomes a full-width bottom action bar on mobile */}
+      {!routeData.loaded && drawing.state === 'idle' ? null : (drawing.state === 'placing' || drawing.state === 'routing') ? (
+        <div className="absolute bottom-0 left-0 right-0 z-30 lg:bottom-6 lg:left-4 lg:right-auto">
+          <RouteDrawingToolbar
+            state={drawing.state}
+            waypointCount={drawing.waypoints.length}
+            totalDistance={drawing.totalDistance}
+            totalDuration={drawing.totalDuration}
+            profile={drawing.profile}
+            isProcessing={drawing.isProcessing}
+            error={drawing.error}
+            routeName={drawing.routeName}
+            onStart={drawing.startDrawing}
+            onFinish={handleFinishDrawing}
+            onCancel={drawing.cancelDrawing}
+            onUndo={drawing.removeLastWaypoint}
+            onProfileChange={drawing.setProfile}
+            onRouteNameChange={drawing.setRouteName}
+          />
+        </div>
+      ) : (
+        <div className="absolute bottom-6 left-4 z-30">
+          <RouteDrawingToolbar
+            state={drawing.state}
+            waypointCount={drawing.waypoints.length}
+            totalDistance={drawing.totalDistance}
+            totalDuration={drawing.totalDuration}
+            profile={drawing.profile}
+            isProcessing={drawing.isProcessing}
+            error={drawing.error}
+            routeName={drawing.routeName}
+            onStart={drawing.startDrawing}
+            onFinish={handleFinishDrawing}
+            onCancel={drawing.cancelDrawing}
+            onUndo={drawing.removeLastWaypoint}
+            onProfileChange={drawing.setProfile}
+            onRouteNameChange={drawing.setRouteName}
+          />
+        </div>
+      )}
 
       {/* Product Picker Modal */}
       <ProductPickerModal

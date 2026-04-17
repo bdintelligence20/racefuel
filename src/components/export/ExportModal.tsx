@@ -98,59 +98,70 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+      {/* Bottom sheet on mobile, centered card on desktop */}
+      <div className="relative bg-surface border-t sm:border border-[var(--color-border)] rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[90dvh] sm:max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 sm:fade-in sm:zoom-in-95 duration-200">
+        {/* Mobile drag handle */}
+        <div className="sm:hidden flex justify-center pt-2 pb-1 flex-shrink-0">
+          <div className="w-10 h-1 rounded-full bg-[var(--color-border)]" />
+        </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
-          <div className="flex items-center gap-3">
-            <Download className="w-5 h-5 text-accent" />
-            <div>
-              <h2 className="text-lg font-bold text-text-primary">Export Plan</h2>
-              <div className="text-xs text-text-muted font-display">
+        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)] flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
+              <Download className="w-4 h-4 text-accent" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-base font-display font-bold text-text-primary leading-tight">
+                Export Plan
+              </h2>
+              <div className="text-xs text-text-muted font-display truncate">
                 {routeData.nutritionPoints.length} nutrition points
               </div>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-accent/[0.08] transition-colors text-text-muted hover:text-text-primary"
+            aria-label="Close"
+            className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl hover:bg-accent/[0.08] active:bg-accent/[0.12] transition-colors text-text-muted hover:text-text-primary"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Route Summary */}
-        <div className="px-4 py-3 bg-surfaceHighlight border-b border-[var(--color-border)]">
-          <div className="text-sm font-bold text-text-primary">{routeData.name}</div>
-          <div className="text-xs text-text-muted font-display">
-            {routeData.distanceKm.toFixed(1)}km | {routeData.elevationGain}m gain | Est. {routeData.estimatedTime}
+        {/* Route summary */}
+        <div className="px-4 py-3 bg-surfaceHighlight border-b border-[var(--color-border)] flex-shrink-0">
+          <div className="text-sm font-display font-bold text-text-primary truncate">{routeData.name || 'Untitled route'}</div>
+          <div className="text-xs text-text-muted font-display mt-0.5 tabular-nums">
+            {routeData.distanceKm.toFixed(1)}km · {routeData.elevationGain}m · {routeData.estimatedTime}
           </div>
         </div>
 
-        {/* Format Options */}
-        <div className="p-4 space-y-3">
+        {/* Format options — scrollable on mobile */}
+        <div className="flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4 space-y-2 sm:space-y-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           {formats.map((format) => {
             const Icon = format.icon;
             return (
               <button
                 key={format.id}
                 onClick={format.action}
-                className="w-full flex items-start gap-4 p-4 bg-surfaceHighlight border border-[var(--color-border)] rounded-xl hover:border-accent/50 hover:bg-surfaceHighlight transition-all text-left group"
+                className="w-full flex items-center gap-3 p-3 sm:p-4 bg-surfaceHighlight border border-[var(--color-border)] rounded-xl hover:border-accent/40 hover:bg-accent/[0.03] active:scale-[0.99] transition-all text-left"
               >
-                <div className={`mt-0.5 ${format.color}`}>
-                  <Icon className="w-6 h-6" />
+                <div className={`w-10 h-10 rounded-lg bg-surface flex items-center justify-center flex-shrink-0 ${format.color}`}>
+                  <Icon className="w-5 h-5" />
                 </div>
-                <div className="flex-1">
-                  <div className="text-sm font-bold text-text-primary group-hover:text-accent transition-colors">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-display font-bold text-text-primary leading-tight">
                     {format.name}
                   </div>
-                  <div className="text-xs text-text-secondary mt-1">
+                  <div className="text-xs text-text-secondary mt-0.5 leading-snug line-clamp-2 sm:line-clamp-none">
                     {format.description}
                   </div>
                 </div>
-                <Download className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors mt-1" />
+                <Download className="w-4 h-4 text-text-muted flex-shrink-0" />
               </button>
             );
           })}
