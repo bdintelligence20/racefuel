@@ -35,7 +35,7 @@ export function useRouteDrawing() {
   const [state, setState] = useState<DrawingState>('idle');
   const [waypoints, setWaypoints] = useState<GpsPoint[]>([]);
   const [routeSegments, setRouteSegments] = useState<RouteSegment[]>([]);
-  const [profile, setProfile] = useState<RoutingProfile>('cycling');
+  const [profile, setProfile] = useState<RoutingProfile>('walking');
   const [error, setError] = useState<string | null>(null);
   const [routeName, setRouteName] = useState('Custom Route');
 

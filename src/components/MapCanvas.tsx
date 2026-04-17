@@ -2,7 +2,7 @@ import { useRef, useMemo, useState, useCallback } from 'react';
 import { GpxDropZone } from './GpxDropZone';
 import { AutoGenerateButton } from './AutoGenerateButton';
 import { MapView } from './MapView';
-import { Navigation, Trash2 } from 'lucide-react';
+import { Navigation, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { NutritionMarker } from './NutritionMarker';
@@ -316,6 +316,11 @@ export function MapCanvas() {
   const elevationRef = useRef<HTMLDivElement>(null);
   const drawing = useRouteDrawing();
   const isDrawing = drawing.state === 'placing' || drawing.state === 'routing';
+  const [elevationCollapsed, setElevationCollapsed] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 767px)').matches;
+  });
+  const showElevation = routeData.loaded && !isDrawing;
 
   return (
     <main className="flex-1 relative flex flex-col bg-background">
@@ -374,8 +379,8 @@ export function MapCanvas() {
         )}
       </div>
 
-      {/* Terrain wave divider — only show when route loaded */}
-      {routeData.loaded && (
+      {/* Terrain wave divider — only show when expanded elevation is visible */}
+      {showElevation && !elevationCollapsed && (
         <div className="relative h-4 bg-surface -mt-4 z-10">
           <svg viewBox="0 0 1200 16" className="w-full h-full" preserveAspectRatio="none">
             <path d="M0,16 C200,4 400,12 600,6 C800,0 1000,10 1200,4 L1200,16 Z" fill="var(--color-surface)" />
@@ -383,62 +388,76 @@ export function MapCanvas() {
         </div>
       )}
 
-      {/* Elevation Profile Panel — only show when route loaded */}
+      {/* Elevation Profile Panel — only show when route loaded + not drawing */}
       <div
         ref={elevationRef}
-        className={`bg-surface relative group ${routeData.loaded ? 'h-48' : 'h-0 overflow-hidden'}`}
+        className={`bg-surface relative group border-t border-[var(--color-border)] transition-[height] duration-200 ${
+          showElevation
+            ? (elevationCollapsed ? 'h-9' : 'h-32 sm:h-40 lg:h-48')
+            : 'h-0 overflow-hidden border-t-0'
+        }`}
       >
-        <div className="absolute top-2 left-3 bg-surface text-warm text-[9px] font-display font-semibold px-2.5 py-1 rounded-md uppercase tracking-wider z-10 border border-warm/20 shadow-sm">
+        <div className="absolute top-1.5 left-3 bg-surface text-warm text-[9px] font-display font-semibold px-2.5 py-1 rounded-md uppercase tracking-wider z-20 border border-warm/20 shadow-sm">
           Elevation
         </div>
 
-        {/* SVG Elevation Profile */}
-        <ElevationProfile />
+        {/* Collapse toggle */}
+        {showElevation && (
+          <button
+            onClick={() => setElevationCollapsed(v => !v)}
+            aria-label={elevationCollapsed ? 'Expand elevation profile' : 'Collapse elevation profile'}
+            className="absolute top-1.5 right-3 z-20 w-7 h-7 flex items-center justify-center rounded-md bg-surface border border-[var(--color-border)] shadow-sm text-text-muted hover:text-text-primary hover:bg-surfaceHighlight transition-colors"
+          >
+            {elevationCollapsed ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+        )}
 
-        {/* Nutrition Markers on Elevation Profile */}
-        {routeData.loaded &&
-        routeData.nutritionPoints.map((point) => {
-          const left = `${point.distanceKm / routeData.distanceKm * 100}%`;
-          return (
-            <NutritionMarker
-              key={`elev-${point.id}`}
-              product={point.product}
-              distanceKm={point.distanceKm}
-              onRemove={() => removeNutritionPoint(point.id)}
-              style={{
-                left,
-                top: '40%'
-              }}
-            />
-          );
-        })}
+        {/* When collapsed on mobile, show just the label + a compact stat */}
+        {showElevation && elevationCollapsed && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span className="text-[11px] font-display text-text-muted tabular-nums">
+              {routeData.distanceKm.toFixed(1)}km · {routeData.elevationGain}m gain · {routeData.estimatedTime}
+            </span>
+          </div>
+        )}
 
-        {/* X-Axis Labels */}
-        <div className="absolute bottom-2 left-6 right-6 flex justify-between text-[10px] font-display font-medium text-text-muted">
-          <span>0km</span>
-          <span>
-            {routeData.loaded ? (routeData.distanceKm * 0.25).toFixed(0) : '20'}
-            km
-          </span>
-          <span>
-            {routeData.loaded ? (routeData.distanceKm * 0.5).toFixed(0) : '40'}
-            km
-          </span>
-          <span>
-            {routeData.loaded ? (routeData.distanceKm * 0.75).toFixed(0) : '60'}
-            km
-          </span>
-          <span>
-            {routeData.loaded ? routeData.distanceKm.toFixed(0) : '80'}km
-          </span>
-        </div>
+        {/* Expanded elevation content — hidden when collapsed */}
+        {showElevation && !elevationCollapsed && (
+          <>
+            <ElevationProfile />
 
-        {/* Drop Hint */}
-        <div className="absolute inset-0 bg-warm/5 border-2 border-dashed border-warm/20 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity flex items-center justify-center rounded-lg m-1">
-          <span className="text-warm font-display text-[10px] font-semibold bg-surface/90 px-2.5 py-1 rounded-md">
-            Drop to add
-          </span>
-        </div>
+            {routeData.loaded &&
+            routeData.nutritionPoints.map((point) => {
+              const left = `${point.distanceKm / routeData.distanceKm * 100}%`;
+              return (
+                <NutritionMarker
+                  key={`elev-${point.id}`}
+                  product={point.product}
+                  distanceKm={point.distanceKm}
+                  onRemove={() => removeNutritionPoint(point.id)}
+                  style={{
+                    left,
+                    top: '40%'
+                  }}
+                />
+              );
+            })}
+
+            <div className="absolute bottom-2 left-6 right-6 flex justify-between text-[10px] font-display font-medium text-text-muted">
+              <span>0km</span>
+              <span>{(routeData.distanceKm * 0.25).toFixed(0)}km</span>
+              <span>{(routeData.distanceKm * 0.5).toFixed(0)}km</span>
+              <span>{(routeData.distanceKm * 0.75).toFixed(0)}km</span>
+              <span>{routeData.distanceKm.toFixed(0)}km</span>
+            </div>
+
+            <div className="absolute inset-0 bg-warm/5 border-2 border-dashed border-warm/20 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity flex items-center justify-center rounded-lg m-1">
+              <span className="text-warm font-display text-[10px] font-semibold bg-surface/90 px-2.5 py-1 rounded-md">
+                Drop to add
+              </span>
+            </div>
+          </>
+        )}
       </div>
     </main>
   );

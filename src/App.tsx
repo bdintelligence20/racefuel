@@ -38,7 +38,7 @@ function MobileNav({
 }) {
   return (
     <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-surface border-b border-[var(--color-border)] safe-top">
-      <div className="flex items-center gap-3 px-3 py-2">
+      <div className="flex items-center gap-2 px-3 py-2">
         {/* Hamburger */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -48,28 +48,32 @@ function MobileNav({
           {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
 
-        {/* Tab switcher — centered */}
-        <div className="flex-1 flex justify-center">
+        {/* Logo */}
+        <img
+          src="/logo.png"
+          alt="fuelcue"
+          className="h-7 w-auto object-contain flex-shrink-0"
+        />
+
+        {/* Tab switcher — right-aligned */}
+        <div className="flex-1 flex justify-end">
           <div className="flex bg-surfaceHighlight rounded-xl p-1 border border-[var(--color-border)]">
             <button
               onClick={() => setActiveTab('map')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all text-sm font-display font-semibold ${activeTab === 'map' ? 'bg-surface text-warm shadow-sm' : 'text-text-muted'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-sm font-display font-semibold ${activeTab === 'map' ? 'bg-surface text-warm shadow-sm' : 'text-text-muted'}`}
             >
               <Map className="w-4 h-4" />
               Map
             </button>
             <button
               onClick={() => setActiveTab('nutrition')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg transition-all text-sm font-display font-semibold ${activeTab === 'nutrition' ? 'bg-surface text-warm shadow-sm' : 'text-text-muted'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-sm font-display font-semibold ${activeTab === 'nutrition' ? 'bg-surface text-warm shadow-sm' : 'text-text-muted'}`}
             >
               <Package className="w-4 h-4" />
               Fuel
             </button>
           </div>
         </div>
-
-        {/* Spacer to balance hamburger */}
-        <div className="w-11 flex-shrink-0" />
       </div>
     </div>
   );
