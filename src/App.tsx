@@ -1,4 +1,4 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Toaster } from 'sonner';
 import { AppProvider, useApp } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -141,22 +141,44 @@ function AppContent() {
   );
 }
 
-function AuthGate() {
-  const { user, loading } = useAuth();
-  const [showLanding, setShowLanding] = useState(() => {
-    return localStorage.getItem('fuelcue_seen_landing') !== 'true';
-  });
+/** Minimal pathname-based routing: / = landing, /app = app (auth-gated). */
+function useRoute() {
+  const [pathname, setPathname] = useState(window.location.pathname);
 
-  const handleEnterApp = () => {
-    setShowLanding(false);
-    localStorage.setItem('fuelcue_seen_landing', 'true');
+  useEffect(() => {
+    const onPop = () => setPathname(window.location.pathname);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const navigate = (to: string) => {
+    if (window.location.pathname === to) return;
+    window.history.pushState({}, '', to);
+    setPathname(to);
   };
 
-  // Landing page is public — shown before auth
-  if (showLanding) {
+  return { pathname, navigate };
+}
+
+function AuthGate() {
+  const { user, loading } = useAuth();
+  const { pathname, navigate } = useRoute();
+
+  const goToApp = () => navigate('/app');
+
+  // Redirect unknown paths to landing
+  useEffect(() => {
+    if (pathname !== '/' && pathname !== '/app' && pathname !== '') {
+      window.history.replaceState({}, '', '/');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
+  }, [pathname]);
+
+  // Landing page is public — /
+  if (pathname === '/' || pathname === '') {
     return (
       <>
-        <LandingPage onEnterApp={handleEnterApp} />
+        <LandingPage onEnterApp={goToApp} />
         <Toaster
           position="bottom-center"
           toastOptions={{
