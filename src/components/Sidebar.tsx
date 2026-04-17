@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { Activity, User, Wind, Zap, Edit2, LogOut, RotateCcw, FolderOpen, GitCompare, Save, History, Cloud } from 'lucide-react';
+import { Activity, User, Wind, Zap, Edit2, LogOut, RotateCcw, FolderOpen, Save, History, Cloud } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { EditProfileModal } from './EditProfileModal';
 import { SavedPlansModal } from './SavedPlansModal';
-import { PlanComparison } from './PlanComparison';
 import { HistoryView } from './HistoryView';
 import { EventSearchModal } from './EventSearchModal';
 import { ThemeToggle } from './ThemeToggle';
@@ -43,7 +42,6 @@ export function Sidebar() {
   const { user, logout } = useAuth();
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [savedPlansOpen, setSavedPlansOpen] = useState(false);
-  const [comparisonOpen, setComparisonOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [eventSearchOpen, setEventSearchOpen] = useState(false);
 
@@ -170,7 +168,6 @@ export function Sidebar() {
         {[
           { onClick: () => setSavedPlansOpen(true), icon: FolderOpen, label: 'Saved Plans' },
           { onClick: () => setHistoryOpen(true), icon: History, label: 'History' },
-          { onClick: () => setComparisonOpen(true), icon: GitCompare, label: 'Compare Plans' },
           { onClick: () => setEventSearchOpen(true), icon: Cloud, label: 'Race Weather' },
         ].map(({ onClick, icon: Icon, label }) => (
           <button
@@ -233,10 +230,6 @@ export function Sidebar() {
       <SavedPlansModal
         isOpen={savedPlansOpen}
         onClose={() => setSavedPlansOpen(false)}
-      />
-      <PlanComparison
-        isOpen={comparisonOpen}
-        onClose={() => setComparisonOpen(false)}
       />
       <HistoryView
         isOpen={historyOpen}
