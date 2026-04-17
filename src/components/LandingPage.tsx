@@ -245,7 +245,6 @@ export function LandingPage({ onEnterApp }: { onEnterApp: () => void }) {
             >
               <span className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-[#F5A020]" /> 120+ products</span>
               <span className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-[#E8671A]" /> Garmin cues</span>
-              <span className="flex items-center gap-2"><span className="h-1 w-1 rounded-full bg-[#3D2152]" /> Free. No signup required</span>
             </motion.div>
           </div>
 
@@ -650,7 +649,7 @@ export function LandingPage({ onEnterApp }: { onEnterApp: () => void }) {
           </Reveal>
           <Reveal delay={0.25}>
             <p className="text-base lg:text-lg text-[#6B5A7A] max-w-md mx-auto mb-10">
-              Free. No signup needed. Drop a GPX and start planning in under 30 seconds.
+              Drop a GPX and start planning in under 30 seconds.
             </p>
           </Reveal>
           <Reveal delay={0.35}>
