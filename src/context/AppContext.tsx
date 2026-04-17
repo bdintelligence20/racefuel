@@ -179,7 +179,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Analysis & validation
   const [routeAnalysis, setRouteAnalysis] = useState<RouteAnalysis | null>(null);
   const [planValidation, setPlanValidation] = useState<ValidationResult | null>(null);
-  const [lastGeneratedPlan, setLastGeneratedPlan] = useState<GeneratedPlan | null>(null);
+  const [lastGeneratedPlan, setLastGeneratedPlan] = useState<GeneratedPlan | null>(() => {
+    try {
+      const stored = localStorage.getItem('fuelcue_last_plan');
+      return stored ? (JSON.parse(stored) as GeneratedPlan) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  // Persist lastGeneratedPlan so its targets survive refresh
+  useEffect(() => {
+    if (lastGeneratedPlan) {
+      localStorage.setItem('fuelcue_last_plan', JSON.stringify(lastGeneratedPlan));
+    } else {
+      localStorage.removeItem('fuelcue_last_plan');
+    }
+  }, [lastGeneratedPlan]);
 
   // Strava state
   const [strava, setStrava] = useState<StravaAuthState>(defaultStravaState);
@@ -306,29 +322,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [routeData]);
 
-  // Restore auto-saved plan on mount — try Firestore first, then IndexedDB
+  // Restore auto-saved plan on mount — try Firestore first, then IndexedDB.
+  // Restores ANY loaded route, even with zero nutrition points (user might have
+  // just uploaded a GPX and not yet placed fuel).
   useEffect(() => {
-    const restoreFromCloud = async () => {
+    const restore = async () => {
       if (getCurrentUser()) {
         try {
           const cloudSave = await firestoreService.loadAutoSave();
           if (cloudSave?.routeDataJson) {
             const restored = JSON.parse(cloudSave.routeDataJson) as RouteData;
-            if (restored.loaded && restored.nutritionPoints.length > 0) {
+            if (restored.loaded) {
               setRouteData(restored);
-              return; // Cloud data found, skip local
+              return;
             }
           }
         } catch (e) {
           console.error('Failed to restore from Firestore:', e);
         }
       }
-      // Fall back to local IndexedDB
       const saved = await loadAutoSavedPlan();
       if (saved) {
         try {
           const restored = JSON.parse(saved.routeDataJson) as RouteData;
-          if (restored.loaded && restored.nutritionPoints.length > 0) {
+          if (restored.loaded) {
             setRouteData(restored);
           }
         } catch (e) {
@@ -336,7 +353,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
     };
-    restoreFromCloud().catch(console.error);
+    restore().catch(console.error);
   }, []);
 
   // Load profile from Firestore on mount
@@ -675,6 +692,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCanUndo(false);
     setCanRedo(false);
     clearAutoSave().catch(console.error);
+    if (getCurrentUser()) firestoreService.clearAutoSave().catch(console.error);
   };
 
   const resetAll = () => {
@@ -695,6 +713,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCanUndo(false);
     setCanRedo(false);
     clearAutoSave().catch(console.error);
+    if (getCurrentUser()) firestoreService.clearAutoSave().catch(console.error);
+    localStorage.removeItem('fuelcue_last_plan');
+    localStorage.removeItem('fuelcue_mobile_tab');
   };
 
   return (

@@ -77,7 +77,14 @@ function MobileNav({
 
 function AppContent() {
   const { onboardingComplete } = useApp();
-  const [mobileTab, setMobileTab] = useState<MobileTab>('map');
+  const [mobileTab, setMobileTabState] = useState<MobileTab>(() => {
+    const stored = localStorage.getItem('fuelcue_mobile_tab');
+    return stored === 'nutrition' ? 'nutrition' : 'map';
+  });
+  const setMobileTab = (t: MobileTab) => {
+    setMobileTabState(t);
+    localStorage.setItem('fuelcue_mobile_tab', t);
+  };
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <div className="flex w-full h-[100dvh] bg-background overflow-hidden font-sans">
