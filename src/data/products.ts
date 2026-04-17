@@ -30,6 +30,30 @@ function detectCategory(title: string, tags: string[]): ProductCategory {
   return 'gel';
 }
 
+/**
+ * Single-serve filter: this app is for on-course fueling, so tubs / bulk packs /
+ * multi-serve containers should never show up. Kept in sync with the plan generator.
+ */
+function isSingleServeProduct(p: ProductProps): boolean {
+  const name = `${p.brand} ${p.name}`.toLowerCase();
+  const multiServePatterns = [
+    /\btub\b/,
+    /\btin\b/,
+    /\bjar\b/,
+    /\bbulk\b/,
+    /\bmultipack\b/,
+    /\bmulti-?pack\b/,
+    /\bpack of \d+/,
+    /\bbox of \d+/,
+    /\b\d+\s*(tabs?|tablets?|serv(ing|e)s?|sachets?|gels?|bars?|chews?)\b(?!\s*per)/,
+    /\b([3-9]\d{2}|[1-9]\d{3})\s*g\b/,
+    /\b[1-9](\.[0-9]+)?\s*kg\b/,
+  ];
+  if (multiServePatterns.some((re) => re.test(name))) return false;
+  if (p.carbs > 70) return false;
+  return true;
+}
+
 function parseProductsFromXml(xml: string): ProductProps[] {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xml, 'text/xml');
@@ -103,7 +127,7 @@ function ensureLoaded(): Promise<void> {
       return res.text();
     })
     .then((xml) => {
-      _products = parseProductsFromXml(xml);
+      _products = parseProductsFromXml(xml).filter(isSingleServeProduct);
       _loaded = true;
       notify();
     })

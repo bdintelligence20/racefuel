@@ -73,6 +73,50 @@ function pickFromSorted<T>(sorted: T[], topN = 3): T {
 }
 
 /**
+ * Reject multi-serve / bulk products (tubs, tins, 500g mixes, bottles-of-tablets).
+ * You can't eat a 1kg tub mid-run; these are for pre-race prep or home use.
+ *
+ * Matches common patterns:
+ *   - "Tub", "Tin", "Jar", "Pouch" (mix containers)
+ *   - "Pack of N", "Box of N", "Multipack", "Bulk"
+ *   - Weights ≥ 300g (single serves are typically 30-80g)
+ *   - Caps/bottles with many tablets ("60 tabs", "Pack of 20")
+ */
+export function isSingleServe(p: ProductProps): boolean {
+  const name = `${p.brand} ${p.name}`.toLowerCase();
+  const multiServePatterns = [
+    /\btub\b/,
+    /\btin\b/,
+    /\bjar\b/,
+    /\bbulk\b/,
+    /\bmultipack\b/,
+    /\bmulti-?pack\b/,
+    /\bpack of \d+/,
+    /\bbox of \d+/,
+    /\b\d+\s*(tabs?|tablets?|serv(ing|e)s?|sachets?|gels?|bars?|chews?)\b(?!\s*per)/,
+    /\b([3-9]\d{2}|[1-9]\d{3})\s*g\b/,  // 300g, 450g, 500g, 1000g etc.
+    /\b[1-9](\.[0-9]+)?\s*kg\b/,
+  ];
+  if (multiServePatterns.some((re) => re.test(name))) return false;
+
+  // Carbs > 70g in a single item is almost always a multi-serve mix (most single
+  // gels/bars/chews are 20-40g, biggest singles are ~60-65g).
+  if (p.carbs > 70) return false;
+
+  return true;
+}
+
+/**
+ * Sort products by how close their carbs are to a target dose (closest first).
+ * Prevents "always pick the 90g mix" behaviour for short runs.
+ */
+function byCarbProximity(items: ProductProps[], targetCarbs: number): ProductProps[] {
+  return [...items].sort(
+    (a, b) => Math.abs(a.carbs - targetCarbs) - Math.abs(b.carbs - targetCarbs),
+  );
+}
+
+/**
  * Choose the next product.
  *
  * Research basis (dual-transporter absorption, Jeukendrup 2010+):
@@ -80,6 +124,10 @@ function pickFromSorted<T>(sorted: T[], topN = 3): T {
  * - Adding fructose (GLUT5) enables up to 90 g/h.
  * - Alternating liquid (often fructose-containing) with solid (glucose-heavy) approximates
  *   the 2:1 glucose:fructose ratio in real use.
+ *
+ * targetCarbsPerPoint: the dose we're aiming for at THIS placement. The generator
+ * computes this from total-carb-target / expected-points so short runs don't get
+ * slammed with a 90g mix.
  */
 function selectProduct(
   distanceKm: number,
@@ -88,43 +136,51 @@ function selectProduct(
   currentCaffeineMg: number,
   segment: RouteSegment | undefined,
   preferredProducts: ProductProps[] | undefined,
-  preferSolidNow: boolean
+  preferSolidNow: boolean,
+  targetCarbsPerPoint: number,
+  maxCarbsPerPoint: number,
 ): ProductProps {
-  const catalog = preferredProducts && preferredProducts.length > 0 ? preferredProducts : products;
-  const gels = catalog.filter((p) => p.category === 'gel');
-  const drinks = catalog.filter((p) => p.category === 'drink');
-  const bars = catalog.filter((p) => p.category === 'bar');
-  const chews = catalog.filter((p) => p.category === 'chew');
+  const catalogRaw = preferredProducts && preferredProducts.length > 0 ? preferredProducts : products;
+  // Only single-serve products are appropriate for on-course fueling.
+  const catalog = catalogRaw.filter(isSingleServe);
+  const fallbackCatalog = catalog.length > 0 ? catalog : catalogRaw;
 
-  // Caffeine timing — strategic, not filler
+  // Filter out products that massively overshoot the per-point budget (e.g. an 80g mix
+  // on a 13km run). Keep anything within maxCarbsPerPoint; fall back if empty.
+  const budgeted = fallbackCatalog.filter((p) => p.carbs <= maxCarbsPerPoint);
+  const pool = budgeted.length > 0 ? budgeted : fallbackCatalog;
+
+  const gels = pool.filter((p) => p.category === 'gel');
+  const drinks = pool.filter((p) => p.category === 'drink');
+  const bars = pool.filter((p) => p.category === 'bar');
+  const chews = pool.filter((p) => p.category === 'chew');
+
+  // Caffeine timing — strategic, not filler. Still respect the per-point budget.
   if (shouldUseCaffeineProduct(distanceKm, totalDistanceKm, caffeineStrat, currentCaffeineMg)) {
-    const cafProducts = catalog.filter((p) => p.caffeine > 0).sort((a, b) => b.carbs - a.carbs);
-    if (cafProducts.length > 0) return pickFromSorted(cafProducts, 2);
+    const cafProducts = pool.filter((p) => p.caffeine > 0);
+    if (cafProducts.length > 0) return pickFromSorted(byCarbProximity(cafProducts, targetCarbsPerPoint), 2);
   }
 
   // Dual-transporter alternation: solid (glucose) ↔ liquid (often fructose blend)
   if (preferSolidNow) {
-    const solids = [...bars, ...chews].sort((a, b) => b.carbs - a.carbs);
+    const solids = [...bars, ...chews];
     if (solids.length > 0 && (!segment || segment.type !== 'climb')) {
-      return pickFromSorted(solids, 3);
+      return pickFromSorted(byCarbProximity(solids, targetCarbsPerPoint), 3);
     }
     // On climbs, solids are hard to chew — fall back to gels
-    if (gels.length > 0) return pickFromSorted([...gels].sort((a, b) => b.carbs - a.carbs), 3);
+    if (gels.length > 0) return pickFromSorted(byCarbProximity(gels, targetCarbsPerPoint), 3);
   } else {
     if (drinks.length > 0 && segment?.type !== 'climb') {
-      const sorted = [...drinks].sort((a, b) => b.carbs - a.carbs);
-      return pickFromSorted(sorted, 3);
+      return pickFromSorted(byCarbProximity(drinks, targetCarbsPerPoint), 3);
     }
-    // Liquid not ideal on a climb — pivot to a gel (quick, no chewing, high-carb)
+    // Liquid not ideal on a climb — pivot to a gel
     if (gels.length > 0) {
-      const sorted = [...gels].sort((a, b) => b.carbs - a.carbs);
-      return pickFromSorted(sorted, 3);
+      return pickFromSorted(byCarbProximity(gels, targetCarbsPerPoint), 3);
     }
   }
 
-  // Last resort: whatever we have, prefer higher-carb for long efforts
-  const fallback = [...catalog].sort((a, b) => b.carbs - a.carbs);
-  return pickFromSorted(fallback, Math.min(5, fallback.length));
+  // Last resort: closest match in the whole pool
+  return pickFromSorted(byCarbProximity(pool, targetCarbsPerPoint), Math.min(5, pool.length));
 }
 
 function segmentAt(segments: RouteSegment[], km: number): RouteSegment | undefined {
@@ -199,6 +255,22 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
   const firstMin = firstFuelMinutes(durationHours, temperatureCelsius);
   const firstKm = Math.max(2, (avgSpeed * firstMin) / 60);
 
+  // Target budget in grams of carbs for the whole effort, and a cap we won't exceed.
+  const targetTotalCarbs = Math.round(carbTarget.target * durationHours);
+  const maxTotalCarbs = Math.round(carbTarget.max * durationHours);
+
+  // Estimate how many points we'll place (for per-point target calculation) based on
+  // the average phase-gap across the effort.
+  const avgGapMin = (gapMinutesForPhase(0.2, durationHours) + gapMinutesForPhase(0.5, durationHours) + gapMinutesForPhase(0.8, durationHours)) / 3;
+  const endBufferKm = Math.max(1, Math.min(3, avgSpeed * 0.15));
+  const usableKm = Math.max(0, distanceKm - endBufferKm - firstKm);
+  const estimatedPoints = Math.max(1, Math.round((usableKm / avgSpeed) * 60 / avgGapMin) + 1);
+  const targetCarbsPerPoint = Math.max(10, Math.round(targetTotalCarbs / estimatedPoints));
+  // Per-point cap: don't let any single product blow through more than 40% of max total,
+  // and never a product that exceeds 1.5× the per-point target. Keeps short runs sane
+  // (13km run = ~50g total → per-point target ~25g, cap ~40g).
+  const maxCarbsPerPoint = Math.max(15, Math.min(Math.round(maxTotalCarbs * 0.4), Math.round(targetCarbsPerPoint * 1.5)));
+
   const points: NutritionPoint[] = [];
   let totalCarbs = 0;
   let totalSodium = 0;
@@ -209,11 +281,10 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
 
   let cursorKm = firstKm;
 
-  // Stop placing roughly 2 km before the finish — last fuel won't be digested in time
-  const endBufferKm = Math.max(1, Math.min(3, avgSpeed * 0.15));
-
   let safety = 0;
   while (cursorKm < distanceKm - endBufferKm && safety++ < 200) {
+    // Stop if we've already met the maximum total-carb budget
+    if (totalCarbs >= maxTotalCarbs) break;
     const phase = cursorKm / distanceKm;
     let placeKm = cursorKm;
 
@@ -247,6 +318,9 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
     }
 
     const segForPlacement = segmentAt(segments, placeKm);
+    // Adjust the per-point dose downward if we're about to overshoot the max budget.
+    const remainingCarbBudget = Math.max(0, maxTotalCarbs - totalCarbs);
+    const dynamicCap = Math.min(maxCarbsPerPoint, remainingCarbBudget + 5); // allow small overshoot
     const product = selectProduct(
       placeKm,
       distanceKm,
@@ -254,16 +328,17 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       totalCaffeine,
       segForPlacement,
       preferredProducts,
-      preferSolid
+      preferSolid,
+      targetCarbsPerPoint,
+      dynamicCap,
     );
 
-    // Budget check — swap to cheapest high-carb alternative if needed
+    // Budget check — swap to an affordable product whose carbs are close to target
     if (budget && totalCost + (product.priceZAR || 0) > budget) {
-      const cheaper = products
-        .filter((p) => (p.priceZAR || 0) <= budget - totalCost)
-        .sort((a, b) => b.carbs - a.carbs);
-      if (cheaper.length === 0) break; // can't afford any more
-      const cheapProduct = cheaper[0];
+      const affordable = products
+        .filter((p) => isSingleServe(p) && (p.priceZAR || 0) <= budget - totalCost && p.carbs <= dynamicCap);
+      if (affordable.length === 0) break;
+      const cheapProduct = byCarbProximity(affordable, targetCarbsPerPoint)[0];
       points.push({
         id: nanoid(),
         distanceKm: Math.round(placeKm * 10) / 10,
