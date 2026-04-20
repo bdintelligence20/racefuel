@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ProductProps } from './NutritionCard';
-import { Trash2, X } from 'lucide-react';
+import { NutritionDetailCard } from './NutritionDetailCard';
 
 interface NutritionMarkerProps {
   product: ProductProps;
@@ -93,47 +93,13 @@ export function NutritionMarker({
 
       {/* Card — opens on click, closes on outside click / Escape / X */}
       {open && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 min-w-[180px] animate-in fade-in slide-in-from-bottom-1 duration-150">
-          <div className="bg-surface border border-[var(--color-border)] p-3 shadow-xl rounded-lg">
-            <div className="flex justify-between items-start gap-2 mb-1">
-              <span className="text-[10px] font-display text-text-muted uppercase tracking-wider">
-                {product.brand}
-              </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setOpen(false);
-                }}
-                className="text-text-muted hover:text-text-primary transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-            <div className="text-sm font-display font-bold text-text-primary mb-1.5 leading-tight">
-              {product.name}
-            </div>
-            <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] font-display mb-2">
-              <span className="text-accent font-semibold">{product.carbs}g CHO</span>
-              <span className="text-text-secondary">@ {distanceKm.toFixed(1)}km</span>
-              {product.priceZAR ? (
-                <span className="text-warm">R{product.priceZAR.toFixed(2)}</span>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove();
-                setOpen(false);
-              }}
-              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg bg-red-500/10 hover:bg-red-500 border border-red-500/20 hover:border-red-500 text-red-500 hover:text-white text-xs font-display font-bold uppercase tracking-wider transition-all active:scale-[0.97]"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Delete Point
-            </button>
-          </div>
-          {/* Arrow */}
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 animate-in fade-in slide-in-from-bottom-1 duration-150">
+          <NutritionDetailCard
+            product={product}
+            distanceKm={distanceKm}
+            onClose={() => setOpen(false)}
+            onRemove={onRemove}
+          />
           <div className="w-2 h-2 bg-surface border-r border-b border-[var(--color-border)] transform rotate-45 absolute bottom-[-5px] left-1/2 -translate-x-1/2" />
         </div>
       )}

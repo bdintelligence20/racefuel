@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { ProductPickerModal } from './ProductPickerModal';
 import { RouteDrawingToolbar } from './RouteDrawingToolbar';
+import { NutritionDetailCard } from './NutritionDetailCard';
 import type { useRouteDrawing } from '../hooks/useRouteDrawing';
 import { toast } from 'sonner';
 
@@ -31,8 +32,10 @@ interface ClickInfo {
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 mapboxgl.accessToken = MAPBOX_TOKEN;
 
-export function MapView({ drawing }: { drawing: DrawingApi }) {
-  const { routeData, addNutritionPoint, removeNutritionPoint, loadSavedRoute } = useApp();
+export type RouteColorMode = 'distance' | 'elevation';
+
+export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingApi; colorMode?: RouteColorMode }) {
+  const { routeData, addNutritionPoint, removeNutritionPoint, moveNutritionPoint, loadSavedRoute } = useApp();
   const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -42,6 +45,10 @@ export function MapView({ drawing }: { drawing: DrawingApi }) {
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
   const [clickInfo, setClickInfo] = useState<ClickInfo | null>(null);
   const [showProductPicker, setShowProductPicker] = useState(false);
+  // Selected nutrition marker — opens a detail popover (click-to-inspect, not click-to-delete).
+  const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
+  // Screen coords of the selected marker so the React popover can anchor to it.
+  const [selectedMarkerScreen, setSelectedMarkerScreen] = useState<{ x: number; y: number } | null>(null);
 
   // Get GPS path - only use real data, no mock
   const gpsPath = useMemo(() => {
@@ -182,6 +189,48 @@ export function MapView({ drawing }: { drawing: DrawingApi }) {
         },
       });
 
+      // Build the line-gradient stops based on colorMode.
+      // - distance: fixed 3-stop plum→orange→plum (time-like feel)
+      // - elevation: per-sample color mapped from normalized elevation (low=plum, high=amber)
+      const buildGradient = (): mapboxgl.Expression => {
+        if (colorMode === 'elevation') {
+          const elevs = gpsPath
+            .map((p) => p.elevation)
+            .filter((e): e is number => typeof e === 'number');
+          if (elevs.length >= 2) {
+            const minE = Math.min(...elevs);
+            const maxE = Math.max(...elevs);
+            const rng = Math.max(1, maxE - minE);
+            const lerp = (a: number, b: number, t: number) => Math.round(a + (b - a) * t);
+            const colorAt = (t: number): string => {
+              // 0 (low) = plum #3D2152 → 1 (high) = amber #F5A020
+              const lo = [0x3d, 0x21, 0x52];
+              const hi = [0xf5, 0xa0, 0x20];
+              const c = [lerp(lo[0], hi[0], t), lerp(lo[1], hi[1], t), lerp(lo[2], hi[2], t)];
+              return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
+            };
+            // Sample ~20 stops along the route to keep the expression compact.
+            const sampleCount = Math.min(20, gpsPath.length);
+            const stops: (number | string)[] = [];
+            for (let i = 0; i < sampleCount; i++) {
+              const frac = i / (sampleCount - 1);
+              const idx = Math.floor(frac * (gpsPath.length - 1));
+              const e = gpsPath[idx].elevation ?? minE;
+              const t = (e - minE) / rng;
+              stops.push(frac, colorAt(t));
+            }
+            return ['interpolate', ['linear'], ['line-progress'], ...stops] as mapboxgl.Expression;
+          }
+        }
+        // Default: distance mode.
+        return [
+          'interpolate', ['linear'], ['line-progress'],
+          0, '#F5A020',
+          0.5, '#E8671A',
+          1, '#3D2152',
+        ] as mapboxgl.Expression;
+      };
+
       // Add main route line with gradient
       map.current.addLayer({
         id: 'route-line',
@@ -193,14 +242,7 @@ export function MapView({ drawing }: { drawing: DrawingApi }) {
         },
         paint: {
           'line-width': 4,
-          'line-gradient': [
-            'interpolate',
-            ['linear'],
-            ['line-progress'],
-            0, '#F5A020',
-            0.5, '#E8671A',
-            1, '#3D2152',
-          ],
+          'line-gradient': buildGradient(),
         },
       });
 
@@ -267,7 +309,7 @@ export function MapView({ drawing }: { drawing: DrawingApi }) {
       map.current.once('style.load', addRoute);
     }
 
-  }, [mapReady, gpsPath, styleVersion]);
+  }, [mapReady, gpsPath, styleVersion, colorMode]);
 
   // Handle mousemove for hover info
   useEffect(() => {
@@ -344,7 +386,7 @@ export function MapView({ drawing }: { drawing: DrawingApi }) {
     };
   }, [mapReady, gpsPath, routeData.distanceKm]);
 
-  // Add nutrition markers
+  // Add nutrition markers — click to inspect, drag to move.
   useEffect(() => {
     if (!map.current || !mapReady || !gpsPath || gpsPath.length === 0) return;
 
@@ -352,13 +394,28 @@ export function MapView({ drawing }: { drawing: DrawingApi }) {
     markersRef.current.slice(2).forEach((m) => m.remove());
     markersRef.current = markersRef.current.slice(0, 2);
 
+    // Find the route index closest to a given lngLat — used when a marker is dragged.
+    const closestRouteIndex = (lng: number, lat: number): number => {
+      let bestIdx = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i < gpsPath.length; i++) {
+        const p = gpsPath[i];
+        const d = (p.lng - lng) ** 2 + (p.lat - lat) ** 2;
+        if (d < bestDist) {
+          bestDist = d;
+          bestIdx = i;
+        }
+      }
+      return bestIdx;
+    };
+
     routeData.nutritionPoints.forEach((point) => {
       const progress = Math.min(point.distanceKm / routeData.distanceKm, 1);
       const idx = Math.floor(progress * (gpsPath.length - 1));
       const gps = gpsPath[idx];
 
       const el = document.createElement('div');
-      el.style.cssText = 'cursor:pointer;';
+      el.style.cssText = 'cursor:grab;touch-action:none;';
       el.innerHTML = `
         <div style="width:36px;height:36px;border-radius:50%;border:2px solid #3D2152;overflow:hidden;background:white;display:flex;align-items:center;justify-content:center;">
           ${point.product.image
@@ -368,19 +425,84 @@ export function MapView({ drawing }: { drawing: DrawingApi }) {
           }
         </div>
       `;
-      el.onclick = (e) => {
-        e.stopPropagation();
-        removeNutritionPoint(point.id);
-      };
 
-      if (map.current) {
-        const marker = new mapboxgl.Marker({ element: el })
-          .setLngLat([gps.lng, gps.lat])
-          .addTo(map.current);
-        markersRef.current.push(marker);
-      }
+      if (!map.current) return;
+      const marker = new mapboxgl.Marker({ element: el, draggable: true })
+        .setLngLat([gps.lng, gps.lat])
+        .addTo(map.current);
+      markersRef.current.push(marker);
+
+      // Differentiate click-to-inspect from drag: track whether the pointer actually moved.
+      let dragMoved = false;
+      marker.on('dragstart', () => {
+        dragMoved = false;
+        el.style.cursor = 'grabbing';
+      });
+      marker.on('drag', () => {
+        dragMoved = true;
+      });
+      marker.on('dragend', () => {
+        el.style.cursor = 'grab';
+        if (!dragMoved) return;
+        const { lng, lat } = marker.getLngLat();
+        const snappedIdx = closestRouteIndex(lng, lat);
+        const snapped = gpsPath[snappedIdx];
+        marker.setLngLat([snapped.lng, snapped.lat]); // snap visual to route
+        const newKm = (snappedIdx / (gpsPath.length - 1)) * routeData.distanceKm;
+        moveNutritionPoint(point.id, newKm);
+        // Don't open the detail card right after a drag.
+        setSelectedMarkerId(null);
+        setSelectedMarkerScreen(null);
+      });
+
+      // Click opens the detail popover (only when not a drag).
+      el.addEventListener('click', (e) => {
+        if (dragMoved) return;
+        e.stopPropagation();
+        setSelectedMarkerId(point.id);
+      });
     });
-  }, [mapReady, gpsPath, routeData.nutritionPoints, routeData.distanceKm, removeNutritionPoint]);
+  }, [mapReady, gpsPath, routeData.nutritionPoints, routeData.distanceKm, moveNutritionPoint]);
+
+  // Keep the selected-marker popover anchored to its screen position as the map moves/zooms.
+  useEffect(() => {
+    if (!map.current || !selectedMarkerId) {
+      setSelectedMarkerScreen(null);
+      return;
+    }
+    const point = routeData.nutritionPoints.find((p) => p.id === selectedMarkerId);
+    if (!point || !gpsPath) return;
+
+    const progress = Math.min(point.distanceKm / routeData.distanceKm, 1);
+    const idx = Math.floor(progress * (gpsPath.length - 1));
+    const gps = gpsPath[idx];
+
+    const update = () => {
+      if (!map.current) return;
+      const screen = map.current.project([gps.lng, gps.lat]);
+      setSelectedMarkerScreen({ x: screen.x, y: screen.y });
+    };
+    update();
+    map.current.on('move', update);
+    return () => {
+      if (map.current) map.current.off('move', update);
+    };
+  }, [selectedMarkerId, routeData.nutritionPoints, routeData.distanceKm, gpsPath]);
+
+  // Close the popover on outside click / Escape.
+  useEffect(() => {
+    if (!selectedMarkerId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedMarkerId(null);
+    };
+    const onMapClick = () => setSelectedMarkerId(null);
+    document.addEventListener('keydown', onKey);
+    map.current?.on('click', onMapClick);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      map.current?.off('click', onMapClick);
+    };
+  }, [selectedMarkerId]);
 
   // Drawing mode: handle map clicks
   const drawingState = drawing.state;
@@ -619,6 +741,30 @@ export function MapView({ drawing }: { drawing: DrawingApi }) {
           </div>
         </div>
       )}
+
+      {/* Selected nutrition marker — detail popover anchored to marker screen position */}
+      {selectedMarkerId && selectedMarkerScreen && (() => {
+        const point = routeData.nutritionPoints.find((p) => p.id === selectedMarkerId);
+        if (!point) return null;
+        return (
+          <div
+            className="absolute z-30 pointer-events-auto -translate-x-1/2"
+            style={{
+              left: selectedMarkerScreen.x,
+              top: selectedMarkerScreen.y - 56,
+              transform: 'translate(-50%, -100%)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <NutritionDetailCard
+              product={point.product}
+              distanceKm={point.distanceKm}
+              onClose={() => setSelectedMarkerId(null)}
+              onRemove={() => removeNutritionPoint(point.id)}
+            />
+          </div>
+        );
+      })()}
 
       {/* Hover Info Tooltip */}
       {hoverInfo && (

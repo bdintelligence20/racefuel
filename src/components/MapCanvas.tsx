@@ -320,6 +320,14 @@ export function MapCanvas() {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(max-width: 767px)').matches;
   });
+  const [routeColorMode, setRouteColorMode] = useState<'distance' | 'elevation'>(() => {
+    if (typeof window === 'undefined') return 'distance';
+    return (localStorage.getItem('fuelcue_route_color_mode') as 'distance' | 'elevation') || 'distance';
+  });
+  const setColorMode = (mode: 'distance' | 'elevation') => {
+    setRouteColorMode(mode);
+    localStorage.setItem('fuelcue_route_color_mode', mode);
+  };
   const showElevation = routeData.loaded && !isDrawing;
 
   return (
@@ -328,7 +336,7 @@ export function MapCanvas() {
       <div className="flex-1 relative overflow-hidden">
         {/* Center Content (rendered first so overlays stack on top) */}
         <div className="absolute inset-0 z-0">
-          <MapView drawing={drawing} />
+          <MapView drawing={drawing} colorMode={routeColorMode} />
           {!routeData.loaded && !isDrawing && (
             <GpxDropZone onDrawRoute={drawing.startDrawing} />
           )}
@@ -338,18 +346,36 @@ export function MapCanvas() {
         {routeData.loaded && (
           <>
             <div className="absolute top-3 left-3 z-10 flex gap-2 pointer-events-auto">
-              <div className="bg-surface border border-[var(--color-border)] rounded-xl px-3 py-2 shadow-md">
+              <button
+                onClick={() => setColorMode('distance')}
+                aria-pressed={routeColorMode === 'distance'}
+                title="Color route by distance"
+                className={`bg-surface rounded-xl px-3 py-2 shadow-md border text-left transition-colors ${
+                  routeColorMode === 'distance'
+                    ? 'border-warm ring-1 ring-warm/30'
+                    : 'border-[var(--color-border)] hover:border-warm/40'
+                }`}
+              >
                 <div className="text-[9px] text-text-muted uppercase tracking-widest font-display">Distance</div>
                 <div className="text-lg font-display font-bold text-text-primary leading-tight">
                   {routeData.distanceKm.toFixed(1)}<span className="text-xs text-text-muted ml-0.5">km</span>
                 </div>
-              </div>
-              <div className="bg-surface border border-[var(--color-border)] rounded-xl px-3 py-2 shadow-md">
+              </button>
+              <button
+                onClick={() => setColorMode('elevation')}
+                aria-pressed={routeColorMode === 'elevation'}
+                title="Color route by elevation"
+                className={`bg-surface rounded-xl px-3 py-2 shadow-md border text-left transition-colors ${
+                  routeColorMode === 'elevation'
+                    ? 'border-warm ring-1 ring-warm/30'
+                    : 'border-[var(--color-border)] hover:border-warm/40'
+                }`}
+              >
                 <div className="text-[9px] text-text-muted uppercase tracking-widest font-display">Elevation</div>
                 <div className="text-lg font-display font-bold text-text-primary leading-tight">
                   {routeData.elevationGain}<span className="text-xs text-text-muted ml-0.5">m</span>
                 </div>
-              </div>
+              </button>
             </div>
 
             <div className="absolute top-3 right-3 z-10 flex gap-2 pointer-events-auto">
