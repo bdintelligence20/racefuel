@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, User, Zap, Wind, Ruler, RefreshCw } from 'lucide-react';
 import { useApp, UserProfile } from '../context/AppContext';
+import { NumberField } from './ui/NumberField';
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -134,10 +135,13 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
               Weight
             </label>
             <div className="flex items-center gap-2">
-              <input
-                type="number" inputMode="numeric"
+              <NumberField
                 value={formData.weight}
-                onChange={(e) => handleChange('weight', parseInt(e.target.value) || 0)}
+                onChange={(v) => handleChange('weight', v)}
+                min={30}
+                max={200}
+                ariaLabel="Weight in kilograms"
+                commitOnBlur
                 className="flex-1 bg-surface border border-[var(--color-border)] rounded-lg text-text-primary text-lg font-display p-3 focus:outline-none focus:border-accent transition-colors"
               />
               <span className="text-text-muted font-display text-sm w-12">kg</span>
@@ -151,10 +155,13 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
               Height
             </label>
             <div className="flex items-center gap-2">
-              <input
-                type="number" inputMode="numeric"
+              <NumberField
                 value={formData.height}
-                onChange={(e) => handleChange('height', parseInt(e.target.value) || 0)}
+                onChange={(v) => handleChange('height', v)}
+                min={120}
+                max={230}
+                ariaLabel="Height in centimetres"
+                commitOnBlur
                 className="flex-1 bg-surface border border-[var(--color-border)] rounded-lg text-text-primary text-lg font-display p-3 focus:outline-none focus:border-accent transition-colors"
               />
               <span className="text-text-muted font-display text-sm w-12">cm</span>
@@ -168,10 +175,13 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
               FTP (Functional Threshold Power)
             </label>
             <div className="flex items-center gap-2">
-              <input
-                type="number" inputMode="numeric"
+              <NumberField
                 value={formData.ftp}
-                onChange={(e) => handleChange('ftp', parseInt(e.target.value) || 0)}
+                onChange={(v) => handleChange('ftp', v)}
+                min={50}
+                max={600}
+                ariaLabel="FTP in watts"
+                commitOnBlur
                 className="flex-1 bg-surface border border-[var(--color-border)] rounded-lg text-text-primary text-lg font-display p-3 focus:outline-none focus:border-accent transition-colors"
               />
               <span className="text-text-muted font-display text-sm w-12">W</span>

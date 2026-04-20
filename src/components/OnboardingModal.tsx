@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { NumberField } from './ui/NumberField';
 import {
   Activity,
   ArrowRight,
@@ -171,12 +172,13 @@ export function OnboardingModal() {
                         Weight (kg)
                       </label>
                       <div className="relative group">
-                        <input
-                          type="number" inputMode="numeric"
+                        <NumberField
                           value={userProfile.weight}
-                          onChange={(e) =>
-                            updateProfile({ weight: Number(e.target.value) })
-                          }
+                          onChange={(v) => updateProfile({ weight: v })}
+                          min={30}
+                          max={200}
+                          ariaLabel="Weight in kilograms"
+                          commitOnBlur
                           className="w-full bg-surface border border-[var(--color-border)] rounded-lg p-4 text-text-primary font-display text-xl focus:border-warm focus:ring-1 focus:ring-warm/20 focus:outline-none transition-colors"
                         />
                         <Weight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-warm" />
@@ -187,12 +189,13 @@ export function OnboardingModal() {
                         Height (cm)
                       </label>
                       <div className="relative group">
-                        <input
-                          type="number" inputMode="numeric"
+                        <NumberField
                           value={userProfile.height}
-                          onChange={(e) =>
-                            updateProfile({ height: Number(e.target.value) })
-                          }
+                          onChange={(v) => updateProfile({ height: v })}
+                          min={120}
+                          max={230}
+                          ariaLabel="Height in centimetres"
+                          commitOnBlur
                           className="w-full bg-surface border border-[var(--color-border)] rounded-lg p-4 text-text-primary font-display text-xl focus:border-warm focus:ring-1 focus:ring-warm/20 focus:outline-none transition-colors"
                         />
                         <Ruler className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-warm" />
@@ -205,12 +208,13 @@ export function OnboardingModal() {
                       FTP (Watts)
                     </label>
                     <div className="relative group">
-                      <input
-                        type="number" inputMode="numeric"
+                      <NumberField
                         value={userProfile.ftp}
-                        onChange={(e) =>
-                          updateProfile({ ftp: Number(e.target.value) })
-                        }
+                        onChange={(v) => updateProfile({ ftp: v })}
+                        min={50}
+                        max={600}
+                        ariaLabel="FTP in watts"
+                        commitOnBlur
                         className="w-full bg-surface border border-[var(--color-border)] rounded-lg p-4 text-text-primary font-display text-xl focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none transition-colors"
                       />
                       <div className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-display text-text-muted">

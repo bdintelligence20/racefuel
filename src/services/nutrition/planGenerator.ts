@@ -259,17 +259,36 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
   const targetTotalCarbs = Math.round(carbTarget.target * durationHours);
   const maxTotalCarbs = Math.round(carbTarget.max * durationHours);
 
-  // Estimate how many points we'll place (for per-point target calculation) based on
-  // the average phase-gap across the effort.
+  // Estimate how many points we'll place based on the average phase-gap across the effort.
   const avgGapMin = (gapMinutesForPhase(0.2, durationHours) + gapMinutesForPhase(0.5, durationHours) + gapMinutesForPhase(0.8, durationHours)) / 3;
   const endBufferKm = Math.max(1, Math.min(3, avgSpeed * 0.15));
   const usableKm = Math.max(0, distanceKm - endBufferKm - firstKm);
   const estimatedPoints = Math.max(1, Math.round((usableKm / avgSpeed) * 60 / avgGapMin) + 1);
+
+  // Short-effort early exit: if there's no useful distance left after the first-fuel
+  // offset and the end buffer, or if the total carb budget is tiny (<15g), don't place
+  // anything. The previous behaviour stacked multiple products trying to hit a miniscule
+  // budget because the per-point floor was larger than the budget itself.
+  if (usableKm <= 0 || maxTotalCarbs < 15) {
+    return {
+      nutritionPoints: [],
+      carbTarget,
+      hydrationTarget,
+      caffeineStrategy,
+      metrics: { totalCarbs: 0, carbsPerHour: 0, totalSodium: 0, totalCaffeine: 0, totalCalories: 0, totalCost: 0 },
+    };
+  }
+
   const targetCarbsPerPoint = Math.max(10, Math.round(targetTotalCarbs / estimatedPoints));
-  // Per-point cap: don't let any single product blow through more than 40% of max total,
-  // and never a product that exceeds 1.5× the per-point target. Keeps short runs sane
-  // (13km run = ~50g total → per-point target ~25g, cap ~40g).
-  const maxCarbsPerPoint = Math.max(15, Math.min(Math.round(maxTotalCarbs * 0.4), Math.round(targetCarbsPerPoint * 1.5)));
+  // Per-point cap: don't let any single product eat more than 60% of the max total
+  // budget, and never exceed 1.5× the per-point target. The floor scales with budget
+  // (small budgets → small floor) so 1hr runs don't end up with a 15g floor on a 24g
+  // total-carb budget.
+  const budgetScaledFloor = Math.min(15, Math.max(8, Math.round(maxTotalCarbs * 0.5)));
+  const maxCarbsPerPoint = Math.max(
+    budgetScaledFloor,
+    Math.min(Math.round(maxTotalCarbs * 0.6), Math.round(targetCarbsPerPoint * 1.5)),
+  );
 
   const points: NutritionPoint[] = [];
   let totalCarbs = 0;

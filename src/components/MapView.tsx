@@ -78,7 +78,9 @@ export function MapView({ drawing }: { drawing: DrawingApi }) {
         setMapError('Map failed to load: ' + (e.error?.message || 'Unknown error'));
       });
 
-      map.current.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+      // Keep zoom controls on the left edge so they don't collide with our
+      // floating Auto Generate FAB (bottom-right).
+      map.current.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'bottom-left');
 
     } catch (err) {
       setMapError('Failed to create map: ' + (err instanceof Error ? err.message : 'Unknown error'));
@@ -647,7 +649,7 @@ export function MapView({ drawing }: { drawing: DrawingApi }) {
 
       {/* Route Drawing — floating Draw Route button (idle) bottom-left; active drawing becomes a full-width bottom action bar on mobile */}
       {!routeData.loaded && drawing.state === 'idle' ? null : (drawing.state === 'placing' || drawing.state === 'routing') ? (
-        <div className="absolute bottom-0 left-0 right-0 z-30 lg:bottom-6 lg:left-4 lg:right-auto">
+        <div className="absolute bottom-0 left-0 right-0 z-30 lg:bottom-6 lg:left-20 lg:right-auto">
           <RouteDrawingToolbar
             state={drawing.state}
             waypointCount={drawing.waypoints.length}
@@ -666,7 +668,7 @@ export function MapView({ drawing }: { drawing: DrawingApi }) {
           />
         </div>
       ) : (
-        <div className="absolute bottom-6 left-4 z-30">
+        <div className="absolute bottom-6 left-20 z-30">
           <RouteDrawingToolbar
             state={drawing.state}
             waypointCount={drawing.waypoints.length}

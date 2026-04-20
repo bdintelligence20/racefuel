@@ -641,6 +641,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // Just over 1hr at a very low speed (e.g. hilly short route estimated at 1:05):
+      // if the usable distance for placement is negligible, skip. This mirrors the
+      // generator's own early exit but gives the user a friendlier message.
+      const avgSpeed = routeData.distanceKm / durationHours;
+      const endBuffer = Math.max(1, Math.min(3, avgSpeed * 0.15));
+      if (routeData.distanceKm - endBuffer < 3) {
+        toast.info(
+          `Route is too short to auto-plan — drag a product onto the route to add fuel manually.`,
+          { duration: 6000 }
+        );
+        return;
+      }
+
       pushHistory(routeData.nutritionPoints);
 
       const plan = generatePlan({

@@ -232,9 +232,6 @@ export function LandingPage({ onEnterApp }: { onEnterApp: () => void }) {
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </span>
               </button>
-              <button className="flex items-center gap-2.5 px-6 py-4 rounded-2xl border border-[#3D2152]/15 text-[#3D2152] text-[13px] font-semibold hover:border-[#3D2152]/35 hover:bg-[#3D2152]/[0.04] transition-all">
-                <Activity className="w-4 h-4" /> Connect Strava
-              </button>
             </motion.div>
 
             <motion.div

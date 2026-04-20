@@ -213,7 +213,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
 
             {/* Checkout Button */}
             <button
-              className="w-full py-4 bg-accent text-black text-sm font-bold uppercase tracking-wider rounded-xl hover:bg-accent/90 transition-colors flex items-center justify-center gap-2"
+              className="w-full py-4 bg-accent text-white text-sm font-bold uppercase tracking-wider rounded-xl hover:bg-accent-light transition-colors flex items-center justify-center gap-2"
               onClick={() => alert('Checkout coming soon!')}
             >
               <ShoppingCart className="w-4 h-4" />
