@@ -26,7 +26,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
 
   if (!isOpen) return null;
 
-  const handleChange = (field: keyof UserProfile, value: string | number) => {
+  const handleChange = (field: keyof UserProfile, value: string | number | string[]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
@@ -211,6 +211,40 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
             </div>
             <p className="mt-2 text-[10px] text-text-muted">
               Affects hydration recommendations. High = 1.5+ L/hr, Medium = 1-1.5 L/hr, Low = &lt;1 L/hr
+            </p>
+          </div>
+
+          {/* Preferred fuel categories */}
+          <div>
+            <label className="flex items-center gap-2 text-xs text-text-secondary uppercase tracking-wider mb-2">
+              <Zap className="w-3 h-3 text-accent" />
+              Preferred Fuel
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {(['gel', 'drink', 'bar', 'chew'] as const).map((cat) => {
+                const selected = (formData.preferredCategories ?? []).includes(cat);
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      const current = formData.preferredCategories ?? [];
+                      const next = selected ? current.filter((c) => c !== cat) : [...current, cat];
+                      handleChange('preferredCategories', next);
+                    }}
+                    className={`py-3 rounded-lg text-xs font-bold uppercase transition-colors ${
+                      selected
+                        ? 'bg-accent/20 border border-accent/50 text-accent'
+                        : 'bg-surfaceHighlight border border-[var(--color-border)] text-text-muted hover:bg-accent/[0.08] hover:text-text-primary'
+                    }`}
+                  >
+                    {cat === 'gel' ? 'Gels' : cat === 'drink' ? 'Drinks' : cat === 'bar' ? 'Bars' : 'Chews'}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-[10px] text-text-muted">
+              Auto-generate biases toward what you tick. Leave all off for no preference.
             </p>
           </div>
         </div>

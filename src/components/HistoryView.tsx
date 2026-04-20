@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useModalBehavior } from '../hooks/useModalBehavior';
-import { X, MapPin, ChevronDown, ChevronUp, RotateCcw, Smile, Frown, Meh } from 'lucide-react';
+import { X, MapPin, ChevronDown, ChevronUp, RotateCcw, Smile, Frown, Meh, MessageSquare } from 'lucide-react';
 import { getAllPlans, getAllFeedback, SavedPlan, PlanFeedback } from '../persistence/db';
 import { useApp } from '../context/AppContext';
 import { RouteData } from '../context/AppContext';
+import { FeedbackModal } from './FeedbackModal';
 import { toast } from 'sonner';
 
 interface HistoryViewProps {
@@ -45,7 +46,15 @@ function FeelIcon({ feel }: { feel: number }) {
   return <Frown className="w-4 h-4 text-red-400" />;
 }
 
-function HistoryCard({ entry, onReuse }: { entry: HistoryEntry; onReuse: () => void }) {
+function HistoryCard({
+  entry,
+  onReuse,
+  onFeedback,
+}: {
+  entry: HistoryEntry;
+  onReuse: () => void;
+  onFeedback: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const { plan, feedback, nutritionSummary } = entry;
   const date = plan.updatedAt || plan.createdAt;
@@ -115,14 +124,23 @@ function HistoryCard({ entry, onReuse }: { entry: HistoryEntry; onReuse: () => v
             </div>
           )}
 
-          {/* Re-use Button */}
-          <button
-            onClick={onReuse}
-            className="w-full py-2 rounded-lg border border-accent/20 text-accent text-xs font-medium hover:bg-accent/10 transition-colors flex items-center justify-center gap-1.5"
-          >
-            <RotateCcw className="w-3 h-3" />
-            Re-use this plan
-          </button>
+          {/* Actions */}
+          <div className="flex gap-2">
+            <button
+              onClick={onReuse}
+              className="flex-1 py-2 rounded-lg border border-accent/20 text-accent text-xs font-medium hover:bg-accent/10 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Re-use plan
+            </button>
+            <button
+              onClick={onFeedback}
+              className="flex-1 py-2 rounded-lg border border-warm/20 text-warm text-xs font-medium hover:bg-warm/10 transition-colors flex items-center justify-center gap-1.5"
+            >
+              <MessageSquare className="w-3 h-3" />
+              {feedback ? 'Add note' : 'Provide feedback'}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -133,6 +151,7 @@ export function HistoryView({ isOpen, onClose }: HistoryViewProps) {
   const { loadSavedRoute } = useApp();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [feedbackFor, setFeedbackFor] = useState<HistoryEntry | null>(null);
 
   // We need setRouteData but it's not exposed. We'll use a workaround by accessing the full route from the plan.
   // Actually, we can use the existing context to load a route from saved plan data.
@@ -226,6 +245,7 @@ export function HistoryView({ isOpen, onClose }: HistoryViewProps) {
                           toast.error('Failed to load plan');
                         }
                       }}
+                      onFeedback={() => setFeedbackFor(entry)}
                     />
                   ))}
                 </div>
@@ -234,6 +254,37 @@ export function HistoryView({ isOpen, onClose }: HistoryViewProps) {
           )}
         </div>
       </div>
+
+      {/* Feedback modal — anchored to a specific past plan */}
+      <FeedbackModal
+        isOpen={feedbackFor !== null}
+        onClose={() => setFeedbackFor(null)}
+        prefill={feedbackFor ? {
+          planId: feedbackFor.plan.id,
+          routeName: feedbackFor.plan.routeName || feedbackFor.plan.name,
+          plannedCarbs: feedbackFor.nutritionSummary.totalCarbs,
+          plannedSodium: feedbackFor.nutritionSummary.totalSodium,
+          plannedCaffeine: feedbackFor.nutritionSummary.totalCaffeine,
+        } : undefined}
+        onSaved={() => {
+          // Reload so new feedback appears on the card.
+          setFeedbackFor(null);
+          setLoading(true);
+          Promise.all([getAllPlans(), getAllFeedback()]).then(([plans, feedback]) => {
+            const userPlans = plans.filter((p) => !p.name.startsWith('Auto-save:'));
+            const feedbackByPlan = new Map<number, PlanFeedback>();
+            for (const fb of feedback) {
+              if (fb.planId) feedbackByPlan.set(fb.planId, fb);
+            }
+            setEntries(userPlans.map((plan) => ({
+              plan,
+              feedback: plan.id ? feedbackByPlan.get(plan.id) : undefined,
+              nutritionSummary: parsePlanSummary(plan),
+            })));
+            setLoading(false);
+          });
+        }}
+      />
     </div>
   );
 }

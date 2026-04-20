@@ -2,7 +2,8 @@ import { useRef, useMemo, useState, useCallback } from 'react';
 import { GpxDropZone } from './GpxDropZone';
 import { AutoGenerateButton } from './AutoGenerateButton';
 import { MapView } from './MapView';
-import { Navigation, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { Navigation, Trash2, ChevronDown, ChevronUp, Clock, Calendar } from 'lucide-react';
+import { EstimatedTimeEditor } from './EstimatedTimeEditor';
 import { useApp } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { NutritionMarker } from './NutritionMarker';
@@ -311,11 +312,14 @@ export function MapCanvas() {
     routeData,
     autoGeneratePlan,
     removeNutritionPoint,
-    resetRoute
+    resetRoute,
+    setUserEstimatedTime,
+    setPlannedDate,
   } = useApp();
   const elevationRef = useRef<HTMLDivElement>(null);
   const drawing = useRouteDrawing();
   const isDrawing = drawing.state === 'placing' || drawing.state === 'routing';
+  const [timeEditorOpen, setTimeEditorOpen] = useState(false);
   const [elevationCollapsed, setElevationCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(max-width: 767px)').matches;
@@ -376,6 +380,68 @@ export function MapCanvas() {
                   {routeData.elevationGain}<span className="text-xs text-text-muted ml-0.5">m</span>
                 </div>
               </button>
+
+              {/* Expected time — tap to edit */}
+              <div className="relative">
+                <button
+                  onClick={() => setTimeEditorOpen((v) => !v)}
+                  title="Set your expected finish time"
+                  className={`bg-surface rounded-xl px-3 py-2 shadow-md border text-left transition-colors ${
+                    routeData.userEstimatedTime
+                      ? 'border-warm/60 ring-1 ring-warm/30'
+                      : 'border-[var(--color-border)] hover:border-warm/40'
+                  }`}
+                >
+                  <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
+                    <Clock className="w-2.5 h-2.5" />
+                    Time {routeData.userEstimatedTime ? '· yours' : '· auto'}
+                  </div>
+                  <div className="text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
+                    {(() => {
+                      const t = routeData.userEstimatedTime || routeData.estimatedTime || '0:00';
+                      const parts = t.split(':');
+                      return `${parseInt(parts[0] || '0', 10)}:${(parts[1] || '00').padStart(2, '0')}`;
+                    })()}
+                  </div>
+                </button>
+                {timeEditorOpen && (
+                  <EstimatedTimeEditor
+                    value={routeData.userEstimatedTime || routeData.estimatedTime || '3:00:00'}
+                    isUserSet={Boolean(routeData.userEstimatedTime)}
+                    onSave={(v) => setUserEstimatedTime(v)}
+                    onClear={() => setUserEstimatedTime(undefined)}
+                    onClose={() => setTimeEditorOpen(false)}
+                  />
+                )}
+              </div>
+
+              {/* Planned date — click to pick, unlocks weather-aware planning */}
+              <label
+                className={`relative bg-surface rounded-xl px-3 py-2 shadow-md border cursor-pointer transition-colors ${
+                  routeData.plannedDate
+                    ? 'border-warm/60 ring-1 ring-warm/30'
+                    : 'border-[var(--color-border)] hover:border-warm/40'
+                }`}
+                title="Set the date you'll do this route — used to pull the right weather forecast"
+              >
+                <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
+                  <Calendar className="w-2.5 h-2.5" />
+                  Date
+                </div>
+                <div className="text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
+                  {routeData.plannedDate
+                    ? new Date(routeData.plannedDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                    : 'Pick'}
+                </div>
+                <input
+                  type="date"
+                  value={routeData.plannedDate ?? ''}
+                  onChange={(e) => setPlannedDate(e.target.value || undefined)}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  aria-label="Planned date"
+                />
+              </label>
             </div>
 
             <div className="absolute top-3 right-3 z-10 flex gap-2 pointer-events-auto">

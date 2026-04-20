@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useModalBehavior } from '../hooks/useModalBehavior';
-import { X, Package, Tag, ChevronRight } from 'lucide-react';
+import { X, Package, Tag, ChevronRight, Check } from 'lucide-react';
 import { bundles, ProductBundle, BundleTier } from '../data/bundles';
 import { useProducts } from '../data/products';
 import { useApp } from '../context/AppContext';
@@ -17,7 +17,15 @@ const tierConfig: Record<BundleTier, { label: string; color: string; bg: string 
   premium: { label: 'Premium', color: 'text-purple-400', bg: 'bg-purple-400/10 border-purple-400/20' },
 };
 
-function BundleCard({ bundle, onSelect }: { bundle: ProductBundle; onSelect: () => void }) {
+function BundleCard({
+  bundle,
+  onSelect,
+  isSelected,
+}: {
+  bundle: ProductBundle;
+  onSelect: () => void;
+  isSelected: boolean;
+}) {
   const [expanded, setExpanded] = useState(false);
   const products = useProducts();
   const tier = tierConfig[bundle.tier];
@@ -33,7 +41,7 @@ function BundleCard({ bundle, onSelect }: { bundle: ProductBundle; onSelect: () 
   const totalCarbs = bundleProducts.reduce((s, p) => s + (p.carbs * p.quantity), 0);
 
   return (
-    <div className="rounded-xl border border-[var(--color-border)] bg-surfaceHighlight overflow-hidden">
+    <div className={`rounded-xl border bg-surfaceHighlight overflow-hidden transition-colors ${isSelected ? 'border-accent ring-1 ring-accent/30' : 'border-[var(--color-border)]'}`}>
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full p-4 flex items-start gap-3 hover:bg-surfaceHighlight transition-colors text-left"
@@ -84,10 +92,14 @@ function BundleCard({ bundle, onSelect }: { bundle: ProductBundle; onSelect: () 
 
           <button
             onClick={onSelect}
-            className="w-full py-2.5 rounded-lg bg-accent text-black text-xs font-bold uppercase tracking-wider hover:bg-accent/90 transition-colors flex items-center justify-center gap-1.5"
+            className={`w-full py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition-colors ${
+              isSelected
+                ? 'bg-accent/10 border border-accent/30 text-accent hover:bg-accent/15'
+                : 'bg-accent text-white hover:bg-accent-light'
+            }`}
           >
-            <Tag className="w-3.5 h-3.5" />
-            Add Bundle to Plan
+            {isSelected ? <Check className="w-3.5 h-3.5" /> : <Tag className="w-3.5 h-3.5" />}
+            {isSelected ? 'Selected — tap to deselect' : 'Use this bundle'}
           </button>
         </div>
       )}
@@ -96,42 +108,25 @@ function BundleCard({ bundle, onSelect }: { bundle: ProductBundle; onSelect: () 
 }
 
 export function BundlePicker({ isOpen, onClose }: BundlePickerProps) {
-  const { routeData, addNutritionPoint } = useApp();
+  const { selectedBundleId, selectBundle } = useApp();
   const [selectedTier, setSelectedTier] = useState<BundleTier | 'all'>('all');
-  const products = useProducts();
   useModalBehavior(isOpen, onClose);
 
 
   if (!isOpen) return null;
 
   const filtered = selectedTier === 'all' ? bundles : bundles.filter((b) => b.tier === selectedTier);
+  const selectedBundle = selectedBundleId ? bundles.find((b) => b.id === selectedBundleId) : null;
 
   const handleSelectBundle = (bundle: ProductBundle) => {
-    if (!routeData.loaded) {
-      toast.error('Load a route first');
+    if (selectedBundleId === bundle.id) {
+      // Tap-to-deselect when already selected.
+      selectBundle(null);
+      toast.success('Bundle deselected — auto-generate will use the full catalog');
       return;
     }
-
-    // Distribute bundle products evenly across the route
-    const allItems: { productId: string }[] = [];
-    for (const bp of bundle.products) {
-      for (let i = 0; i < bp.quantity; i++) {
-        allItems.push({ productId: bp.productId });
-      }
-    }
-
-    const spacing = routeData.distanceKm / (allItems.length + 1);
-    let added = 0;
-
-    for (let i = 0; i < allItems.length; i++) {
-      const product = products.find((p) => p.id === allItems[i].productId);
-      if (product) {
-        addNutritionPoint(product, spacing * (i + 1));
-        added++;
-      }
-    }
-
-    toast.success(`Added ${added} products from "${bundle.name}"`);
+    selectBundle(bundle.id);
+    toast.success(`Selected "${bundle.name}" — auto-generate will use these products`);
     onClose();
   };
 
@@ -150,6 +145,23 @@ export function BundlePicker({ isOpen, onClose }: BundlePickerProps) {
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Currently-selected bundle banner */}
+        {selectedBundle && (
+          <div className="mx-4 mt-3 p-3 rounded-lg bg-accent/10 border border-accent/30 flex items-center gap-2">
+            <Check className="w-4 h-4 text-accent flex-shrink-0" />
+            <div className="flex-1 text-xs font-display text-text-primary truncate">
+              Active: <span className="font-semibold">{selectedBundle.name}</span>
+              <span className="text-text-muted"> · R{selectedBundle.priceZAR}</span>
+            </div>
+            <button
+              onClick={() => { selectBundle(null); toast.success('Bundle cleared'); }}
+              className="text-[10px] font-display font-bold uppercase tracking-wider text-accent hover:text-accent-light px-2 py-1 rounded"
+            >
+              Clear
+            </button>
+          </div>
+        )}
 
         {/* Tier Filter */}
         <div className="px-4 pt-3 flex gap-2">
@@ -174,6 +186,7 @@ export function BundlePicker({ isOpen, onClose }: BundlePickerProps) {
             <BundleCard
               key={bundle.id}
               bundle={bundle}
+              isSelected={bundle.id === selectedBundleId}
               onSelect={() => handleSelectBundle(bundle)}
             />
           ))}

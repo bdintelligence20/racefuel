@@ -12,7 +12,7 @@ import { BundlePicker } from './BundlePicker';
 type FilterTab = 'all' | ProductCategory;
 
 export function NutritionPanel() {
-  const { routeData, addNutritionPoint, lastGeneratedPlan } = useApp();
+  const { routeData, addNutritionPoint, lastGeneratedPlan, selectedBundleId } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [cartOpen, setCartOpen] = useState(false);
@@ -88,9 +88,12 @@ export function NutritionPanel() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setBundlePickerOpen(true)}
-              className="text-[10px] text-warm hover:text-warm-muted transition-colors flex items-center gap-1 font-display font-medium"
+              className="relative text-[10px] text-warm hover:text-warm-muted transition-colors flex items-center gap-1 font-display font-medium"
             >
               <Package className="w-3 h-3" /> Bundles
+              {selectedBundleId && (
+                <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-accent" title="Bundle selected" />
+              )}
             </button>
             <button
               onClick={() => setCustomProductOpen(true)}

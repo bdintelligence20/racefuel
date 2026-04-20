@@ -10,6 +10,8 @@ import { validatePlan, ValidationResult } from '../services/nutrition/planValida
 import { autoSavePlan, loadAutoSavedPlan, clearAutoSave } from '../persistence/db';
 import * as firestoreService from '../services/firebase/firestore';
 import { getCurrentUser } from '../services/firebase/auth';
+import { bundles as allBundles } from '../data/bundles';
+import { getWeatherForecast, WeatherForecast } from '../services/weather/weatherService';
 import {
   StravaActivitySummary,
   StravaAuthState,
@@ -26,11 +28,15 @@ import {
   transformActivityToRoute,
 } from '../services/strava';
 
+export type NutritionCategoryPreference = 'gel' | 'drink' | 'bar' | 'chew';
+
 export interface UserProfile {
   weight: number;
   height: number;
   sweatRate: 'light' | 'moderate' | 'heavy';
   ftp: number;
+  /** Categories the user prefers. Soft bias in plan generation — empty/undefined = no preference. */
+  preferredCategories?: NutritionCategoryPreference[];
 }
 
 export interface NutritionPoint {
@@ -51,6 +57,10 @@ export interface RouteData {
   distanceKm: number;
   elevationGain: number;
   estimatedTime: string;
+  /** User override for expected duration, in "H:MM" or "H:MM:SS" format. Preferred by autoGeneratePlan when set. */
+  userEstimatedTime?: string;
+  /** ISO date (YYYY-MM-DD) for when the user plans to do this route. Drives weather-aware planning. */
+  plannedDate?: string;
   path: {
     x: number;
     y: number;
@@ -92,6 +102,10 @@ interface AppContextType {
   autoGeneratePlan: () => void;
   resetRoute: () => void;
   loadSavedRoute: (routeData: RouteData) => void;
+  setUserEstimatedTime: (hms: string | undefined) => void;
+  setPlannedDate: (isoDate: string | undefined) => void;
+  selectedBundleId: string | null;
+  selectBundle: (id: string | null) => void;
 
   // Strava methods
   connectStrava: () => void;
@@ -620,11 +634,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const autoGeneratePlan = () => {
+  const autoGeneratePlan = async () => {
     if (!routeData.loaded) return;
 
     try {
-      const timeParts = (routeData.estimatedTime || '3:00:00').split(':').map(Number);
+      // Prefer the user-set expected time if present; fall back to the auto-estimated one.
+      const timeString = routeData.userEstimatedTime || routeData.estimatedTime || '3:00:00';
+      const timeParts = timeString.split(':').map(Number);
       let durationHours = timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600;
       if (!durationHours || durationHours <= 0) {
         durationHours = routeData.distanceKm / 25;
@@ -654,6 +670,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // Weather-aware planning: if the user picked a race date, fetch the forecast for
+      // that day at the route start. Fall back to sensible defaults on any failure.
+      let temperatureCelsius = 22;
+      let humidity = 50;
+      if (routeData.plannedDate && routeData.gpsPath && routeData.gpsPath.length > 0) {
+        try {
+          const start = routeData.gpsPath[0];
+          const daysFromNow = Math.max(
+            1,
+            Math.min(
+              16,
+              Math.ceil((new Date(routeData.plannedDate).getTime() - Date.now()) / (24 * 3600 * 1000)) + 1,
+            ),
+          );
+          const forecast: WeatherForecast[] = await getWeatherForecast(start.lat, start.lng, daysFromNow);
+          const match = forecast.find((f) => f.date === routeData.plannedDate) || forecast[forecast.length - 1];
+          if (match) {
+            temperatureCelsius = Math.round((match.tempMax + match.tempMin) / 2);
+            humidity = match.humidity;
+          }
+        } catch (err) {
+          console.error('Weather fetch failed, using defaults:', err);
+        }
+      }
+
+      // Bundle-aware planning: if a bundle is selected, constrain the generator to its
+      // products and cap total spend at its price.
+      const selectedBundle = selectedBundleId ? allBundles.find((b) => b.id === selectedBundleId) : null;
+      const preferredProductIds = selectedBundle?.products.map((p) => p.productId);
+      const budget = selectedBundle?.priceZAR ?? null;
+
       pushHistory(routeData.nutritionPoints);
 
       const plan = generatePlan({
@@ -663,8 +710,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         routeAnalysis: routeAnalysis || undefined,
         profile: userProfile,
         isCompetition: false,
-        temperatureCelsius: 22,
-        humidity: 50,
+        temperatureCelsius,
+        humidity,
+        preferredCategories: userProfile.preferredCategories,
+        preferredProductIds,
+        budget,
       });
 
       if (plan.nutritionPoints.length === 0) {
@@ -693,6 +743,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCanRedo(false);
     setLastGeneratedPlan(null);
     setRouteData(saved);
+  };
+
+  const setUserEstimatedTime = (hms: string | undefined) => {
+    setRouteData((prev) => ({ ...prev, userEstimatedTime: hms }));
+  };
+
+  const setPlannedDate = (isoDate: string | undefined) => {
+    setRouteData((prev) => ({ ...prev, plannedDate: isoDate }));
+  };
+
+  const [selectedBundleId, setSelectedBundleIdState] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('fuelcue_selected_bundle_id');
+  });
+  const selectBundle = (id: string | null) => {
+    setSelectedBundleIdState(id);
+    if (id) localStorage.setItem('fuelcue_selected_bundle_id', id);
+    else localStorage.removeItem('fuelcue_selected_bundle_id');
   };
 
   const resetRoute = () => {
@@ -759,6 +827,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         autoGeneratePlan,
         resetRoute,
         loadSavedRoute,
+        setUserEstimatedTime,
+        setPlannedDate,
+        selectedBundleId,
+        selectBundle,
 
         connectStrava,
         disconnectStrava,

@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Download, Undo2, Redo2, MessageSquare } from 'lucide-react';
+import { Download, Undo2, Redo2 } from 'lucide-react';
 import { ExportModal } from './export/ExportModal';
-import { FeedbackModal } from './FeedbackModal';
 import { PlanWarnings } from './PlanWarnings';
 
 export function ActionBar() {
   const { routeData, planValidation, canUndo, canRedo, undo, redo } = useApp();
   const [exportOpen, setExportOpen] = useState(false);
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   if (!routeData.loaded) return null;
 
@@ -69,15 +67,6 @@ export function ActionBar() {
             </button>
           </div>
 
-          <button
-            onClick={() => setFeedbackOpen(true)}
-            disabled={routeData.nutritionPoints.length === 0}
-            className="h-10 px-4 rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent/[0.08] active:scale-95 transition-all flex items-center gap-1.5 text-xs font-display font-medium"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span className="hidden sm:inline">Feedback</span>
-          </button>
-
           <div className="flex-1" />
 
           <button
@@ -92,7 +81,6 @@ export function ActionBar() {
       </div>
 
       <ExportModal isOpen={exportOpen} onClose={() => setExportOpen(false)} />
-      <FeedbackModal isOpen={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </>
   );
 }

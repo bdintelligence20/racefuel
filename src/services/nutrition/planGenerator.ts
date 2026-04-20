@@ -17,6 +17,7 @@ export interface PlanGeneratorInput {
   temperatureCelsius: number;
   humidity: number;
   preferredProductIds?: string[];
+  preferredCategories?: Array<'gel' | 'drink' | 'bar' | 'chew'>;
   budget?: number | null;
 }
 
@@ -139,6 +140,7 @@ function selectProduct(
   preferSolidNow: boolean,
   targetCarbsPerPoint: number,
   maxCarbsPerPoint: number,
+  preferredCategories?: Array<'gel' | 'drink' | 'bar' | 'chew'>,
 ): ProductProps {
   const catalogRaw = preferredProducts && preferredProducts.length > 0 ? preferredProducts : products;
   // Only single-serve products are appropriate for on-course fueling.
@@ -148,7 +150,14 @@ function selectProduct(
   // Filter out products that massively overshoot the per-point budget (e.g. an 80g mix
   // on a 13km run). Keep anything within maxCarbsPerPoint; fall back if empty.
   const budgeted = fallbackCatalog.filter((p) => p.carbs <= maxCarbsPerPoint);
-  const pool = budgeted.length > 0 ? budgeted : fallbackCatalog;
+  const basePool = budgeted.length > 0 ? budgeted : fallbackCatalog;
+
+  // Apply the user's category preference as a SOFT bias: filter to preferred
+  // categories if that subset is non-empty; otherwise fall through to the full pool
+  // (so a climb that needs a gel still gets one even if the user only ticked "chew").
+  const preferredSet = preferredCategories && preferredCategories.length > 0 ? new Set(preferredCategories) : null;
+  const preferredPool = preferredSet ? basePool.filter((p) => preferredSet.has(p.category)) : basePool;
+  const pool = preferredPool.length > 0 ? preferredPool : basePool;
 
   const gels = pool.filter((p) => p.category === 'gel');
   const drinks = pool.filter((p) => p.category === 'drink');
@@ -197,6 +206,7 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
     temperatureCelsius,
     humidity,
     preferredProductIds,
+    preferredCategories,
     budget,
   } = input;
 
@@ -350,6 +360,7 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       preferSolid,
       targetCarbsPerPoint,
       dynamicCap,
+      preferredCategories,
     );
 
     // Budget check — swap to an affordable product whose carbs are close to target

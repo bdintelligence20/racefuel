@@ -8,6 +8,15 @@ import { toast } from 'sonner';
 interface FeedbackModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Optional prefill from a saved plan (e.g. opening feedback from HistoryView). */
+  prefill?: {
+    planId?: number;
+    routeName: string;
+    plannedCarbs: number;
+    plannedSodium: number;
+    plannedCaffeine: number;
+  };
+  onSaved?: () => void;
 }
 
 const feelIcons = [
@@ -25,7 +34,7 @@ const gutOptions = [
   { value: 'severe' as const, label: 'Severe', color: 'text-red-400' },
 ];
 
-export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
+export function FeedbackModal({ isOpen, onClose, prefill, onSaved }: FeedbackModalProps) {
   const { routeData } = useApp();
   const [overallFeel, setOverallFeel] = useState(0);
   const [bonkLevel, setBonkLevel] = useState(0);
@@ -38,16 +47,19 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
 
   if (!isOpen) return null;
 
-  const totalCarbs = routeData.nutritionPoints.reduce((s, p) => s + p.product.carbs, 0);
-  const totalSodium = routeData.nutritionPoints.reduce((s, p) => s + p.product.sodium, 0);
-  const totalCaffeine = routeData.nutritionPoints.reduce((s, p) => s + p.product.caffeine, 0);
+  // Prefer explicit prefill (e.g. from HistoryView); fall back to current route data.
+  const routeName = prefill?.routeName ?? routeData.name;
+  const totalCarbs = prefill?.plannedCarbs ?? routeData.nutritionPoints.reduce((s, p) => s + p.product.carbs, 0);
+  const totalSodium = prefill?.plannedSodium ?? routeData.nutritionPoints.reduce((s, p) => s + p.product.sodium, 0);
+  const totalCaffeine = prefill?.plannedCaffeine ?? routeData.nutritionPoints.reduce((s, p) => s + p.product.caffeine, 0);
 
   const handleSubmit = async () => {
     if (overallFeel === 0) return;
     setSaving(true);
     try {
       await addFeedback({
-        routeName: routeData.name,
+        planId: prefill?.planId,
+        routeName,
         date: new Date(),
         overallFeel,
         bonkLevel,
@@ -59,6 +71,7 @@ export function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
         plannedCaffeine: totalCaffeine,
       });
       toast.success('Feedback saved');
+      onSaved?.();
       onClose();
     } catch {
       toast.error('Failed to save feedback');
