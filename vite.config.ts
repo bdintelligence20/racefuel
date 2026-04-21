@@ -55,6 +55,16 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Activate new SW immediately instead of waiting for all tabs to close, and
+        // let it take control of already-open clients. Without these, users with the
+        // PWA open never pick up new deploys until they manually close every tab.
+        skipWaiting: true,
+        clientsClaim: true,
+        // Nuke caches from previous Workbox revisions so stale bundles don't linger.
+        cleanupOutdatedCaches: true,
+        // Precache index.html as a navigation fallback so SPA routes still work offline,
+        // but serve the network copy when available so stale HTML never shadows new JS.
+        navigateFallback: 'index.html',
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MB (mapbox-gl is large)
         globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2}'],
         runtimeCaching: [
