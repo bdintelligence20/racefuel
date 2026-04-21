@@ -140,6 +140,39 @@ export function validatePlan(
     }
   }
 
+  // === Spec guardrails from the target objects ===
+  if (carbTarget && carbTarget.gutCapped && carbTarget.tierMaxBeforeGutCap > carbTarget.max) {
+    warnings.push({
+      id: 'gut-capped',
+      severity: 'info',
+      message: 'Carb target capped by gut tolerance',
+      detail: `Tier would allow up to ${carbTarget.tierMaxBeforeGutCap}g/h, but your gut-trained ceiling caps the plan at ${carbTarget.max}g/h. Raise gradually with training.`,
+      metric: 'carbs',
+    });
+  }
+
+  if (hydrationTarget?.ultraCapApplied) {
+    warnings.push({
+      id: 'fluid-ultra-cap',
+      severity: 'warning',
+      message: 'Fluid capped at 800 ml/h',
+      detail: 'Long-event hyponatremia guardrail (Hew-Butler 2015). Anything above 800 ml/h on a >4h effort needs matched sodium intake.',
+      metric: 'fluid',
+    });
+    score -= 5;
+  }
+
+  if (hydrationTarget?.hyponatremiaRisk) {
+    warnings.push({
+      id: 'hyponatremia-risk',
+      severity: 'critical',
+      message: 'Hyponatremia risk',
+      detail: 'Fluid-to-sodium ratio exceeds 1.5 L per gram. Reduce fluid intake, raise sodium, or both — especially in the back half of the event.',
+      metric: 'sodium',
+    });
+    score -= 20;
+  }
+
   // === Carb target validation ===
   if (carbTarget && durationHours > 1) {
     if (carbsPerHour < carbTarget.min) {

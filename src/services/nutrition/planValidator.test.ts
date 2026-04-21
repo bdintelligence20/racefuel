@@ -75,7 +75,7 @@ describe('validatePlan', () => {
 
   it('warns when carbs below minimum target', () => {
     const points = [makePoint(30, 10)]; // only 10g total
-    const carbTarget = { min: 60, max: 90, target: 75, rationale: '' };
+    const carbTarget = { min: 60, max: 90, target: 75, rationale: '', tierMaxBeforeGutCap: 90, gutCapped: false };
     const result = validatePlan(points, 100, 4, carbTarget);
     const carbWarning = result.warnings.find(w => w.id === 'carbs-low');
     expect(carbWarning).toBeDefined();
@@ -84,7 +84,7 @@ describe('validatePlan', () => {
 
   it('warns when carbs above maximum target', () => {
     const points = Array.from({ length: 20 }, (_, i) => makePoint(5 + i * 5, 30));
-    const carbTarget = { min: 60, max: 90, target: 75, rationale: '' };
+    const carbTarget = { min: 60, max: 90, target: 75, rationale: '', tierMaxBeforeGutCap: 90, gutCapped: false };
     const result = validatePlan(points, 100, 4, carbTarget);
     const carbWarning = result.warnings.find(w => w.id === 'carbs-high');
     expect(carbWarning).toBeDefined();

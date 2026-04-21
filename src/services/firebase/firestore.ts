@@ -37,6 +37,11 @@ export interface FirestoreProfile {
   sweatRate: 'light' | 'moderate' | 'heavy';
   ftp: number;
   onboardingComplete: boolean;
+  sport?: 'running' | 'cycling';
+  gutTolerance?: 'beginner' | 'trained' | 'elite';
+  sweatSodiumBucket?: 'low' | 'medium' | 'high' | 'unknown';
+  heatAcclimatised?: boolean;
+  earlySeasonHeat?: boolean;
   updatedAt?: Timestamp;
 }
 

@@ -137,7 +137,7 @@ export function PlanComparison({ isOpen, onClose }: PlanComparisonProps) {
     const carb = calculateCarbTarget({
       durationHours: hours,
       intensityPercent: 0.75,
-      gutTolerance: 'trained',
+      gutTolerance: userProfile.gutTolerance ?? 'trained',
       isCompetition: false,
       bodyWeightKg: userProfile.weight,
     });
@@ -148,6 +148,10 @@ export function PlanComparison({ isOpen, onClose }: PlanComparisonProps) {
       humidity: 50,
       intensityPercent: 0.75,
       sweatRate: userProfile.sweatRate,
+      sport: userProfile.sport ?? 'running',
+      sweatSodiumBucket: userProfile.sweatSodiumBucket ?? 'unknown',
+      heatAcclimatised: userProfile.heatAcclimatised ?? false,
+      earlySeasonHeat: userProfile.earlySeasonHeat ?? false,
     });
     const caff = calculateCaffeineStrategy({
       bodyWeightKg: userProfile.weight,
@@ -157,7 +161,17 @@ export function PlanComparison({ isOpen, onClose }: PlanComparisonProps) {
       targetMgPerKg: 3,
     });
     return { carb, hydration, caff };
-  }, [hours, userProfile.weight, userProfile.sweatRate, routeData.distanceKm]);
+  }, [
+    hours,
+    userProfile.weight,
+    userProfile.sweatRate,
+    userProfile.sport,
+    userProfile.gutTolerance,
+    userProfile.sweatSodiumBucket,
+    userProfile.heatAcclimatised,
+    userProfile.earlySeasonHeat,
+    routeData.distanceKm,
+  ]);
 
   const totals = useMemo(() => computePoints(routeData.nutritionPoints), [routeData.nutritionPoints]);
 

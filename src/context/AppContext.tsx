@@ -29,6 +29,9 @@ import {
 } from '../services/strava';
 
 export type NutritionCategoryPreference = 'gel' | 'drink' | 'bar' | 'chew';
+export type Sport = 'running' | 'cycling';
+export type GutTolerance = 'beginner' | 'trained' | 'elite';
+export type SweatSodiumBucket = 'low' | 'medium' | 'high' | 'unknown';
 
 export interface UserProfile {
   weight: number;
@@ -37,6 +40,16 @@ export interface UserProfile {
   ftp: number;
   /** Categories the user prefers. Soft bias in plan generation — empty/undefined = no preference. */
   preferredCategories?: NutritionCategoryPreference[];
+  /** Sport — drives baseline sweat rate and intensity coefficients. */
+  sport?: Sport;
+  /** Gut-trained carb ceiling. Spec §2.3: hard MIN cap on carb prescription. */
+  gutTolerance?: GutTolerance;
+  /** Sweat [Na+] bucket — self-reported or from a sweat test. Default: unknown → Medium. */
+  sweatSodiumBucket?: SweatSodiumBucket;
+  /** True for athletes regularly training in 30°C+ for 2+ weeks. */
+  heatAcclimatised?: boolean;
+  /** True during the first 10–14 days of seasonal heat exposure. */
+  earlySeasonHeat?: boolean;
 }
 
 export interface NutritionPoint {
@@ -123,6 +136,11 @@ const defaultProfile: UserProfile = {
   height: 175,
   sweatRate: 'moderate',
   ftp: 250,
+  sport: 'running',
+  gutTolerance: 'trained',
+  sweatSodiumBucket: 'unknown',
+  heatAcclimatised: false,
+  earlySeasonHeat: false,
 };
 
 const defaultRoute: RouteData = {
@@ -376,10 +394,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     firestoreService.loadProfile().then(cloudProfile => {
       if (cloudProfile) {
         const restored: UserProfile = {
+          ...defaultProfile,
           weight: cloudProfile.weight ?? defaultProfile.weight,
           height: cloudProfile.height ?? defaultProfile.height,
           sweatRate: cloudProfile.sweatRate ?? defaultProfile.sweatRate,
           ftp: cloudProfile.ftp ?? defaultProfile.ftp,
+          sport: cloudProfile.sport ?? defaultProfile.sport,
+          gutTolerance: cloudProfile.gutTolerance ?? defaultProfile.gutTolerance,
+          sweatSodiumBucket: cloudProfile.sweatSodiumBucket ?? defaultProfile.sweatSodiumBucket,
+          heatAcclimatised: cloudProfile.heatAcclimatised ?? defaultProfile.heatAcclimatised,
+          earlySeasonHeat: cloudProfile.earlySeasonHeat ?? defaultProfile.earlySeasonHeat,
         };
         setUserProfile(restored);
         localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(restored));
@@ -706,6 +730,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const plan = generatePlan({
         distanceKm: routeData.distanceKm,
         durationHours,
+        elevationGainM: routeData.elevationGain,
         gpsPath: routeData.gpsPath,
         routeAnalysis: routeAnalysis || undefined,
         profile: userProfile,

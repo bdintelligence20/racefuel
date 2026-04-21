@@ -26,7 +26,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
 
   if (!isOpen) return null;
 
-  const handleChange = (field: keyof UserProfile, value: string | number | string[]) => {
+  const handleChange = (field: keyof UserProfile, value: string | number | string[] | boolean) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
@@ -211,6 +211,117 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
             </div>
             <p className="mt-2 text-[10px] text-text-muted">
               Affects hydration recommendations. High = 1.5+ L/hr, Medium = 1-1.5 L/hr, Low = &lt;1 L/hr
+            </p>
+          </div>
+
+          {/* Sport */}
+          <div>
+            <label className="flex items-center gap-2 text-xs text-text-secondary uppercase tracking-wider mb-2">
+              <Zap className="w-3 h-3 text-accent" />
+              Sport
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['running', 'cycling'] as const).map((s) => (
+                <button
+                  key={s}
+                  onClick={() => handleChange('sport', s)}
+                  className={`py-3 rounded-lg text-sm font-bold uppercase transition-colors ${
+                    (formData.sport ?? 'running') === s
+                      ? 'bg-accent/20 border border-accent/50 text-accent'
+                      : 'bg-surfaceHighlight border border-[var(--color-border)] text-text-muted hover:bg-accent/[0.08] hover:text-text-primary'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] text-text-muted">
+              Drives baseline sweat rate and intensity coefficients.
+            </p>
+          </div>
+
+          {/* Gut tolerance */}
+          <div>
+            <label className="flex items-center gap-2 text-xs text-text-secondary uppercase tracking-wider mb-2">
+              <Zap className="w-3 h-3 text-accent" />
+              Gut Training
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {(['beginner', 'trained', 'elite'] as const).map((g) => (
+                <button
+                  key={g}
+                  onClick={() => handleChange('gutTolerance', g)}
+                  className={`py-3 rounded-lg text-xs font-bold uppercase transition-colors ${
+                    (formData.gutTolerance ?? 'trained') === g
+                      ? 'bg-accent/20 border border-accent/50 text-accent'
+                      : 'bg-surfaceHighlight border border-[var(--color-border)] text-text-muted hover:bg-accent/[0.08] hover:text-text-primary'
+                  }`}
+                >
+                  {g === 'beginner' ? '≤60 g/h' : g === 'trained' ? '≤90 g/h' : '≤120 g/h'}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] text-text-muted">
+              Hard cap on auto-planned carbs. Raise only after gradual gut training.
+            </p>
+          </div>
+
+          {/* Sweat sodium bucket */}
+          <div>
+            <label className="flex items-center gap-2 text-xs text-text-secondary uppercase tracking-wider mb-2">
+              <Wind className="w-3 h-3 text-accent" />
+              Sweat Sodium
+            </label>
+            <div className="grid grid-cols-4 gap-2">
+              {(['low', 'medium', 'high', 'unknown'] as const).map((b) => (
+                <button
+                  key={b}
+                  onClick={() => handleChange('sweatSodiumBucket', b)}
+                  className={`py-3 rounded-lg text-[11px] font-bold uppercase transition-colors ${
+                    (formData.sweatSodiumBucket ?? 'unknown') === b
+                      ? 'bg-accent/20 border border-accent/50 text-accent'
+                      : 'bg-surfaceHighlight border border-[var(--color-border)] text-text-muted hover:bg-accent/[0.08] hover:text-text-primary'
+                  }`}
+                >
+                  {b}
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] text-text-muted">
+              Self-report or sweat-test. Low ≤30 mmol/L · Medium 30–50 · High ≥50. Unknown defaults to Medium.
+            </p>
+          </div>
+
+          {/* Acclimatisation */}
+          <div>
+            <label className="flex items-center gap-2 text-xs text-text-secondary uppercase tracking-wider mb-2">
+              <Wind className="w-3 h-3 text-accent" />
+              Heat Acclimatisation
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleChange('heatAcclimatised', !formData.heatAcclimatised)}
+                className={`py-3 rounded-lg text-xs font-bold uppercase transition-colors ${
+                  formData.heatAcclimatised
+                    ? 'bg-accent/20 border border-accent/50 text-accent'
+                    : 'bg-surfaceHighlight border border-[var(--color-border)] text-text-muted hover:bg-accent/[0.08] hover:text-text-primary'
+                }`}
+              >
+                Acclimatised
+              </button>
+              <button
+                onClick={() => handleChange('earlySeasonHeat', !formData.earlySeasonHeat)}
+                className={`py-3 rounded-lg text-xs font-bold uppercase transition-colors ${
+                  formData.earlySeasonHeat
+                    ? 'bg-accent/20 border border-accent/50 text-accent'
+                    : 'bg-surfaceHighlight border border-[var(--color-border)] text-text-muted hover:bg-accent/[0.08] hover:text-text-primary'
+                }`}
+              >
+                Early Season
+              </button>
+            </div>
+            <p className="mt-2 text-[10px] text-text-muted">
+              Acclimatised athletes conserve sodium; first 10–14 days of heat season run slightly high.
             </p>
           </div>
 
