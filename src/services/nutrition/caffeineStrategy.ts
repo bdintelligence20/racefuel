@@ -77,7 +77,15 @@ export function calculateCaffeineStrategy(input: CaffeineInput): CaffeineRecomme
 }
 
 /**
- * Check if a product should be placed as a caffeine source at a given distance
+ * Check if a product should be placed as a caffeine source at a given distance.
+ *
+ * late-only: fire once (a single dose at the 40% mark). After any caffeine has
+ * been consumed we fall back to normal product selection — otherwise the loop
+ * will keep picking the same caffeinated gel until the budget is met, which
+ * starves the carb target if that gel happens to be low-carb.
+ *
+ * distributed: fire each time until the total-caffeine budget is satisfied,
+ * spreading doses across the final phase of the event.
  */
 export function shouldUseCaffeineProduct(
   distanceKm: number,
@@ -88,5 +96,6 @@ export function shouldUseCaffeineProduct(
   if (caffeineStrategy.timing === 'none') return false;
   if (distanceKm < caffeineStrategy.firstDoseKm) return false;
   if (currentCaffeineMg >= caffeineStrategy.totalCaffeineMg) return false;
+  if (caffeineStrategy.timing === 'late-only' && currentCaffeineMg > 0) return false;
   return true;
 }

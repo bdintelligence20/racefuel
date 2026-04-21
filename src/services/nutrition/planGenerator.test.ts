@@ -9,6 +9,9 @@ vi.mock('../../data/products', () => ({
     { id: 'gel-35-caf', brand: 'AcmeGels', name: 'Rocket Caf', carbs: 25, calories: 100, sodium: 50, caffeine: 75, category: 'gel', color: 'red', priceZAR: 35, image: '' },
     { id: 'drink-25', brand: 'AcmeDrink', name: 'Sport Mix', carbs: 25, calories: 100, sodium: 300, caffeine: 0, category: 'drink', color: 'blue', priceZAR: 25, image: '' },
     { id: 'bar-28', brand: 'AcmeBars', name: 'Fuel Bar', carbs: 28, calories: 130, sodium: 60, caffeine: 0, category: 'bar', color: 'yellow', priceZAR: 40, image: '' },
+    { id: 'bar-40', brand: 'AcmeBars', name: 'Race Bar', carbs: 40, calories: 180, sodium: 80, caffeine: 0, category: 'bar', color: 'yellow', priceZAR: 50, image: '' },
+    { id: 'drink-45', brand: 'AcmeDrink', name: 'Endurance Mix', carbs: 45, calories: 190, sodium: 350, caffeine: 0, category: 'drink', color: 'blue', priceZAR: 35, image: '' },
+    { id: 'drink-60', brand: 'AcmeDrink', name: 'Ultra Mix', carbs: 60, calories: 240, sodium: 400, caffeine: 0, category: 'drink', color: 'blue', priceZAR: 45, image: '' },
     // Zero-carb items — legit electrolyte / salt / creatine products that must NEVER be auto-placed as fuel.
     { id: 'tabs-0',  brand: 'SaltCo', name: 'Hydro Tabs', carbs: 0, calories: 0, sodium: 250, caffeine: 0, category: 'drink', color: 'white', priceZAR: 10, image: '' },
     { id: 'salt-0',  brand: 'SaltCo', name: 'Salt 07', carbs: 0, calories: 0, sodium: 400, caffeine: 0, category: 'drink', color: 'white', priceZAR: 8, image: '' },
@@ -97,5 +100,18 @@ describe('generatePlan — spec-aligned behaviour', () => {
     const plan = generatePlan(baseInput(4, 0.35));
     expect(plan.nutritionPoints).toHaveLength(0);
     expect(plan.metrics.totalCarbs).toBe(0);
+  });
+
+  it('21.6km / 2:19 with climbing hits the carb target despite gel-heavy catalog', () => {
+    // Regression: the fixed targetCarbsPerPoint formula produced 45g/h on a 75g/h target
+    // because early under-shoots (23g gels selected on climbs) were never compensated for.
+    // The dynamic per-point target should now catch up.
+    const plan = generatePlan({
+      ...baseInput(21.6, 2.317),
+      elevationGainM: 377.7,
+    });
+    // Tier is 2–3 h → 60–90 g/h. Must clear the 60 g/h minimum.
+    expect(plan.metrics.carbsPerHour).toBeGreaterThanOrEqual(60);
+    expect(plan.metrics.totalCarbs).toBeGreaterThanOrEqual(plan.carbTarget.min * 2.3);
   });
 });

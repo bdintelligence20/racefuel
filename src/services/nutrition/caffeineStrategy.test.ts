@@ -81,4 +81,18 @@ describe('shouldUseCaffeineProduct', () => {
     const noStrat = { ...strategy, timing: 'none' as const };
     expect(shouldUseCaffeineProduct(60, 100, noStrat, 0)).toBe(false);
   });
+
+  it('late-only fires only once (single dose at the 40% mark)', () => {
+    const late = { ...strategy, timing: 'late-only' as const, firstDoseKm: 40 };
+    expect(shouldUseCaffeineProduct(60, 100, late, 0)).toBe(true);
+    // After any caffeine has been consumed, late-only stops firing so the generator
+    // can prioritise the carb target on remaining placements.
+    expect(shouldUseCaffeineProduct(80, 100, late, 75)).toBe(false);
+  });
+
+  it('distributed keeps firing until total caffeine budget is met', () => {
+    expect(shouldUseCaffeineProduct(70, 100, strategy, 75)).toBe(true);
+    expect(shouldUseCaffeineProduct(95, 100, strategy, 225)).toBe(true);
+    expect(shouldUseCaffeineProduct(95, 100, strategy, 300)).toBe(false);
+  });
 });

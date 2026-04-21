@@ -261,11 +261,14 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
     return { nutritionPoints: [], carbTarget, hydrationTarget, caffeineStrategy, metrics: emptyMetrics };
   }
 
-  const targetCarbsPerPoint = Math.max(10, Math.round(targetTotalCarbs / estimatedPoints));
+  const initialTargetPerPoint = Math.max(10, Math.round(targetTotalCarbs / estimatedPoints));
   const budgetScaledFloor = Math.min(15, Math.max(8, Math.round(maxTotalCarbs * 0.5)));
-  const maxCarbsPerPoint = Math.max(
+  // Cap per-point dose at 60% of event max or the largest single-dose a gut-trained athlete
+  // would tolerate in one hit (~60g). We cap the PER-POINT dose, not the total, so a long
+  // event can still place many moderate doses.
+  const absoluteMaxPerPoint = Math.max(
     budgetScaledFloor,
-    Math.min(Math.round(maxTotalCarbs * 0.6), Math.round(targetCarbsPerPoint * 1.5)),
+    Math.min(Math.round(maxTotalCarbs * 0.6), 60),
   );
 
   const points: NutritionPoint[] = [];
@@ -277,15 +280,12 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
   let preferSolid = false;
   let cursorKm = firstKm;
 
-  // Hard stop when we've satisfied the target with some room. Short-effort edge case:
-  // once we're within ~80% of target with one more placement remaining, stop early so
-  // we don't add a 4th gel on a 12km run just to round up the last handful of grams.
-  const enoughCarbs = () => totalCarbs >= targetTotalCarbs * 0.9;
-
   let safety = 0;
   while (cursorKm < distanceKm - endBufferKm && safety++ < 200) {
     if (totalCarbs >= maxTotalCarbs) break;
-    if (enoughCarbs()) break;
+    // Stop once we've met the target — no need to overshoot and risk the gut-tolerance
+    // ceiling. Small overshoot absorbed by rounding is fine.
+    if (totalCarbs >= targetTotalCarbs) break;
 
     let placeKm = cursorKm;
     const lookaheadKm = (avgSpeed * 8) / 60;
@@ -310,9 +310,25 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       }
     }
 
+    // Recompute the per-point target each iteration. If earlier placements undershot
+    // (e.g. we grabbed a 23g gel on a climb when we wanted 35g), the remaining points
+    // aim higher to catch up. Prevents the "45g/h on a 75g/h target" under-delivery.
+    const remainingKm = Math.max(0.1, distanceKm - endBufferKm - placeKm);
+    const remainingHours = remainingKm / avgSpeed;
+    const nextGapMin = gapMinutesForPhase(placeKm / distanceKm, durationHours);
+    const expectedRemainingPoints = Math.max(1, Math.round((remainingHours * 60) / nextGapMin));
+    const remainingCarbsToTarget = Math.max(0, targetTotalCarbs - totalCarbs);
+    const dynamicTargetPerPoint = Math.max(
+      20,
+      Math.min(absoluteMaxPerPoint, Math.round(remainingCarbsToTarget / expectedRemainingPoints)),
+    );
+    // Fall back to the initial target if remaining work is negligible — prevents tiny divisors
+    // from blowing the per-point target up to absurd heights on the last placement.
+    const perPointTarget = remainingCarbsToTarget > 15 ? dynamicTargetPerPoint : initialTargetPerPoint;
+
     const segForPlacement = segmentAt(segments, placeKm);
     const remainingCarbBudget = Math.max(0, maxTotalCarbs - totalCarbs);
-    const dynamicCap = Math.min(maxCarbsPerPoint, remainingCarbBudget + 5);
+    const dynamicCap = Math.min(absoluteMaxPerPoint, remainingCarbBudget + 5);
     const product = selectProduct(
       placeKm,
       distanceKm,
@@ -321,7 +337,7 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       segForPlacement,
       preferredProducts,
       preferSolid,
-      targetCarbsPerPoint,
+      perPointTarget,
       dynamicCap,
       preferredCategories,
     );
@@ -332,7 +348,7 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       const affordable = products
         .filter((p) => isFuelCandidate(p) && (p.priceZAR || 0) <= budget - totalCost && p.carbs <= dynamicCap);
       if (affordable.length === 0) break;
-      chosen = byCarbProximity(affordable, targetCarbsPerPoint)[0];
+      chosen = byCarbProximity(affordable, perPointTarget)[0];
     }
 
     points.push({
@@ -348,7 +364,15 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
 
     preferSolid = !preferSolid;
 
-    const gapMin = gapMinutesForPhase(placeKm / distanceKm, durationHours);
+    // Adaptive gap: if we're tracking below the target rate we shorten the next step
+    // (down to a 15-minute absorption floor) so we can fit more placements and close the
+    // carbs-per-hour gap. Above pace, keep the phase-aware gap as-is — no need to crowd.
+    let gapMin = gapMinutesForPhase(placeKm / distanceKm, durationHours);
+    const hoursSoFar = Math.max(0.01, (placeKm - firstKm) / avgSpeed + firstMin / 60);
+    const currentRate = totalCarbs / hoursSoFar;
+    if (currentRate < carbTarget.target * 0.9) {
+      gapMin = Math.max(15, Math.round(gapMin * 0.8));
+    }
     cursorKm = placeKm + (avgSpeed * gapMin) / 60;
   }
 
