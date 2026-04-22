@@ -674,20 +674,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         durationHours = routeData.distanceKm / 25;
       }
 
-      // Sports-nutrition research: below ~60 min, stored glycogen covers the effort.
-      // No mid-run fueling is recommended or needed.
-      if (durationHours < 1) {
+      // Short-effort guard — bail BEFORE calling the planner so we don't spin up
+      // Gemini or the algorithm for a route that doesn't need fueling. Mirrors the
+      // spec's "<30 min / 30-75 min easy → no fuel" tier plus a distance floor
+      // (10 km) since any run shorter than that is glycogen-covered regardless
+      // of pace. Covers three cases the old code let through to Gemini.
+      if (durationHours < 1 || routeData.distanceKm < 10) {
         const minutes = Math.round(durationHours * 60);
+        const label = durationHours < 1 ? `${minutes} min` : `${routeData.distanceKm}km`;
         toast.info(
-          `Under an hour (${minutes} min) doesn't need mid-run fuel — glycogen stores cover it. Hydrate well and go.`,
+          `${label} is short enough that glycogen covers it — no mid-run fueling needed. Hydrate and go.`,
           { duration: 6000 }
         );
         return;
       }
 
-      // Just over 1hr at a very low speed (e.g. hilly short route estimated at 1:05):
-      // if the usable distance for placement is negligible, skip. This mirrors the
-      // generator's own early exit but gives the user a friendlier message.
+      // Very low speed / hilly trail edge case — if the usable distance for placement
+      // is negligible, skip with a friendlier message than the generator's empty plan.
       const avgSpeed = routeData.distanceKm / durationHours;
       const endBuffer = Math.max(1, Math.min(3, avgSpeed * 0.15));
       if (routeData.distanceKm - endBuffer < 3) {
