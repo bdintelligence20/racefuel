@@ -681,7 +681,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // of pace. Covers three cases the old code let through to Gemini.
       if (durationHours < 1 || routeData.distanceKm < 10) {
         const minutes = Math.round(durationHours * 60);
-        const label = durationHours < 1 ? `${minutes} min` : `${routeData.distanceKm}km`;
+        const label = durationHours < 1 ? `${minutes} min` : `${routeData.distanceKm.toFixed(1)}km`;
         toast.info(
           `${label} is short enough that glycogen covers it — no mid-run fueling needed. Hydrate and go.`,
           { duration: 6000 }

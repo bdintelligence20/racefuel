@@ -173,6 +173,15 @@ type CatalogLine = {
   priceZAR: number;
 };
 
+function shuffle<T>(arr: T[]): T[] {
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 function toCatalogLines(catalog: ProductProps[]): CatalogLine[] {
   return catalog.map((p) => ({
     id: p.id,
@@ -373,6 +382,10 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
   const maxPerPointG = Math.min(60, carbTarget.max);
 
   const shortlist = shortlistCatalog(candidates, targetPerPointG, maxPerPointG);
+  // Shuffle the order we present products to the agent. With identical inputs
+  // and a fixed sort, Flash was anchoring on whichever brand appeared first in
+  // the catalog each run. Shuffle + higher temperature breaks that.
+  const presented = shuffle(shortlist);
 
   input.onPhase?.('Drafting the plan');
   const prompt = buildPrompt(
@@ -381,7 +394,7 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
     hydrationTarget,
     caffeineStrategy,
     intensityBucket,
-    toCatalogLines(shortlist),
+    toCatalogLines(presented),
   );
 
   input.onPhase?.('Reasoning through the plan');
@@ -393,7 +406,11 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: AGENT_SCHEMA,
-        temperature: 0.3,
+        // Bumped from 0.3 → 0.75 so the agent actually explores the catalog.
+        // At low temperature + identical prompts Flash was returning the same
+        // products every run; 0.75 keeps outputs inside the rule set while
+        // picking from a wider shortlist band.
+        temperature: 0.75,
         // Flash supports turning thinking off — for a well-scoped task like this
         // the extra reasoning tokens just add latency without improving output.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

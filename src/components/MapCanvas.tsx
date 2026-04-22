@@ -415,33 +415,59 @@ export function MapCanvas() {
                 )}
               </div>
 
-              {/* Planned date — click to pick, unlocks weather-aware planning */}
-              <label
-                className={`relative bg-surface rounded-xl px-3 py-2 shadow-md border cursor-pointer transition-colors ${
+              {/* Planned date — click opens native picker via showPicker(). The old
+                  version wrapped an opacity-0 input in a label, which iOS Safari
+                  ignores. Using a button + showPicker() is reliable everywhere. */}
+              <div
+                className={`relative bg-surface rounded-xl px-3 py-2 shadow-md border transition-colors ${
                   routeData.plannedDate
                     ? 'border-warm/60 ring-1 ring-warm/30'
                     : 'border-[var(--color-border)] hover:border-warm/40'
                 }`}
                 title="Set the date you'll do this route — used to pull the right weather forecast"
               >
-                <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
-                  <Calendar className="w-2.5 h-2.5" />
-                  Date
-                </div>
-                <div className="text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
-                  {routeData.plannedDate
-                    ? new Date(routeData.plannedDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-                    : 'Pick'}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const input = document.getElementById('planned-date-input') as HTMLInputElement | null;
+                    if (input?.showPicker) input.showPicker();
+                    else input?.focus();
+                  }}
+                  className="block w-full text-left cursor-pointer"
+                  aria-label="Pick planned date"
+                >
+                  <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
+                    <Calendar className="w-2.5 h-2.5" />
+                    Date
+                  </div>
+                  <div className="text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
+                    {routeData.plannedDate
+                      ? new Date(routeData.plannedDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                      : 'Pick'}
+                  </div>
+                </button>
                 <input
+                  id="planned-date-input"
                   type="date"
                   value={routeData.plannedDate ?? ''}
                   onChange={(e) => setPlannedDate(e.target.value || undefined)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="absolute inset-0 opacity-0 cursor-pointer"
-                  aria-label="Planned date"
+                  className="absolute opacity-0 pointer-events-none w-0 h-0"
+                  aria-hidden="true"
+                  tabIndex={-1}
                 />
-              </label>
+                {routeData.plannedDate && (
+                  <button
+                    type="button"
+                    onClick={() => setPlannedDate(undefined)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-surface border border-[var(--color-border)] text-text-muted hover:text-text-primary hover:border-warm/50 flex items-center justify-center text-xs leading-none shadow-sm"
+                    aria-label="Clear planned date"
+                    title="Clear date"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="absolute top-3 right-3 z-10 flex gap-2 pointer-events-auto">
