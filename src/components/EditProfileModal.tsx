@@ -1,8 +1,52 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, User, Zap, Wind, Ruler, RefreshCw } from 'lucide-react';
 import { useApp, UserProfile } from '../context/AppContext';
 import { NumberField } from './ui/NumberField';
+import { useProducts } from '../data/products';
+
+function PreferredBrandsPicker({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) {
+  const products = useProducts();
+  const brands = useMemo(() => {
+    const set = new Set(products.map((p) => p.brand));
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [products]);
+
+  const selected = new Set(value.map((b) => b.toLowerCase()));
+  const toggle = (brand: string) => {
+    const lower = brand.toLowerCase();
+    if (selected.has(lower)) {
+      onChange(value.filter((b) => b.toLowerCase() !== lower));
+    } else {
+      onChange([...value, brand]);
+    }
+  };
+
+  if (brands.length === 0) {
+    return <div className="text-[11px] text-text-muted italic">Loading brands…</div>;
+  }
+  return (
+    <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto p-1">
+      {brands.map((brand) => {
+        const on = selected.has(brand.toLowerCase());
+        return (
+          <button
+            key={brand}
+            type="button"
+            onClick={() => toggle(brand)}
+            className={`px-2.5 py-1 rounded-full text-[11px] font-display font-semibold transition-colors ${
+              on
+                ? 'bg-accent/20 border border-accent/50 text-accent'
+                : 'bg-surfaceHighlight border border-[var(--color-border)] text-text-muted hover:bg-accent/[0.08] hover:text-text-primary'
+            }`}
+          >
+            {brand}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -26,7 +70,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
 
   if (!isOpen) return null;
 
-  const handleChange = (field: keyof UserProfile, value: string | number | string[] | boolean) => {
+  const handleChange = (field: keyof UserProfile, value: string | number | string[] | boolean | undefined) => {
     setFormData(prev => ({
       ...prev,
       [field]: value,
@@ -322,6 +366,53 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
             </div>
             <p className="mt-2 text-[10px] text-text-muted">
               Acclimatised athletes conserve sodium; first 10–14 days of heat season run slightly high.
+            </p>
+          </div>
+
+          {/* Custom carb target — overrides the spec tier */}
+          <div>
+            <label className="flex items-center gap-2 text-xs text-text-secondary uppercase tracking-wider mb-2">
+              <Zap className="w-3 h-3 text-accent" />
+              Carb Target Override
+            </label>
+            <div className="flex items-center gap-2">
+              <NumberField
+                value={formData.carbTargetGPerHour ?? 0}
+                onChange={(v) => handleChange('carbTargetGPerHour', v > 0 ? v : 0)}
+                min={0}
+                max={120}
+                ariaLabel="Carb target override in grams per hour"
+                commitOnBlur
+                className="flex-1 bg-surface border border-[var(--color-border)] rounded-lg text-text-primary text-lg font-display p-3 focus:outline-none focus:border-accent transition-colors"
+              />
+              <span className="text-text-muted font-display text-sm w-20">g/h</span>
+              {formData.carbTargetGPerHour ? (
+                <button
+                  type="button"
+                  onClick={() => handleChange('carbTargetGPerHour', 0)}
+                  className="text-[11px] text-text-muted hover:text-text-primary px-2 py-1 rounded-md hover:bg-surfaceHighlight transition-colors"
+                >
+                  Reset
+                </button>
+              ) : null}
+            </div>
+            <p className="mt-2 text-[10px] text-text-muted">
+              Leave at 0 to use spec tiers. If you&apos;ve gut-trained to a specific rate (e.g. 90 g/h), set it here — the planner will target that and raise the gut ceiling to match.
+            </p>
+          </div>
+
+          {/* Preferred brands */}
+          <div>
+            <label className="flex items-center gap-2 text-xs text-text-secondary uppercase tracking-wider mb-2">
+              <Zap className="w-3 h-3 text-accent" />
+              Preferred Brands
+            </label>
+            <PreferredBrandsPicker
+              value={formData.preferredBrands ?? []}
+              onChange={(next) => handleChange('preferredBrands', next)}
+            />
+            <p className="mt-2 text-[10px] text-text-muted">
+              Soft filter — the planner prioritises these brands but falls back if they can&apos;t cover the route. Leave empty for no preference.
             </p>
           </div>
 

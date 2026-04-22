@@ -242,7 +242,7 @@ Sport: ${profile.sport ?? 'running'}${input.isCompetition ? ' (competition)' : '
 Conditions: ${temperatureCelsius}°C / ${humidity}% RH.
 Intensity: ${intensity}.
 Athlete: ${profile.weight}kg, gut "${profile.gutTolerance ?? 'trained'}" (≤${carbTarget.max} g/h).
-Prefs: ${preferredCategories?.length ? preferredCategories.join(',') : 'any'}${budget ? ` · budget R${budget}` : ''}.
+Prefs: categories ${preferredCategories?.length ? preferredCategories.join(',') : 'any'}${profile.preferredBrands?.length ? ` · brands ${profile.preferredBrands.join(', ')} (prioritise if suitable)` : ''}${budget ? ` · budget R${budget}` : ''}.
 
 TARGETS
 Carbs ${carbTarget.target} g/h (${carbTarget.min}-${carbTarget.max})
@@ -335,6 +335,7 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
     gutTolerance,
     isCompetition,
     bodyWeightKg: profile.weight,
+    userOverrideGPerHour: profile.carbTargetGPerHour,
   });
   const hydrationTarget = calculateHydration({
     bodyWeightKg: profile.weight,
@@ -372,8 +373,21 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
   const sourceCatalog = input.preferredProductIds
     ? products.filter((p) => input.preferredProductIds!.includes(p.id))
     : products;
-  const candidates = toFuelCandidates(sourceCatalog);
-  if (candidates.length === 0) return null;
+  const allCandidates = toFuelCandidates(sourceCatalog);
+  if (allCandidates.length === 0) return null;
+
+  // Soft brand filter — only applied if the brand's catalog is rich enough to
+  // cover the event (≥ 4 products spanning at least 2 categories). Otherwise
+  // we'd cripple the plan to satisfy a preference that can't work for this route.
+  const brands = (profile.preferredBrands ?? []).map((b) => b.toLowerCase());
+  let candidates = allCandidates;
+  if (brands.length > 0) {
+    const branded = allCandidates.filter((p) => brands.includes(p.brand.toLowerCase()));
+    const categories = new Set(branded.map((p) => p.category));
+    if (branded.length >= 4 && categories.size >= 2) {
+      candidates = branded;
+    }
+  }
 
   // Rough per-point dose guide — what we'd aim for if we split the target
   // into ~5 placements. Drives catalog scoring.

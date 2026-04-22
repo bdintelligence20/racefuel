@@ -10,6 +10,7 @@ import { OnboardingModal } from './components/OnboardingModal';
 import { ActionBar } from './components/ActionBar';
 import { LandingPage } from './components/LandingPage';
 import { AutoGenProgress } from './components/AutoGenProgress';
+import { PlanStrategyModal } from './components/PlanStrategyModal';
 import { Menu, X, Map, Package } from 'lucide-react';
 
 const MapCanvas = lazy(() =>
@@ -81,7 +82,7 @@ function MobileNav({
 }
 
 function AppContent() {
-  const { onboardingComplete, autoGenStatus } = useApp();
+  const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan } = useApp();
   const [mobileTab, setMobileTabState] = useState<MobileTab>(() => {
     const stored = localStorage.getItem('fuelcue_mobile_tab');
     return stored === 'nutrition' ? 'nutrition' : 'map';
@@ -137,6 +138,14 @@ function AppContent() {
       <AutoGenProgress
         open={autoGenStatus !== null}
         phase={autoGenStatus?.phase ?? ''}
+      />
+
+      <PlanStrategyModal
+        plan={pendingPlan?.plan ?? null}
+        context={pendingPlan?.context ?? null}
+        onApply={applyPendingPlan}
+        onRegenerate={regeneratePendingPlan}
+        onClose={dismissPendingPlan}
       />
 
 

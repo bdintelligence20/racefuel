@@ -140,6 +140,7 @@ export function PlanComparison({ isOpen, onClose }: PlanComparisonProps) {
       gutTolerance: userProfile.gutTolerance ?? 'trained',
       isCompetition: false,
       bodyWeightKg: userProfile.weight,
+      userOverrideGPerHour: userProfile.carbTargetGPerHour,
     });
     const hydration = calculateHydration({
       bodyWeightKg: userProfile.weight,

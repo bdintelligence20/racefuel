@@ -42,6 +42,8 @@ export interface FirestoreProfile {
   sweatSodiumBucket?: 'low' | 'medium' | 'high' | 'unknown';
   heatAcclimatised?: boolean;
   earlySeasonHeat?: boolean;
+  carbTargetGPerHour?: number;
+  preferredBrands?: string[];
   updatedAt?: Timestamp;
 }
 

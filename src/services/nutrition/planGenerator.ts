@@ -137,6 +137,7 @@ function selectProduct(
   targetCarbsPerPoint: number,
   maxCarbsPerPoint: number,
   preferredCategories?: Array<'gel' | 'drink' | 'bar' | 'chew'>,
+  preferredBrands?: string[],
 ): ProductProps | null {
   const rawPool = preferredProducts && preferredProducts.length > 0 ? preferredProducts : products;
   const fuelPool = rawPool.filter(isFuelCandidate);
@@ -145,9 +146,15 @@ function selectProduct(
   const budgeted = fuelPool.filter((p) => p.carbs <= maxCarbsPerPoint);
   const basePool = budgeted.length > 0 ? budgeted : fuelPool;
 
+  // Brand bias — soft filter that falls back to the full pool if the chosen
+  // brands can't satisfy the per-point dose (e.g. no 40g bar in their brand).
+  const brandSet = preferredBrands && preferredBrands.length > 0 ? new Set(preferredBrands.map((b) => b.toLowerCase())) : null;
+  const brandFiltered = brandSet ? basePool.filter((p) => brandSet.has(p.brand.toLowerCase())) : basePool;
+  const brandedPool = brandFiltered.length > 0 ? brandFiltered : basePool;
+
   const preferredSet = preferredCategories && preferredCategories.length > 0 ? new Set(preferredCategories) : null;
-  const preferredPool = preferredSet ? basePool.filter((p) => preferredSet.has(p.category)) : basePool;
-  const pool = preferredPool.length > 0 ? preferredPool : basePool;
+  const preferredPool = preferredSet ? brandedPool.filter((p) => preferredSet.has(p.category)) : brandedPool;
+  const pool = preferredPool.length > 0 ? preferredPool : brandedPool;
 
   const gels = pool.filter((p) => p.category === 'gel');
   const drinks = pool.filter((p) => p.category === 'drink');
@@ -205,6 +212,7 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
     gutTolerance,
     isCompetition,
     bodyWeightKg: profile.weight,
+    userOverrideGPerHour: profile.carbTargetGPerHour,
   });
 
   const hydrationTarget = calculateHydration({
@@ -340,6 +348,7 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       perPointTarget,
       dynamicCap,
       preferredCategories,
+      profile.preferredBrands,
     );
     if (!product) break; // no usable fuel in catalog
 

@@ -33,6 +33,10 @@ export interface CarbTargetInput {
   isCompetition: boolean;
   /** Kept for API compatibility — intentionally unused. Carb targets do NOT scale with body weight. */
   bodyWeightKg?: number;
+  /** User override in g/h. When set, replaces the tier target and raises the
+   *  ceiling to match — the athlete is declaring their trained gut capacity.
+   *  Clamped to [10, 120] for safety. */
+  userOverrideGPerHour?: number;
 }
 
 interface Tier {
@@ -94,11 +98,30 @@ function gutCeilingFor(gut: GutTolerance): number {
 }
 
 export function calculateCarbTarget(input: CarbTargetInput): CarbTarget {
-  const { durationHours, intensityPercent, gutTolerance, isCompetition } = input;
+  const { durationHours, intensityPercent, gutTolerance, isCompetition, userOverrideGPerHour } = input;
 
   const intensity = intensityBucket(intensityPercent);
   const tier = pickTier(durationHours, intensity);
-  const gutCeiling = gutCeilingFor(gutTolerance);
+  let gutCeiling = gutCeilingFor(gutTolerance);
+
+  // Explicit user override — the athlete says "I can take 90 g/h, plan for that."
+  // We respect it verbatim: it replaces the tier pick and lifts the gut ceiling
+  // so downstream code doesn't silently trim it back. Clamp for safety only.
+  if (userOverrideGPerHour != null && userOverrideGPerHour > 0 && tier.max > 0) {
+    const override = Math.max(10, Math.min(120, Math.round(userOverrideGPerHour)));
+    gutCeiling = Math.max(gutCeiling, override);
+    const target = override;
+    const min = Math.round(override * 0.85);
+    const max = gutCeiling;
+    return {
+      min,
+      max,
+      target,
+      rationale: `${tier.label} User override: ${override} g/h (gut ceiling raised to match).`,
+      tierMaxBeforeGutCap: tier.max,
+      gutCapped: false,
+    };
+  }
 
   // Target within the tier; race bumps by ~10% but never above tier.max.
   const raw = pickWithinTier(tier, intensity);
