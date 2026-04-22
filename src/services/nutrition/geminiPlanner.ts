@@ -25,7 +25,6 @@ import { isSingleServe } from './planGenerator';
 
 const API_KEY = (import.meta as unknown as { env: Record<string, string | undefined> }).env?.VITE_GEMINI_API_KEY;
 const MODEL = 'gemini-2.5-pro';
-const TIMEOUT_MS = 5000;
 
 export interface GeminiPlanInput {
   distanceKm: number;
@@ -182,22 +181,6 @@ const AGENT_SCHEMA: Schema = {
   required: ['placements', 'overallRationale'],
 };
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
-    promise.then(
-      (v) => {
-        clearTimeout(timer);
-        resolve(v);
-      },
-      (e) => {
-        clearTimeout(timer);
-        reject(e);
-      },
-    );
-  });
-}
-
 export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<GeminiGeneratedPlan | null> {
   if (!API_KEY) return null;
 
@@ -259,7 +242,7 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
   input.onPhase?.('Briefing the agent');
   const prompt = buildPrompt(input, carbTarget, hydrationTarget, caffeineStrategy, intensityBucket, catalog);
 
-  input.onPhase?.('Gemini is thinking');
+  input.onPhase?.('Reasoning through the plan');
   let raw: string;
   try {
     const ai = new GoogleGenerativeAI(API_KEY);
@@ -271,10 +254,10 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
         temperature: 0.4,
       },
     });
-    const result = await withTimeout(model.generateContent(prompt), TIMEOUT_MS, 'Gemini');
+    const result = await model.generateContent(prompt);
     raw = result.response.text();
   } catch (err) {
-    console.warn('[Gemini] call failed or timed out, falling back:', err);
+    console.warn('[FuelCue planner] call failed, falling back:', err);
     return null;
   }
 

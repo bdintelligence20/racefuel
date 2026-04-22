@@ -68,7 +68,7 @@ export function AutoGenProgress({ phase, open }: AutoGenProgressProps) {
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">
-              Auto Generate · Gemini
+              FuelCue · Auto Generate
             </div>
             <div className="text-sm font-display font-bold text-text-primary truncate">
               <span className="inline-block min-w-[160px]">{verb}</span>
