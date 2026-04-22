@@ -6,6 +6,7 @@ import { parseGpx } from '../services/route/gpxParser';
 import { parseTcx } from '../services/route/tcxParser';
 import { analyzeRoute, RouteAnalysis } from '../services/route/routeAnalyzer';
 import { generatePlan, GeneratedPlan } from '../services/nutrition/planGenerator';
+import { generatePlanWithGemini, isGeminiEnabled } from '../services/nutrition/geminiPlanner';
 import { validatePlan, ValidationResult } from '../services/nutrition/planValidator';
 import { autoSavePlan, loadAutoSavedPlan, clearAutoSave } from '../persistence/db';
 import * as firestoreService from '../services/firebase/firestore';
@@ -93,6 +94,8 @@ interface AppContextType {
   routeAnalysis: RouteAnalysis | null;
   planValidation: ValidationResult | null;
   lastGeneratedPlan: GeneratedPlan | null;
+  /** Live auto-gen progress. null when idle. */
+  autoGenStatus: { phase: string; source: 'gemini' | 'algorithm' } | null;
 
   // Strava state
   strava: StravaAuthState;
@@ -219,6 +222,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return null;
     }
   });
+  const [autoGenStatus, setAutoGenStatus] = useState<{ phase: string; source: 'gemini' | 'algorithm' } | null>(null);
 
   // Persist lastGeneratedPlan so its targets survive refresh
   useEffect(() => {
@@ -727,7 +731,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       pushHistory(routeData.nutritionPoints);
 
-      const plan = generatePlan({
+      const plannerInput = {
         distanceKm: routeData.distanceKm,
         durationHours,
         elevationGainM: routeData.elevationGain,
@@ -740,7 +744,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
         preferredCategories: userProfile.preferredCategories,
         preferredProductIds,
         budget,
-      });
+      };
+
+      // Prefer the Gemini agent when the key is configured. It shares the same
+      // carb/hydration/sodium targets as the algorithm (those are evidence-locked)
+      // but makes smarter product-selection calls. Any failure or timeout falls
+      // back to the deterministic algorithm.
+      let plan: GeneratedPlan;
+      let source: 'gemini' | 'algorithm' = 'algorithm';
+
+      if (isGeminiEnabled()) {
+        setAutoGenStatus({ phase: 'Reading your route', source: 'gemini' });
+        const agentPlan = await generatePlanWithGemini({
+          ...plannerInput,
+          onPhase: (phase) => setAutoGenStatus({ phase, source: 'gemini' }),
+        });
+        if (agentPlan) {
+          plan = agentPlan;
+          source = 'gemini';
+        } else {
+          setAutoGenStatus({ phase: 'Falling back to deterministic planner', source: 'algorithm' });
+          plan = generatePlan(plannerInput);
+        }
+      } else {
+        setAutoGenStatus({ phase: 'Placing fuel points', source: 'algorithm' });
+        plan = generatePlan(plannerInput);
+      }
 
       if (plan.nutritionPoints.length === 0) {
         toast.info('No fuel points needed — this effort fits within a well-fueled athlete\'s glycogen window.');
@@ -753,11 +782,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         nutritionPoints: plan.nutritionPoints,
       }));
       toast.success(
-        `Plan generated — ${plan.metrics.totalCarbs}g carbs (${plan.metrics.carbsPerHour}g/h), ${plan.nutritionPoints.length} fuel points`
+        `Plan generated${source === 'gemini' ? ' by Gemini' : ''} — ${plan.metrics.totalCarbs}g carbs (${plan.metrics.carbsPerHour}g/h), ${plan.nutritionPoints.length} fuel points`
       );
     } catch (err) {
       console.error('[AutoGenerate] Error:', err);
       toast.error('Failed to generate plan — please try again');
+    } finally {
+      setAutoGenStatus(null);
     }
   };
 
@@ -833,6 +864,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         routeAnalysis,
         planValidation,
         lastGeneratedPlan,
+        autoGenStatus,
 
         strava,
         stravaActivities,

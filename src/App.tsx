@@ -9,6 +9,7 @@ import { NutritionPanel } from './components/NutritionPanel';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ActionBar } from './components/ActionBar';
 import { LandingPage } from './components/LandingPage';
+import { AutoGenProgress } from './components/AutoGenProgress';
 import { Menu, X, Map, Package } from 'lucide-react';
 
 const MapCanvas = lazy(() =>
@@ -80,7 +81,7 @@ function MobileNav({
 }
 
 function AppContent() {
-  const { onboardingComplete } = useApp();
+  const { onboardingComplete, autoGenStatus } = useApp();
   const [mobileTab, setMobileTabState] = useState<MobileTab>(() => {
     const stored = localStorage.getItem('fuelcue_mobile_tab');
     return stored === 'nutrition' ? 'nutrition' : 'map';
@@ -132,6 +133,12 @@ function AppContent() {
       </div>
 
       {!onboardingComplete && <OnboardingModal />}
+
+      <AutoGenProgress
+        open={autoGenStatus !== null}
+        phase={autoGenStatus?.phase ?? ''}
+      />
+
 
       <Toaster
         position="bottom-center"
