@@ -105,12 +105,13 @@ export function toFuelCandidates(catalog: ProductProps[]): ProductProps[] {
 
 /**
  * Shortlist the catalog down to the items actually useful for THIS event.
- * Scoring:
- *   - Penalise products far from the target per-point dose.
- *   - Require enough within-category variety (at least a couple of each
- *     gel / drink / bar / chew) so the agent can alternate & handle climbs.
- *   - Always keep at least one caffeinated option if one exists.
- *   - Cap total at ~CATALOG_TOP_N items to keep the prompt compact.
+ * Keeps enough variety that the agent can alternate categories and handle
+ * terrain, and deliberately introduces run-to-run variety by sampling from
+ * the top candidates rather than always taking the deterministic top-N.
+ *
+ * The latter is important: with a fixed shortlist + structured JSON output,
+ * Flash was picking the same products every run even at high temperature.
+ * Sampling the pool itself forces real variety.
  */
 export function shortlistCatalog(
   candidates: ProductProps[],
@@ -121,7 +122,6 @@ export function shortlistCatalog(
   if (candidates.length <= limit) return candidates;
 
   const score = (p: ProductProps) => {
-    // Distance from target, with a soft cap — everything above maxPerPoint gets punished.
     const base = Math.abs(p.carbs - targetPerPointG);
     const overcapPenalty = p.carbs > maxPerPointG ? (p.carbs - maxPerPointG) * 3 : 0;
     return base + overcapPenalty;
@@ -141,24 +141,40 @@ export function shortlistCatalog(
     picked.push(p);
   };
 
-  // Guarantee a bit of variety per category first.
+  // Per-category floor — randomly sample from the top-scoring 2x slice so
+  // every run gets different "best" picks per category.
   const perCategoryFloor = Math.max(3, Math.floor(limit / 8));
   for (const cat of ['gel', 'drink', 'bar', 'chew']) {
-    for (const p of byCategory[cat].slice(0, perCategoryFloor)) add(p);
+    const topSlice = byCategory[cat].slice(0, Math.max(perCategoryFloor * 2, perCategoryFloor + 2));
+    const sampled = sampleWithoutReplacement(topSlice, perCategoryFloor);
+    for (const p of sampled) add(p);
   }
 
-  // Keep the best caffeinated option if not already in.
-  const caf = [...candidates].filter((p) => p.caffeine > 0).sort((a, b) => score(a) - score(b))[0];
-  add(caf);
+  // Keep one caffeinated option — sample from the top 3 caf options instead of
+  // always taking #1, so the same route doesn't always get the same caf pick.
+  const cafOptions = [...candidates].filter((p) => p.caffeine > 0).sort((a, b) => score(a) - score(b));
+  if (cafOptions.length > 0) add(sampleWithoutReplacement(cafOptions.slice(0, 3), 1)[0]);
 
-  // Fill remainder with globally-best-scoring products.
-  const rest = [...candidates].sort((a, b) => score(a) - score(b));
-  for (const p of rest) {
-    if (picked.length >= limit) break;
-    add(p);
-  }
+  // Fill remainder by sampling from the top 2x remaining slots — keeps the
+  // pool relevant without making it identical run-to-run.
+  const remaining = candidates.filter((p) => !seen.has(p.id)).sort((a, b) => score(a) - score(b));
+  const remainingSlots = limit - picked.length;
+  const poolSize = Math.min(remaining.length, Math.max(remainingSlots * 2, remainingSlots + 5));
+  const fillPool = remaining.slice(0, poolSize);
+  const filled = sampleWithoutReplacement(fillPool, remainingSlots);
+  for (const p of filled) add(p);
 
   return picked;
+}
+
+function sampleWithoutReplacement<T>(arr: T[], n: number): T[] {
+  if (n >= arr.length) return [...arr];
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy.slice(0, n);
 }
 
 type CatalogLine = {
@@ -256,7 +272,12 @@ CATALOG (${catalog.length} items)
 id | brand name | cat | carbs·Na·caf·kcal·R
 ${catalog.map((p) => `${p.id} | ${p.brand} ${p.name} | ${p.category} | ${p.carbs}·${p.sodium}·${p.caffeine}·${p.calories}·${p.priceZAR}`).join('\n')}
 
-Return JSON with 2-8 placements hitting the carb target. Be decisive.`;
+VARIETY
+If multiple catalog items fit equally well, prefer ones you'd use less often to avoid recommending the same products every run. Mix brands across placements when possible.
+
+Return JSON with 2-8 placements hitting the carb target. Be decisive.
+
+(run ${Math.random().toString(36).slice(2, 10)})`;
 }
 
 interface AgentOutput {
@@ -420,11 +441,10 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: AGENT_SCHEMA,
-        // Bumped from 0.3 → 0.75 so the agent actually explores the catalog.
-        // At low temperature + identical prompts Flash was returning the same
-        // products every run; 0.75 keeps outputs inside the rule set while
-        // picking from a wider shortlist band.
-        temperature: 0.75,
+        // Higher temperature + the shortlist sampling + run nonce all work
+        // together to break the "same products every run" determinism that
+        // structured JSON output tends toward.
+        temperature: 0.95,
         // Flash supports turning thinking off — for a well-scoped task like this
         // the extra reasoning tokens just add latency without improving output.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -163,10 +163,35 @@ describe('shortlistCatalog', () => {
   });
 
   it('prefers products close to the target per-point dose', () => {
-    const out = shortlistCatalog(fuel, 40, 60, 3);
-    // Top picks should be in the 30–45g band for a 40g target.
-    expect(out[0].carbs).toBeGreaterThanOrEqual(25);
-    expect(out[0].carbs).toBeLessThanOrEqual(55);
+    // Sample 20 shortlists; the median pick should land in the target band.
+    // Randomised sampling means a single run could grab an outlier, but the
+    // central tendency must still be close to target.
+    const firstPicks: number[] = [];
+    for (let i = 0; i < 20; i++) {
+      const out = shortlistCatalog(fuel, 40, 60, 3);
+      firstPicks.push(out[0].carbs);
+    }
+    firstPicks.sort((a, b) => a - b);
+    const median = firstPicks[10];
+    expect(median).toBeGreaterThanOrEqual(28);
+    expect(median).toBeLessThanOrEqual(50);
+  });
+
+  it('varies across runs — different subsets when the pool is much larger than the limit', () => {
+    // Build a big synthetic pool so shortlist has real choice.
+    const big = Array.from({ length: 60 }, (_, i) => ({
+      ...fuel[i % fuel.length],
+      id: `big-${i}`,
+      carbs: 20 + (i % 30),
+    }));
+    const seenCombos = new Set<string>();
+    for (let i = 0; i < 10; i++) {
+      const out = shortlistCatalog(big, 35, 60, 12);
+      seenCombos.add(out.map((p) => p.id).sort().join(','));
+    }
+    // 10 runs should produce at least 3 distinct shortlists. Anything fewer
+    // than that means we've regressed to deterministic shortlisting.
+    expect(seenCombos.size).toBeGreaterThanOrEqual(3);
   });
 });
 
