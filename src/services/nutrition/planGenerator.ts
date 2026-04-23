@@ -19,6 +19,16 @@ export interface PlanGeneratorInput {
   humidity: number;
   preferredProductIds?: string[];
   preferredCategories?: Array<'gel' | 'drink' | 'bar' | 'chew'>;
+  /** User's perceived effort on a 1–10 scale. When set, replaces the auto-inferred
+   *  intensity so a 5/10 training effort gets fueled differently to an 8/10 race. */
+  effortLevel?: number;
+}
+
+/** Map a 1–10 perceived-effort score to the intensity percent the calculators use. */
+function effortToIntensity(effort: number): number {
+  // 1 → 0.5, 10 → 0.95. Linear inside that window so each +1 effort adds ~5%.
+  const clamped = Math.max(1, Math.min(10, effort));
+  return Math.max(0.5, Math.min(1.0, 0.5 + (clamped / 10) * 0.45));
 }
 
 export interface GeneratedPlan {
@@ -202,7 +212,9 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
 
   const sport = profile.sport ?? 'running';
   const gutTolerance = profile.gutTolerance ?? 'trained';
-  const intensityPercent = inferIntensity(distanceKm, durationHours, input.elevationGainM ?? 0, sport);
+  const intensityPercent = input.effortLevel != null
+    ? effortToIntensity(input.effortLevel)
+    : inferIntensity(distanceKm, durationHours, input.elevationGainM ?? 0, sport);
 
   const carbTarget = calculateCarbTarget({
     durationHours,
@@ -355,16 +367,48 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
     // under-fuelling to hit a cost target would be malpractice.
     const chosen: ProductProps = product;
 
-    points.push({
-      id: nanoid(),
-      distanceKm: Math.round(placeKm * 10) / 10,
-      product: chosen,
-    });
-    totalCarbs += chosen.carbs;
-    totalSodium += chosen.sodium;
-    totalCaffeine += chosen.caffeine;
-    totalCalories += chosen.calories;
-    totalCost += chosen.priceZAR || 0;
+    const recordPlacement = (p: ProductProps, km: number) => {
+      points.push({
+        id: nanoid(),
+        distanceKm: Math.round(km * 10) / 10,
+        product: p,
+      });
+      totalCarbs += p.carbs;
+      totalSodium += p.sodium;
+      totalCaffeine += p.caffeine;
+      totalCalories += p.calories;
+      totalCost += p.priceZAR || 0;
+    };
+
+    recordPlacement(chosen, placeKm);
+
+    // Dual fuelling — when the per-point target is high (≥45g) and the chosen
+    // product falls short by a meaningful gap, pair a complementary item at
+    // the same placement. Keeps the dual-transporter absorption benefit while
+    // hitting bigger targets that no single product covers.
+    if (perPointTarget >= 45 && chosen.carbs < perPointTarget - 10) {
+      const remainingGap = perPointTarget - chosen.carbs;
+      const remainingBudget2 = Math.max(0, maxTotalCarbs - totalCarbs);
+      const companionCap = Math.min(perPointTarget, remainingBudget2 + 5);
+      const chosenWasLiquid = chosen.category === 'drink';
+      const companion = selectProduct(
+        placeKm,
+        distanceKm,
+        caffeineStrategy,
+        totalCaffeine,
+        segForPlacement,
+        preferredProducts,
+        // If the first product was liquid, pair with a solid, and vice versa.
+        chosenWasLiquid,
+        remainingGap,
+        companionCap,
+        preferredCategories,
+        profile.preferredBrands,
+      );
+      if (companion && companion.id !== chosen.id) {
+        recordPlacement(companion, placeKm + 0.05);
+      }
+    }
 
     preferSolid = !preferSolid;
 

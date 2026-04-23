@@ -55,7 +55,14 @@ export interface GeminiPlanInput {
   humidity: number;
   preferredProductIds?: string[];
   preferredCategories?: Array<'gel' | 'drink' | 'bar' | 'chew'>;
+  /** User's perceived effort on a 1–10 scale. Overrides inferred intensity. */
+  effortLevel?: number;
   onPhase?: (phase: string) => void;
+}
+
+function effortToIntensity(effort: number): number {
+  const clamped = Math.max(1, Math.min(10, effort));
+  return Math.max(0.5, Math.min(1.0, 0.5 + (clamped / 10) * 0.45));
 }
 
 export interface GeminiGeneratedPlan {
@@ -248,7 +255,7 @@ HARD RULES
 4. Placements ≥ ${minSpacingKm}km apart (12-min gut absorption window).
 5. First placement: 25-40 min in. Last placement: ≥ 10 min before finish.
 6. Place ~5 min BEFORE a climb. Avoid mid-descent.
-7. Alternate solid (bar/chew) and liquid (drink) for dual-transporter absorption.
+7. Alternate solid (bar/chew) and liquid (drink) for dual-transporter absorption. If a single placement needs ≥45g of carbs, you may pair a solid and a liquid at the SAME distance (within 0.1km) — co-located pairs count as one "fuel point" for the 12-minute gap rule.
 8. Caffeine: ${caffeineRule}.
 
 EVENT
@@ -345,7 +352,9 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
   const sport = profile.sport ?? 'running';
   const gutTolerance = profile.gutTolerance ?? 'trained';
   const elevationGainM = input.elevationGainM ?? 0;
-  const intensityPercent = inferIntensityPercent(distanceKm, durationHours, elevationGainM, sport);
+  const intensityPercent = input.effortLevel != null
+    ? effortToIntensity(input.effortLevel)
+    : inferIntensityPercent(distanceKm, durationHours, elevationGainM, sport);
   const intensityBucket: 'easy' | 'moderate' | 'hard' =
     intensityPercent < 0.65 ? 'easy' : intensityPercent < 0.80 ? 'moderate' : 'hard';
 

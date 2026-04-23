@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useModalBehavior } from '../hooks/useModalBehavior';
-import { X, ShoppingCart, Trash2, Minus } from 'lucide-react';
+import { X, ShoppingCart, Trash2, Minus, Plus } from 'lucide-react';
 import { useApp, NutritionPoint } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 
@@ -16,7 +16,7 @@ interface CartItem {
 }
 
 export function CartModal({ isOpen, onClose }: CartModalProps) {
-  const { routeData, removeNutritionPoint } = useApp();
+  const { routeData, removeNutritionPoint, addNutritionPoint } = useApp();
 
   // Group nutrition points by product - must be before early return!
   const cartItems: CartItem[] = useMemo(() => {
@@ -65,6 +65,14 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
 
   const removeAll = (item: CartItem) => {
     item.points.forEach((point) => removeNutritionPoint(point.id));
+  };
+
+  const addOne = (item: CartItem) => {
+    // Place the new point next to the last one so it stays grouped visually.
+    // Clamp to the route so we don't overshoot on a route that's nearly full.
+    const basePoint = item.points[item.points.length - 1];
+    const nextKm = Math.min(routeData.distanceKm, (basePoint?.distanceKm ?? 0) + 0.1);
+    addNutritionPoint(item.product, nextKm);
   };
 
   // Early return after all hooks
@@ -157,6 +165,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                         onClick={() => removeOne(item)}
                         className="p-1 hover:bg-accent/[0.08] text-text-muted hover:text-text-primary transition-colors"
                         title="Remove one"
+                        aria-label="Remove one"
                       >
                         <Minus className="w-3 h-3" />
                       </button>
@@ -164,9 +173,18 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                         {item.quantity}
                       </span>
                       <button
+                        onClick={() => addOne(item)}
+                        className="p-1 hover:bg-accent/[0.08] text-text-muted hover:text-accent transition-colors"
+                        title="Add one"
+                        aria-label="Add one"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                      <button
                         onClick={() => removeAll(item)}
                         className="p-1 hover:bg-red-500/20 text-text-muted hover:text-red-400 transition-colors"
                         title="Remove all"
+                        aria-label="Remove all"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>

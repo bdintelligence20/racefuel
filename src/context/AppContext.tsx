@@ -82,6 +82,10 @@ export interface RouteData {
   userEstimatedTime?: string;
   /** ISO date (YYYY-MM-DD) for when the user plans to do this route. Drives weather-aware planning. */
   plannedDate?: string;
+  /** Perceived effort for this run on a 1–10 scale. When set, overrides the
+   *  auto-inferred intensity so a 5/10 training effort doesn't get fueled like
+   *  an 8/10 race. Leave undefined to use inferred intensity from pace+elevation. */
+  effortLevel?: number;
   path: {
     x: number;
     y: number;
@@ -144,6 +148,7 @@ interface AppContextType {
   loadSavedRoute: (routeData: RouteData) => void;
   setUserEstimatedTime: (hms: string | undefined) => void;
   setPlannedDate: (isoDate: string | undefined) => void;
+  setEffortLevel: (effort: number | undefined) => void;
   selectedBundleId: string | null;
   selectBundle: (id: string | null) => void;
 
@@ -776,6 +781,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         humidity,
         preferredCategories: userProfile.preferredCategories,
         preferredProductIds,
+        effortLevel: routeData.effortLevel,
       };
 
       // Prefer the Gemini agent when the key is configured. It shares the same
@@ -812,12 +818,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // applies it (points go on the map) or regenerates. Keeps plans the user
       // didn't actually want off the map.
       void source;
-      const planSpeed = routeData.distanceKm / durationHours;
-      const elevPerKm = routeData.distanceKm > 0 ? routeData.elevationGain / routeData.distanceKm : 0;
-      const refSpeed = (userProfile.sport ?? 'running') === 'cycling' ? 28 : 11;
-      const speedIntensity = Math.max(0.5, Math.min(1.0, (planSpeed / refSpeed) * 0.75));
-      const elevBoost = (userProfile.sport ?? 'running') === 'running' ? elevPerKm * 0.005 : elevPerKm * 0.003;
-      const intensityPercent = Math.max(0.5, Math.min(1.0, speedIntensity + elevBoost));
+      // Intensity the strategy modal reports — honours effort override if set.
+      let intensityPercent: number;
+      if (routeData.effortLevel != null) {
+        const effort = Math.max(1, Math.min(10, routeData.effortLevel));
+        intensityPercent = Math.max(0.5, Math.min(1.0, 0.5 + (effort / 10) * 0.45));
+      } else {
+        const planSpeed = routeData.distanceKm / durationHours;
+        const elevPerKm = routeData.distanceKm > 0 ? routeData.elevationGain / routeData.distanceKm : 0;
+        const refSpeed = (userProfile.sport ?? 'running') === 'cycling' ? 28 : 11;
+        const speedIntensity = Math.max(0.5, Math.min(1.0, (planSpeed / refSpeed) * 0.75));
+        const elevBoost = (userProfile.sport ?? 'running') === 'running' ? elevPerKm * 0.005 : elevPerKm * 0.003;
+        intensityPercent = Math.max(0.5, Math.min(1.0, speedIntensity + elevBoost));
+      }
       const intensityBucket: 'easy' | 'moderate' | 'hard' =
         intensityPercent < 0.65 ? 'easy' : intensityPercent < 0.80 ? 'moderate' : 'hard';
 
@@ -869,6 +882,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setPlannedDate = (isoDate: string | undefined) => {
     setRouteData((prev) => ({ ...prev, plannedDate: isoDate }));
+  };
+
+  const setEffortLevel = (effort: number | undefined) => {
+    setRouteData((prev) => ({ ...prev, effortLevel: effort }));
   };
 
   const [selectedBundleId, setSelectedBundleIdState] = useState<string | null>(() => {
@@ -952,6 +969,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         loadSavedRoute,
         setUserEstimatedTime,
         setPlannedDate,
+        setEffortLevel,
         selectedBundleId,
         selectBundle,
 

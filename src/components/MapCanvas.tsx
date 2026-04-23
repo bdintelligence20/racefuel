@@ -2,8 +2,10 @@ import { useRef, useMemo, useState, useCallback } from 'react';
 import { GpxDropZone } from './GpxDropZone';
 import { AutoGenerateButton } from './AutoGenerateButton';
 import { MapView } from './MapView';
-import { Navigation, Trash2, ChevronDown, ChevronUp, Clock, Calendar } from 'lucide-react';
+import { Navigation, Trash2, ChevronDown, ChevronUp, Clock, Calendar, Gauge } from 'lucide-react';
 import { EstimatedTimeEditor } from './EstimatedTimeEditor';
+import { EffortEditor } from './EffortEditor';
+import { MapLegend } from './MapLegend';
 import { useApp } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { NutritionMarker } from './NutritionMarker';
@@ -315,11 +317,13 @@ export function MapCanvas() {
     resetRoute,
     setUserEstimatedTime,
     setPlannedDate,
+    setEffortLevel,
   } = useApp();
   const elevationRef = useRef<HTMLDivElement>(null);
   const drawing = useRouteDrawing();
   const isDrawing = drawing.state === 'placing' || drawing.state === 'routing';
   const [timeEditorOpen, setTimeEditorOpen] = useState(false);
+  const [effortEditorOpen, setEffortEditorOpen] = useState(false);
   const [elevationCollapsed, setElevationCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(max-width: 767px)').matches;
@@ -461,6 +465,38 @@ export function MapCanvas() {
                   </button>
                 )}
               </div>
+
+              {/* Effort level — 1–10 perceived effort, overrides inferred intensity */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setEffortEditorOpen((o) => !o)}
+                  className={`bg-surface rounded-xl px-3 py-2 shadow-md border transition-colors ${
+                    routeData.effortLevel != null
+                      ? 'border-warm/60 ring-1 ring-warm/30'
+                      : 'border-[var(--color-border)] hover:border-warm/40'
+                  }`}
+                  title="Set perceived effort for this run — 5/10 for training, 8/10 for race"
+                >
+                  <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
+                    <Gauge className="w-2.5 h-2.5" />
+                    Effort
+                  </div>
+                  <div className="text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
+                    {routeData.effortLevel != null ? `${routeData.effortLevel}/10` : 'Auto'}
+                  </div>
+                </button>
+                {effortEditorOpen && (
+                  <EffortEditor
+                    value={routeData.effortLevel}
+                    onSave={(v) => {
+                      setEffortLevel(v);
+                      setEffortEditorOpen(false);
+                    }}
+                    onClose={() => setEffortEditorOpen(false)}
+                  />
+                )}
+              </div>
             </div>
 
             <div className="absolute top-3 right-3 z-10 flex gap-2 pointer-events-auto">
@@ -477,6 +513,11 @@ export function MapCanvas() {
             <div className="absolute bottom-6 right-4 z-10 pointer-events-auto">
               <AutoGenerateButton onClick={autoGeneratePlan} />
             </div>
+
+            <MapLegend
+              colorMode={routeColorMode}
+              hasNutritionPoints={routeData.nutritionPoints.length > 0}
+            />
           </>
         )}
 
