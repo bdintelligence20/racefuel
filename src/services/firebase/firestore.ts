@@ -215,6 +215,72 @@ export async function deleteFeedback(feedbackId: string): Promise<void> {
   await deleteDoc(userDoc(`feedback/${feedbackId}`));
 }
 
+// ── Custom products (user-created products not in the main feed) ──
+
+export interface FirestoreCustomProduct {
+  id: string; // same id used in NutritionPoint — set by the caller
+  brand: string;
+  name: string;
+  carbs: number;
+  calories: number;
+  sodium: number;
+  caffeine: number;
+  priceZAR: number;
+  category: 'gel' | 'drink' | 'bar' | 'chew';
+  color: string;
+  image: string;
+  servingsPerPack?: number;
+  createdAt?: Timestamp;
+}
+
+export async function addCustomProduct(product: Omit<FirestoreCustomProduct, 'createdAt'>): Promise<void> {
+  await setDoc(userDoc(`customProducts/${product.id}`), {
+    ...product,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function listCustomProducts(): Promise<FirestoreCustomProduct[]> {
+  const q = query(userCollection('customProducts'), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => d.data() as FirestoreCustomProduct);
+}
+
+export async function deleteCustomProduct(productId: string): Promise<void> {
+  try {
+    await deleteDoc(userDoc(`customProducts/${productId}`));
+  } catch {
+    // doc may not exist
+  }
+}
+
+// ── Last generated plan snapshot (strategy modal state, cross-device) ──
+
+export interface FirestoreLastPlan {
+  planJson: string;
+  updatedAt?: Timestamp;
+}
+
+export async function saveLastPlan(planJson: string): Promise<void> {
+  await setDoc(userDoc('state/lastPlan'), {
+    planJson,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+export async function loadLastPlan(): Promise<string | null> {
+  const snap = await getDoc(userDoc('state/lastPlan'));
+  return snap.exists() ? (snap.data() as FirestoreLastPlan).planJson : null;
+}
+
+export async function clearLastPlan(): Promise<void> {
+  try {
+    await deleteDoc(userDoc('state/lastPlan'));
+  } catch {
+    // doc may not exist
+  }
+}
+
 // ── Preferences ──
 
 export async function setPreference(key: string, value: string): Promise<void> {

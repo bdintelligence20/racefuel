@@ -257,14 +257,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
     context: { durationHours: number; temperatureCelsius: number; humidity: number; intensityBucket: 'easy' | 'moderate' | 'hard' };
   } | null>(null);
 
-  // Persist lastGeneratedPlan so its targets survive refresh
+  // Persist lastGeneratedPlan across refreshes and devices. localStorage is the
+  // instant-read cache; Firestore is the source of truth so the strategy
+  // modal data follows the user between devices.
   useEffect(() => {
     if (lastGeneratedPlan) {
-      localStorage.setItem('fuelcue_last_plan', JSON.stringify(lastGeneratedPlan));
+      const json = JSON.stringify(lastGeneratedPlan);
+      localStorage.setItem('fuelcue_last_plan', json);
+      if (getCurrentUser()) {
+        firestoreService.saveLastPlan(json).catch((err) => {
+          console.warn('[last plan] save sync failed:', err);
+        });
+      }
     } else {
       localStorage.removeItem('fuelcue_last_plan');
+      if (getCurrentUser()) {
+        firestoreService.clearLastPlan().catch(() => {/* swallow */});
+      }
     }
   }, [lastGeneratedPlan]);
+
+  // Hydrate lastGeneratedPlan from Firestore on auth load if the local cache
+  // is empty — covers "open the app on a second device and still see the
+  // strategy you generated earlier".
+  useEffect(() => {
+    if (!getCurrentUser()) return;
+    if (lastGeneratedPlan) return;
+    firestoreService.loadLastPlan().then((json) => {
+      if (!json) return;
+      try {
+        const restored = JSON.parse(json) as GeneratedPlan;
+        setLastGeneratedPlan(restored);
+      } catch (err) {
+        console.warn('[last plan] cloud value was not valid JSON:', err);
+      }
+    }).catch((err) => {
+      console.warn('[last plan] cloud hydrate failed:', err);
+    });
+    // Intentionally only run once on mount — subsequent changes go through
+    // the persist-on-change effect above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Strava state
   const [strava, setStrava] = useState<StravaAuthState>(defaultStravaState);

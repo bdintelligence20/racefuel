@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { NutritionCard, ProductProps, ProductCategory } from './NutritionCard';
 import { Search, ShoppingCart, Droplets, Coffee, Zap, ClipboardList, Plus, Package } from 'lucide-react';
 import { useApp } from '../context/AppContext';
@@ -7,7 +7,7 @@ import { calculatePlanCost } from '../services/nutrition/costCalculator';
 import { CartModal } from './CartModal';
 import { ProductDetailModal } from './ProductDetailModal';
 import { RaceDayChecklist } from './RaceDayChecklist';
-import { CustomProductModal, loadCustomProducts } from './CustomProductModal';
+import { CustomProductModal, loadCustomProducts, hydrateCustomProductsFromCloud } from './CustomProductModal';
 import { BundlePicker } from './BundlePicker';
 
 type FilterTab = 'all' | ProductCategory;
@@ -20,6 +20,14 @@ export function NutritionPanel() {
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [customProductOpen, setCustomProductOpen] = useState(false);
   const [customProducts, setCustomProducts] = useState<ProductProps[]>(loadCustomProducts);
+
+  // Hydrate custom products from Firestore once auth is ready. Falls through
+  // silently for signed-out users — local cache still works.
+  useEffect(() => {
+    hydrateCustomProductsFromCloud().then((cloud) => {
+      if (cloud) setCustomProducts(cloud);
+    });
+  }, []);
   const [selectedProduct, setSelectedProduct] = useState<ProductProps | null>(null);
   const [bundlePickerOpen, setBundlePickerOpen] = useState(false);
   const products = useProducts();

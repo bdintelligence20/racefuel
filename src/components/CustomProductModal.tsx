@@ -3,6 +3,8 @@ import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, Plus } from 'lucide-react';
 import { ProductProps, ProductCategory } from './NutritionCard';
 import { nanoid } from 'nanoid';
+import * as firestoreService from '../services/firebase/firestore';
+import { getCurrentUser } from '../services/firebase/auth';
 
 interface CustomProductModalProps {
   isOpen: boolean;
@@ -37,15 +39,67 @@ export function loadCustomProducts(): ProductProps[] {
   }
 }
 
+/**
+ * Hydrate custom products from Firestore on login. Returns the merged list so
+ * the caller can re-render. Treats Firestore as the source of truth and
+ * overwrites the local cache with the cloud state.
+ */
+export async function hydrateCustomProductsFromCloud(): Promise<ProductProps[] | null> {
+  if (!getCurrentUser()) return null;
+  try {
+    const cloud = await firestoreService.listCustomProducts();
+    const mapped: ProductProps[] = cloud.map((p) => ({
+      id: p.id,
+      brand: p.brand,
+      name: p.name,
+      carbs: p.carbs,
+      calories: p.calories,
+      sodium: p.sodium,
+      caffeine: p.caffeine,
+      priceZAR: p.priceZAR,
+      category: p.category,
+      color: (p.color as ProductProps['color']) ?? 'white',
+      image: p.image ?? '',
+      servingsPerPack: p.servingsPerPack,
+    }));
+    localStorage.setItem(CUSTOM_PRODUCTS_KEY, JSON.stringify(mapped));
+    return mapped;
+  } catch (err) {
+    console.warn('[custom products] cloud hydrate failed:', err);
+    return null;
+  }
+}
+
 export function saveCustomProduct(product: ProductProps): void {
   const existing = loadCustomProducts();
   existing.push(product);
   localStorage.setItem(CUSTOM_PRODUCTS_KEY, JSON.stringify(existing));
+  if (getCurrentUser()) {
+    firestoreService.addCustomProduct({
+      id: product.id,
+      brand: product.brand,
+      name: product.name,
+      carbs: product.carbs,
+      calories: product.calories,
+      sodium: product.sodium,
+      caffeine: product.caffeine,
+      priceZAR: product.priceZAR,
+      category: product.category,
+      color: product.color,
+      image: product.image ?? '',
+      servingsPerPack: product.servingsPerPack,
+    }).catch((err) => console.warn('[custom products] save sync failed:', err));
+  }
 }
 
 export function removeCustomProduct(id: string): void {
   const existing = loadCustomProducts().filter(p => p.id !== id);
   localStorage.setItem(CUSTOM_PRODUCTS_KEY, JSON.stringify(existing));
+  if (getCurrentUser()) {
+    firestoreService.deleteCustomProduct(id).catch((err) => {
+      console.warn('[custom products] delete sync failed:', err);
+    });
+  }
 }
 
 export function CustomProductModal({ isOpen, onClose, onAdd }: CustomProductModalProps) {

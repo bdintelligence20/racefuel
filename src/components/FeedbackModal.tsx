@@ -3,6 +3,9 @@ import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, Frown, Meh, Smile, SmilePlus, Heart } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { addFeedback } from '../persistence/db';
+import * as firestoreService from '../services/firebase/firestore';
+import { getCurrentUser } from '../services/firebase/auth';
+import { Timestamp } from 'firebase/firestore';
 import { toast } from 'sonner';
 
 interface FeedbackModalProps {
@@ -57,10 +60,9 @@ export function FeedbackModal({ isOpen, onClose, prefill, onSaved }: FeedbackMod
     if (overallFeel === 0) return;
     setSaving(true);
     try {
-      await addFeedback({
+      const payload = {
         planId: prefill?.planId,
         routeName,
-        date: new Date(),
         overallFeel,
         bonkLevel,
         executionQuality,
@@ -69,7 +71,19 @@ export function FeedbackModal({ isOpen, onClose, prefill, onSaved }: FeedbackMod
         plannedCarbs: totalCarbs,
         plannedSodium: totalSodium,
         plannedCaffeine: totalCaffeine,
-      });
+      };
+      // Local cache write (Dexie) — fast offline availability.
+      await addFeedback({ ...payload, date: new Date() });
+      // Cloud of record (Firestore).
+      if (getCurrentUser()) {
+        await firestoreService.addFeedback({
+          ...payload,
+          // Dexie's planId is a number; Firestore uses strings. Only forward
+          // when we actually have a value — otherwise omit the field.
+          planId: typeof payload.planId === 'number' ? String(payload.planId) : undefined,
+          date: Timestamp.fromDate(new Date()),
+        });
+      }
       toast.success('Feedback saved');
       onSaved?.();
       onClose();
