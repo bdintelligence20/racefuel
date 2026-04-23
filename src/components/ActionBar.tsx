@@ -34,16 +34,21 @@ export function ActionBar() {
           <PlanWarnings warnings={planValidation.warnings} compact />
         )}
 
-        {/* Stats row */}
+        {/* Stats row. Each stat has a hint explaining what it means. */}
         <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
           {[
-            { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-text-primary' },
-            { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : carbsPerHour > 90 ? 'text-terrain-rust' : 'text-warm' },
-            { label: 'Total', value: totalCarbs + 'g', color: 'text-warm' },
-            { label: 'Run cost', value: 'R' + runCost.toFixed(0), color: 'text-accent' },
-            ...(planValidation ? [{ label: 'Score', value: String(planValidation.score), color: planValidation.score >= 80 ? 'text-accent' : planValidation.score >= 50 ? 'text-warm' : 'text-terrain-rust' }] : []),
+            { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-text-primary', hint: 'Route distance · number of fuel points placed' },
+            { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : carbsPerHour > 90 ? 'text-terrain-rust' : 'text-warm', hint: 'Grams of carbohydrate per hour. Evidence target: 60–90 g/h for efforts over 2 hours.' },
+            { label: 'Total', value: totalCarbs + 'g', color: 'text-warm', hint: 'Total grams of carbs across all placements.' },
+            { label: 'Run cost', value: 'R' + runCost.toFixed(0), color: 'text-accent', hint: 'Per-serving equivalent of what the plan consumes. Full-pack total is in the kit.' },
+            ...(planValidation ? [{
+              label: 'Score',
+              value: String(planValidation.score),
+              color: planValidation.score >= 80 ? 'text-accent' : planValidation.score >= 50 ? 'text-warm' : 'text-terrain-rust',
+              hint: 'Plan quality score (0–100). Starts at 100 and loses points for warnings — late first fuel, carbs outside target band, excessive caffeine, low sodium, hyponatremia risk, etc. 80+ is on target, 50–79 has warnings, <50 has critical issues.',
+            }] : []),
           ].map((stat) => (
-            <div key={stat.label} className="flex-shrink-0">
+            <div key={stat.label} className="flex-shrink-0" title={stat.hint}>
               <div className="text-[9px] text-text-muted uppercase tracking-wider font-display">{stat.label}</div>
               <div className={`text-sm font-display font-bold ${stat.color}`}>{stat.value}</div>
             </div>

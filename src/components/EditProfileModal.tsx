@@ -412,7 +412,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
               onChange={(next) => handleChange('preferredBrands', next)}
             />
             <p className="mt-2 text-[10px] text-text-muted">
-              Soft filter — the planner prioritises these brands but falls back if they can&apos;t cover the route. Leave empty for no preference.
+              Soft bias — preferred brands get a small edge when the planner picks between similar products, but every placement can still be any brand to keep variety. Leave empty for no preference.
             </p>
           </div>
 

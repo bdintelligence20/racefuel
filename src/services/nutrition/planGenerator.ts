@@ -129,12 +129,6 @@ function isFuelCandidate(p: ProductProps): boolean {
   return true;
 }
 
-function byCarbProximity(items: ProductProps[], targetCarbs: number): ProductProps[] {
-  return [...items].sort(
-    (a, b) => Math.abs(a.carbs - targetCarbs) - Math.abs(b.carbs - targetCarbs),
-  );
-}
-
 function selectProduct(
   distanceKm: number,
   totalDistanceKm: number,
@@ -155,42 +149,52 @@ function selectProduct(
   const budgeted = fuelPool.filter((p) => p.carbs <= maxCarbsPerPoint);
   const basePool = budgeted.length > 0 ? budgeted : fuelPool;
 
-  // Brand bias — soft filter that falls back to the full pool if the chosen
-  // brands can't satisfy the per-point dose (e.g. no 40g bar in their brand).
+  // Brand preference is a SOFT bias — never filters the pool. Hard-filtering
+  // to a single brand collapses every placement onto whatever narrow range
+  // of carbs that brand offers (e.g. 5×23g gels for a route that needs 4
+  // placements at 40g each). Preferred-brand items get a proximity bonus
+  // via byBrandAwareProximity below, but the pool stays full.
   const brandSet = preferredBrands && preferredBrands.length > 0 ? new Set(preferredBrands.map((b) => b.toLowerCase())) : null;
-  const brandFiltered = brandSet ? basePool.filter((p) => brandSet.has(p.brand.toLowerCase())) : basePool;
-  const brandedPool = brandFiltered.length > 0 ? brandFiltered : basePool;
 
   const preferredSet = preferredCategories && preferredCategories.length > 0 ? new Set(preferredCategories) : null;
-  const preferredPool = preferredSet ? brandedPool.filter((p) => preferredSet.has(p.category)) : brandedPool;
-  const pool = preferredPool.length > 0 ? preferredPool : brandedPool;
+  const preferredPool = preferredSet ? basePool.filter((p) => preferredSet.has(p.category)) : basePool;
+  const pool = preferredPool.length > 0 ? preferredPool : basePool;
 
   const gels = pool.filter((p) => p.category === 'gel');
   const drinks = pool.filter((p) => p.category === 'drink');
   const bars = pool.filter((p) => p.category === 'bar');
   const chews = pool.filter((p) => p.category === 'chew');
 
+  // Brand-aware sort — preferred brands get a ~5g proximity credit so they
+  // rise to the top of the top-3 band without locking picks to them.
+  const brandAware = (items: ProductProps[]) =>
+    [...items].sort((a, b) => {
+      const aDist = Math.abs(a.carbs - targetCarbsPerPoint) - (brandSet?.has(a.brand.toLowerCase()) ? 5 : 0);
+      const bDist = Math.abs(b.carbs - targetCarbsPerPoint) - (brandSet?.has(b.brand.toLowerCase()) ? 5 : 0);
+      return aDist - bDist;
+    });
+
   if (shouldUseCaffeineProduct(distanceKm, totalDistanceKm, caffeineStrat, currentCaffeineMg)) {
     const cafProducts = pool.filter((p) => p.caffeine > 0);
-    if (cafProducts.length > 0) return pickFromSorted(byCarbProximity(cafProducts, targetCarbsPerPoint), 2);
+    if (cafProducts.length > 0) return pickFromSorted(brandAware(cafProducts), 2);
   }
 
   if (preferSolidNow) {
     const solids = [...bars, ...chews];
     if (solids.length > 0 && (!segment || segment.type !== 'climb')) {
-      return pickFromSorted(byCarbProximity(solids, targetCarbsPerPoint), 3);
+      return pickFromSorted(brandAware(solids), 3);
     }
-    if (gels.length > 0) return pickFromSorted(byCarbProximity(gels, targetCarbsPerPoint), 3);
+    if (gels.length > 0) return pickFromSorted(brandAware(gels), 3);
   } else {
     if (drinks.length > 0 && segment?.type !== 'climb') {
-      return pickFromSorted(byCarbProximity(drinks, targetCarbsPerPoint), 3);
+      return pickFromSorted(brandAware(drinks), 3);
     }
     if (gels.length > 0) {
-      return pickFromSorted(byCarbProximity(gels, targetCarbsPerPoint), 3);
+      return pickFromSorted(brandAware(gels), 3);
     }
   }
 
-  return pickFromSorted(byCarbProximity(pool, targetCarbsPerPoint), Math.min(5, pool.length));
+  return pickFromSorted(brandAware(pool), Math.min(5, pool.length));
 }
 
 function segmentAt(segments: RouteSegment[], km: number): RouteSegment | undefined {
