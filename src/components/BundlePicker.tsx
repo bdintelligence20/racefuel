@@ -5,6 +5,7 @@ import { bundles, ProductBundle, BundleTier } from '../data/bundles';
 import { useProducts } from '../data/products';
 import { useApp } from '../context/AppContext';
 import { toast } from 'sonner';
+import { FlavourPicker, loadStoredFlavours, saveStoredFlavours } from './FlavourPicker';
 
 interface BundlePickerProps {
   isOpen: boolean;
@@ -110,6 +111,9 @@ function BundleCard({
 export function BundlePicker({ isOpen, onClose }: BundlePickerProps) {
   const { selectedBundleId, selectBundle } = useApp();
   const [selectedTier, setSelectedTier] = useState<BundleTier | 'all'>('all');
+  // Two-step flow: "list" lets the user browse kits, "flavour" captures their
+  // flavour preference for each product in the chosen kit before we commit.
+  const [step, setStep] = useState<{ kind: 'list' } | { kind: 'flavour'; bundle: ProductBundle }>({ kind: 'list' });
   useModalBehavior(isOpen, onClose);
 
 
@@ -125,10 +129,33 @@ export function BundlePicker({ isOpen, onClose }: BundlePickerProps) {
       toast.success('Bundle deselected — auto-generate will use the full catalog');
       return;
     }
+    // Jump to flavour-picker step; only commit the bundle once flavours chosen.
+    setStep({ kind: 'flavour', bundle });
+  };
+
+  const handleFlavoursConfirmed = (bundle: ProductBundle, selections: Record<string, string>) => {
+    saveStoredFlavours(bundle.id, selections);
     selectBundle(bundle.id);
-    toast.success(`Selected "${bundle.name}" — auto-generate will use these products`);
+    toast.success(`Selected "${bundle.name}" — flavours saved and auto-generate will use these products`);
+    setStep({ kind: 'list' });
     onClose();
   };
+
+  if (step.kind === 'flavour') {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+        <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-lg max-h-[85dvh] flex flex-col shadow-2xl overflow-hidden">
+          <FlavourPicker
+            bundle={step.bundle}
+            initialSelections={loadStoredFlavours(step.bundle.id)}
+            onBack={() => setStep({ kind: 'list' })}
+            onConfirm={(sel) => handleFlavoursConfirmed(step.bundle, sel)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">

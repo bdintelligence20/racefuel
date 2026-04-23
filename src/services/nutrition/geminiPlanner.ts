@@ -254,7 +254,7 @@ HARD RULES
 3. Per placement: ≤ ${Math.min(60, carbTarget.max)}g carbs.
 4. Placements ≥ ${minSpacingKm}km apart (12-min gut absorption window).
 5. First placement: 25-40 min in. Last placement: ≥ 10 min before finish.
-6. Place ~5 min BEFORE a climb. Avoid mid-descent.
+6. Pre-fuel before climbs. Place 5–15 minutes BEFORE a climb starts (longer lead for bigger climbs) so carbs are in the bloodstream when power demand peaks. NEVER place fuel mid-climb — it's hard to consume under load. NEVER place mid-descent — stomach tolerance drops while pounding downhill. If a segment is unavoidable, shift to the end of it.
 7. Alternate solid (bar/chew) and liquid (drink) for dual-transporter absorption. If a single placement needs ≥45g of carbs, you may pair a solid and a liquid at the SAME distance (within 0.1km) — co-located pairs count as one "fuel point" for the 12-minute gap rule.
 8. Caffeine: ${caffeineRule}.
 

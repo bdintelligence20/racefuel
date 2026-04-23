@@ -306,15 +306,27 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
     if (totalCarbs >= targetTotalCarbs) break;
 
     let placeKm = cursorKm;
-    const lookaheadKm = (avgSpeed * 8) / 60;
+    // Widen the pre-climb lookahead to 15 min so we can set up for big climbs
+    // properly, and scale the lead by difficulty — a Cat-1-grade climb deserves
+    // more warm-up than a short bump.
+    const lookaheadKm = (avgSpeed * 15) / 60;
     const upcomingClimb = segments.find(
       (s) => s.type === 'climb' && s.startKm > cursorKm && s.startKm - cursorKm <= lookaheadKm,
     );
     if (upcomingClimb) {
-      const preClimbKm = upcomingClimb.startKm - (avgSpeed * 5) / 60;
+      // Difficulty 1 → 5 min lead, difficulty 10 → 15 min. Bigger climbs =
+      // earlier carb dose so it's in the bloodstream when the power demand hits.
+      const preMin = 5 + Math.min(10, Math.max(0, upcomingClimb.difficulty - 3));
+      const preClimbKm = upcomingClimb.startKm - (avgSpeed * preMin) / 60;
       if (preClimbKm > cursorKm) placeKm = preClimbKm;
     }
     const currentSeg = segmentAt(segments, placeKm);
+    // Never place mid-climb — hard to consume solid fuel under load. Push to
+    // the end of the climb if we're deep in one.
+    if (currentSeg?.type === 'climb' && currentSeg.endKm - placeKm > 1.0) {
+      placeKm = Math.min(distanceKm - endBufferKm, currentSeg.endKm);
+    }
+    // Never place mid-descent — stomach tolerates food poorly while pounding down.
     if (currentSeg?.type === 'descent' && currentSeg.endKm - placeKm > 1.5) {
       placeKm = Math.min(distanceKm - endBufferKm, currentSeg.endKm);
     }
