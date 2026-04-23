@@ -5,6 +5,7 @@ import { MapView } from './MapView';
 import { Navigation, Trash2, ChevronDown, ChevronUp, Clock, Calendar, Gauge } from 'lucide-react';
 import { EstimatedTimeEditor } from './EstimatedTimeEditor';
 import { EffortEditor } from './EffortEditor';
+import { DateEditor } from './DateEditor';
 import { MapLegend } from './MapLegend';
 import { useApp } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
@@ -324,6 +325,7 @@ export function MapCanvas() {
   const isDrawing = drawing.state === 'placing' || drawing.state === 'routing';
   const [timeEditorOpen, setTimeEditorOpen] = useState(false);
   const [effortEditorOpen, setEffortEditorOpen] = useState(false);
+  const [dateEditorOpen, setDateEditorOpen] = useState(false);
   const [elevationCollapsed, setElevationCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(max-width: 767px)').matches;
@@ -419,25 +421,21 @@ export function MapCanvas() {
                 )}
               </div>
 
-              {/* Planned date — the native <input type="date"> IS the tap target.
-                  Previous tricks (overlay input, showPicker(), ref.click()) all
-                  failed on at least one platform. Making the input itself
-                  clickable and styled-up removes any chance of Safari refusing
-                  to open the picker because the element was opacity:0 / clipped
-                  / behind a button. Decorative text overlay uses pointer-events-
-                  none so taps reach the input underneath.
-                  The ::-webkit-date-and-time-value style kill removes the
-                  browser's default small-date-value rendering so our overlay
-                  text is what the user sees. */}
-              <label
-                className={`relative block bg-surface rounded-xl shadow-md border transition-colors cursor-pointer ${
-                  routeData.plannedDate
-                    ? 'border-warm/60 ring-1 ring-warm/30'
-                    : 'border-[var(--color-border)] hover:border-warm/40'
-                }`}
-                title="Set the date you'll do this route — used to pull the right weather forecast"
-              >
-                <div className="px-3 py-2 pointer-events-none select-none">
+              {/* Planned date — custom calendar popover, same pattern as Time
+                  and Effort chips. Native <input type="date"> proved too
+                  unreliable across Safari/iOS; a controlled popover we render
+                  ourselves works everywhere. */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setDateEditorOpen((v) => !v)}
+                  title="Set the date you'll do this route — used to pull the right weather forecast"
+                  className={`bg-surface rounded-xl px-3 py-2 shadow-md border text-left transition-colors ${
+                    routeData.plannedDate
+                      ? 'border-warm/60 ring-1 ring-warm/30'
+                      : 'border-[var(--color-border)] hover:border-warm/40'
+                  }`}
+                >
                   <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
                     <Calendar className="w-2.5 h-2.5" />
                     Date
@@ -447,32 +445,18 @@ export function MapCanvas() {
                       ? new Date(routeData.plannedDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
                       : 'Pick'}
                   </div>
-                </div>
-                <input
-                  type="date"
-                  value={routeData.plannedDate ?? ''}
-                  onChange={(e) => setPlannedDate(e.target.value || undefined)}
-                  min={new Date().toISOString().split('T')[0]}
-                  aria-label="Planned date"
-                  className="absolute inset-0 w-full h-full cursor-pointer bg-transparent text-transparent [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-date-and-time-value]:text-transparent [&::-webkit-datetime-edit]:text-transparent"
-                  style={{ colorScheme: 'normal' }}
-                />
-                {routeData.plannedDate && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setPlannedDate(undefined);
+                </button>
+                {dateEditorOpen && (
+                  <DateEditor
+                    value={routeData.plannedDate}
+                    onSave={(iso) => {
+                      setPlannedDate(iso);
+                      setDateEditorOpen(false);
                     }}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-surface border border-[var(--color-border)] text-text-muted hover:text-text-primary hover:border-warm/50 flex items-center justify-center text-xs leading-none shadow-sm z-10"
-                    aria-label="Clear planned date"
-                    title="Clear date"
-                  >
-                    ×
-                  </button>
+                    onClose={() => setDateEditorOpen(false)}
+                  />
                 )}
-              </label>
+              </div>
 
               {/* Effort level — 1–10 perceived effort, overrides inferred intensity */}
               <div className="relative">
