@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { Activity, User, Wind, Zap, Edit2, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings } from 'lucide-react';
+import { Activity, User, Wind, Zap, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
-import { EditProfileModal } from './EditProfileModal';
 import { EditableStatRow } from './EditableStatRow';
 import { SavedPlansModal } from './SavedPlansModal';
 import { HistoryView } from './HistoryView';
@@ -16,7 +15,6 @@ import { toast } from 'sonner';
 export function Sidebar() {
   const { userProfile, updateProfile, routeData, strava, connectStrava, disconnectStrava, resetAll } = useApp();
   const { user, logout } = useAuth();
-  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [savedPlansOpen, setSavedPlansOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [eventSearchOpen, setEventSearchOpen] = useState(false);
@@ -79,20 +77,15 @@ export function Sidebar() {
 
       <div className="h-px bg-[var(--color-border)] mx-3" />
 
-      {/* Athlete Profile + Preferences — scrollable, surfaces every setting so
-          users don't have to open the modal to see what's active. */}
+      {/* Athlete Profile + Preferences — every row is tap-to-edit inline,
+          so there's no modal hop. Header subtitle makes the interaction
+          discoverable on first use. */}
       <div className="flex-1 p-3 overflow-y-auto overscroll-contain">
-        <div className="flex items-center justify-between mb-1.5 px-1">
+        <div className="flex items-baseline justify-between mb-1.5 px-1">
           <h2 className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">
             Athlete Profile
           </h2>
-          <button
-            onClick={() => setEditProfileOpen(true)}
-            aria-label="Edit athlete profile and preferences"
-            className="min-h-[1.75rem] px-2 text-[10px] text-white bg-warm hover:bg-warm-light transition-colors font-display font-bold uppercase tracking-wider flex items-center gap-1 rounded-md shadow-sm"
-          >
-            <Edit2 className="w-3 h-3" /> Edit
-          </button>
+          <span className="text-[9px] text-text-muted/70 font-display italic">tap any row to edit</span>
         </div>
 
         {/* Body basics — every row is tap-to-edit inline */}
@@ -343,10 +336,6 @@ export function Sidebar() {
       </div>
 
       {/* Modals */}
-      <EditProfileModal
-        isOpen={editProfileOpen}
-        onClose={() => setEditProfileOpen(false)}
-      />
       <SavedPlansModal
         isOpen={savedPlansOpen}
         onClose={() => setSavedPlansOpen(false)}

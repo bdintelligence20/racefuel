@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { Check, X, ChevronDown, Pencil } from 'lucide-react';
 import { useProducts } from '../data/products';
 
 type EditorKind =
@@ -50,7 +50,11 @@ export function EditableStatRow({ label, icon: Icon, displayValue, displayUnit, 
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full flex items-center justify-between py-1.5 px-2 rounded-md transition-colors ${open ? 'bg-warm/10 ring-1 ring-warm/30' : 'hover:bg-accent/[0.04]'}`}
+        className={`group w-full flex items-center justify-between py-1.5 px-2 rounded-md transition-all ${
+          open
+            ? 'bg-warm/10 ring-1 ring-warm/30'
+            : 'bg-surfaceHighlight/40 hover:bg-accent/[0.06] hover:ring-1 hover:ring-warm/20'
+        }`}
         aria-expanded={open}
       >
         <div className="flex items-center gap-2 text-text-secondary min-w-0">
@@ -59,9 +63,20 @@ export function EditableStatRow({ label, icon: Icon, displayValue, displayUnit, 
             {label}
           </span>
         </div>
-        <div className="font-display text-text-primary flex items-baseline gap-1 flex-shrink-0 pl-2">
-          <span className="text-xs font-bold tabular-nums truncate max-w-[8rem]">{displayValue}</span>
+        <div className="font-display text-text-primary flex items-center gap-1 flex-shrink-0 pl-2">
+          <span className="text-xs font-bold tabular-nums truncate max-w-[7rem]">{displayValue}</span>
           {displayUnit && <span className="text-[9px] text-text-muted">{displayUnit}</span>}
+          {/* Edit affordance — chevron when collapsed (rotates open), pencil-on-hover
+              desktop-only cue. Removed when editor is open so the warm ring carries
+              the "active" state. */}
+          {open ? (
+            <ChevronDown className="w-3 h-3 text-warm flex-shrink-0 ml-0.5" />
+          ) : (
+            <>
+              <Pencil className="w-2.5 h-2.5 text-text-muted/40 group-hover:text-warm flex-shrink-0 ml-0.5 hidden sm:block transition-colors" />
+              <ChevronDown className="w-3 h-3 text-text-muted/40 group-hover:text-warm flex-shrink-0 ml-0.5 sm:hidden transition-colors" />
+            </>
+          )}
         </div>
       </button>
       {open && (
