@@ -3,6 +3,7 @@ import { Activity, User, Wind, Zap, Edit2, LogOut, RotateCcw, FolderOpen, Save, 
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { EditProfileModal } from './EditProfileModal';
+import { EditableStatRow } from './EditableStatRow';
 import { SavedPlansModal } from './SavedPlansModal';
 import { HistoryView } from './HistoryView';
 import { EventSearchModal } from './EventSearchModal';
@@ -11,32 +12,9 @@ import { NutritionStatsCard } from './NutritionStatsCard';
 import { saveOrUpdatePlan } from '../persistence/db';
 import { toast } from 'sonner';
 
-interface StatProps {
-  label: string;
-  value: string | number;
-  unit?: string;
-  icon: React.ElementType;
-}
-
-function StatRow({ label, value, unit, icon: Icon }: StatProps) {
-  return (
-    <div className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-accent/[0.04] transition-colors">
-      <div className="flex items-center gap-2 text-text-secondary min-w-0">
-        <Icon className="w-3 h-3 text-warm flex-shrink-0" />
-        <span className="text-[10px] uppercase tracking-wider font-display font-medium truncate">
-          {label}
-        </span>
-      </div>
-      <div className="font-display text-text-primary flex items-baseline gap-1 flex-shrink-0 pl-2">
-        <span className="text-xs font-bold tabular-nums">{value}</span>
-        {unit && <span className="text-[9px] text-text-muted">{unit}</span>}
-      </div>
-    </div>
-  );
-}
 
 export function Sidebar() {
-  const { userProfile, routeData, strava, connectStrava, disconnectStrava, resetAll } = useApp();
+  const { userProfile, updateProfile, routeData, strava, connectStrava, disconnectStrava, resetAll } = useApp();
   const { user, logout } = useAuth();
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [savedPlansOpen, setSavedPlansOpen] = useState(false);
@@ -117,21 +95,58 @@ export function Sidebar() {
           </button>
         </div>
 
-        {/* Body basics */}
+        {/* Body basics — every row is tap-to-edit inline */}
         <div className="space-y-px mb-2.5">
-          <StatRow label="Weight" value={userProfile.weight} unit="kg" icon={User} />
-          <StatRow label="Height" value={userProfile.height} unit="cm" icon={Ruler} />
-          <StatRow
+          <EditableStatRow
+            label="Weight"
+            icon={User}
+            displayValue={String(userProfile.weight)}
+            displayUnit="kg"
+            editor={{ type: 'number', min: 30, max: 200, unit: 'kg', current: userProfile.weight, onCommit: (v) => updateProfile({ weight: v }) }}
+          />
+          <EditableStatRow
+            label="Height"
+            icon={Ruler}
+            displayValue={String(userProfile.height)}
+            displayUnit="cm"
+            editor={{ type: 'number', min: 120, max: 230, unit: 'cm', current: userProfile.height, onCommit: (v) => updateProfile({ height: v }) }}
+          />
+          <EditableStatRow
             label="Sport"
-            value={(userProfile.sport ?? 'running').replace(/^./, (c) => c.toUpperCase())}
             icon={Activity}
+            displayValue={(userProfile.sport ?? 'running').replace(/^./, (c) => c.toUpperCase())}
+            editor={{
+              type: 'choice',
+              current: userProfile.sport ?? 'running',
+              options: [
+                { value: 'running', label: 'Running' },
+                { value: 'cycling', label: 'Cycling' },
+              ],
+              onCommit: (v) => updateProfile({ sport: v as 'running' | 'cycling' }),
+            }}
           />
-          <StatRow
+          <EditableStatRow
             label="Sweat"
-            value={userProfile.sweatRate === 'light' ? 'Low' : userProfile.sweatRate === 'moderate' ? 'Med' : 'High'}
             icon={Wind}
+            displayValue={userProfile.sweatRate === 'light' ? 'Low' : userProfile.sweatRate === 'moderate' ? 'Med' : 'High'}
+            editor={{
+              type: 'choice',
+              current: userProfile.sweatRate,
+              options: [
+                { value: 'light', label: 'Low' },
+                { value: 'moderate', label: 'Medium' },
+                { value: 'heavy', label: 'High' },
+              ],
+              onCommit: (v) => updateProfile({ sweatRate: v as 'light' | 'moderate' | 'heavy' }),
+            }}
           />
-          <StatRow label="FTP" value={userProfile.ftp} unit="W" icon={Zap} />
+          <EditableStatRow
+            label="FTP"
+            icon={Zap}
+            displayValue={String(userProfile.ftp)}
+            displayUnit="W"
+            editor={{ type: 'number', min: 50, max: 600, unit: 'W', current: userProfile.ftp, onCommit: (v) => updateProfile({ ftp: v }) }}
+          />
         </div>
 
         {/* Fueling preferences */}
@@ -143,30 +158,59 @@ export function Sidebar() {
             </h3>
           </div>
           <div className="space-y-px">
-            <StatRow
+            <EditableStatRow
               label="Gut"
-              value={(userProfile.gutTolerance ?? 'trained').replace(/^./, (c) => c.toUpperCase())}
               icon={Gauge}
+              displayValue={(userProfile.gutTolerance ?? 'trained').replace(/^./, (c) => c.toUpperCase())}
+              editor={{
+                type: 'choice',
+                current: userProfile.gutTolerance ?? 'trained',
+                options: [
+                  { value: 'beginner', label: '≤60 g/h' },
+                  { value: 'trained', label: '≤90 g/h' },
+                  { value: 'elite', label: '≤120 g/h' },
+                ],
+                onCommit: (v) => updateProfile({ gutTolerance: v as 'beginner' | 'trained' | 'elite' }),
+              }}
             />
-            <StatRow
+            <EditableStatRow
               label="Carb tgt"
-              value={userProfile.carbTargetGPerHour ? `${userProfile.carbTargetGPerHour}` : 'Auto'}
-              unit={userProfile.carbTargetGPerHour ? 'g/h' : undefined}
               icon={Zap}
+              displayValue={userProfile.carbTargetGPerHour ? `${userProfile.carbTargetGPerHour}` : 'Auto'}
+              displayUnit={userProfile.carbTargetGPerHour ? 'g/h' : undefined}
+              editor={{
+                type: 'numberNullable',
+                min: 0,
+                max: 120,
+                unit: 'g/h',
+                current: userProfile.carbTargetGPerHour,
+                autoLabel: 'Auto',
+                onCommit: (v) => updateProfile({ carbTargetGPerHour: v }),
+              }}
             />
-            <StatRow
+            <EditableStatRow
               label="Brands"
-              value={userProfile.preferredBrands && userProfile.preferredBrands.length > 0
+              icon={Activity}
+              displayValue={userProfile.preferredBrands && userProfile.preferredBrands.length > 0
                 ? (userProfile.preferredBrands.length === 1 ? userProfile.preferredBrands[0] : `${userProfile.preferredBrands.length} picked`)
                 : 'Any'}
-              icon={Activity}
+              editor={{
+                type: 'brands',
+                current: userProfile.preferredBrands ?? [],
+                onCommit: (v) => updateProfile({ preferredBrands: v }),
+              }}
             />
-            <StatRow
+            <EditableStatRow
               label="Fuel"
-              value={userProfile.preferredCategories && userProfile.preferredCategories.length > 0
+              icon={Zap}
+              displayValue={userProfile.preferredCategories && userProfile.preferredCategories.length > 0
                 ? userProfile.preferredCategories.map((c) => c[0].toUpperCase() + c.slice(1)).join(', ')
                 : 'Any'}
-              icon={Zap}
+              editor={{
+                type: 'categories',
+                current: userProfile.preferredCategories ?? [],
+                onCommit: (v) => updateProfile({ preferredCategories: v as Array<'gel' | 'drink' | 'bar' | 'chew'> }),
+              }}
             />
           </div>
         </div>
@@ -180,15 +224,32 @@ export function Sidebar() {
             </h3>
           </div>
           <div className="space-y-px">
-            <StatRow
+            <EditableStatRow
               label="Sweat Na"
-              value={(userProfile.sweatSodiumBucket ?? 'unknown').replace(/^./, (c) => c.toUpperCase())}
               icon={Droplets}
+              displayValue={(userProfile.sweatSodiumBucket ?? 'unknown').replace(/^./, (c) => c.toUpperCase())}
+              editor={{
+                type: 'choice',
+                current: userProfile.sweatSodiumBucket ?? 'unknown',
+                options: [
+                  { value: 'low', label: 'Low' },
+                  { value: 'medium', label: 'Medium' },
+                  { value: 'high', label: 'High' },
+                  { value: 'unknown', label: 'Unknown' },
+                ],
+                onCommit: (v) => updateProfile({ sweatSodiumBucket: v as 'low' | 'medium' | 'high' | 'unknown' }),
+              }}
             />
-            <StatRow
+            <EditableStatRow
               label="Acclim"
-              value={userProfile.heatAcclimatised ? 'Yes' : userProfile.earlySeasonHeat ? 'Early' : 'No'}
               icon={Thermometer}
+              displayValue={userProfile.heatAcclimatised ? 'Yes' : userProfile.earlySeasonHeat ? 'Early' : 'No'}
+              editor={{
+                type: 'acclim',
+                acclimatised: userProfile.heatAcclimatised ?? false,
+                earlySeason: userProfile.earlySeasonHeat ?? false,
+                onCommit: (acclim, early) => updateProfile({ heatAcclimatised: acclim, earlySeasonHeat: early }),
+              }}
             />
           </div>
         </div>
