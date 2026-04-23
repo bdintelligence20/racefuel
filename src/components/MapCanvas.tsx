@@ -320,7 +320,6 @@ export function MapCanvas() {
     setEffortLevel,
   } = useApp();
   const elevationRef = useRef<HTMLDivElement>(null);
-  const plannedDateInputRef = useRef<HTMLInputElement>(null);
   const drawing = useRouteDrawing();
   const isDrawing = drawing.state === 'placing' || drawing.state === 'routing';
   const [timeEditorOpen, setTimeEditorOpen] = useState(false);
@@ -420,28 +419,25 @@ export function MapCanvas() {
                 )}
               </div>
 
-              {/* Planned date — a real <button> handles the tap and calls
-                  input.click() inside the user gesture. Previous approaches
-                  (opacity-0 overlay, showPicker()) worked in desktop Chrome but
-                  iOS Safari silently ignored both. input.click() is a DOM L2
-                  method universally supported — calling it from an onClick
-                  handler opens the native date picker on every platform. */}
-              <div
-                className={`relative bg-surface rounded-xl shadow-md border transition-colors ${
+              {/* Planned date — the native <input type="date"> IS the tap target.
+                  Previous tricks (overlay input, showPicker(), ref.click()) all
+                  failed on at least one platform. Making the input itself
+                  clickable and styled-up removes any chance of Safari refusing
+                  to open the picker because the element was opacity:0 / clipped
+                  / behind a button. Decorative text overlay uses pointer-events-
+                  none so taps reach the input underneath.
+                  The ::-webkit-date-and-time-value style kill removes the
+                  browser's default small-date-value rendering so our overlay
+                  text is what the user sees. */}
+              <label
+                className={`relative block bg-surface rounded-xl shadow-md border transition-colors cursor-pointer ${
                   routeData.plannedDate
                     ? 'border-warm/60 ring-1 ring-warm/30'
                     : 'border-[var(--color-border)] hover:border-warm/40'
                 }`}
                 title="Set the date you'll do this route — used to pull the right weather forecast"
               >
-                <button
-                  type="button"
-                  onClick={() => {
-                    plannedDateInputRef.current?.click();
-                  }}
-                  className="block w-full text-left px-3 py-2 cursor-pointer"
-                  aria-label="Pick planned date"
-                >
+                <div className="px-3 py-2 pointer-events-none select-none">
                   <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
                     <Calendar className="w-2.5 h-2.5" />
                     Date
@@ -451,25 +447,21 @@ export function MapCanvas() {
                       ? new Date(routeData.plannedDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
                       : 'Pick'}
                   </div>
-                </button>
-                {/* Input lives outside the tap target as a pure form element.
-                    Kept visible to Safari (not display:none) so its click handler
-                    actually triggers the native picker. sr-only positions it
-                    off-screen without hiding it from the a11y tree. */}
+                </div>
                 <input
-                  ref={plannedDateInputRef}
                   type="date"
                   value={routeData.plannedDate ?? ''}
                   onChange={(e) => setPlannedDate(e.target.value || undefined)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="sr-only"
-                  tabIndex={-1}
                   aria-label="Planned date"
+                  className="absolute inset-0 w-full h-full cursor-pointer bg-transparent text-transparent [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-date-and-time-value]:text-transparent [&::-webkit-datetime-edit]:text-transparent"
+                  style={{ colorScheme: 'normal' }}
                 />
                 {routeData.plannedDate && (
                   <button
                     type="button"
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
                       setPlannedDate(undefined);
                     }}
@@ -480,7 +472,7 @@ export function MapCanvas() {
                     ×
                   </button>
                 )}
-              </div>
+              </label>
 
               {/* Effort level — 1–10 perceived effort, overrides inferred intensity */}
               <div className="relative">

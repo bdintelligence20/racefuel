@@ -119,8 +119,10 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
         onClick={onClose}
       />
 
-      {/* Modal */}
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+      {/* Modal — flex column with a scrollable middle so the profile body
+          can scroll when it grows past the viewport. Previously the body
+          overflowed and everything below "Sweat Rate" was unreachable. */}
+      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl w-full max-w-md max-h-[90dvh] shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
           <div className="flex items-center gap-3">
@@ -171,7 +173,7 @@ export function EditProfileModal({ isOpen, onClose }: EditProfileModalProps) {
         )}
 
         {/* Form */}
-        <div className="p-6 space-y-5">
+        <div className="p-6 space-y-5 flex-1 overflow-y-auto min-h-0">
           {/* Weight */}
           <div>
             <label className="flex items-center gap-2 text-xs text-text-secondary uppercase tracking-wider mb-2">
