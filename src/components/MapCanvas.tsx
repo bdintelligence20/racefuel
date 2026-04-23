@@ -320,6 +320,7 @@ export function MapCanvas() {
     setEffortLevel,
   } = useApp();
   const elevationRef = useRef<HTMLDivElement>(null);
+  const plannedDateInputRef = useRef<HTMLInputElement>(null);
   const drawing = useRouteDrawing();
   const isDrawing = drawing.state === 'placing' || drawing.state === 'routing';
   const [timeEditorOpen, setTimeEditorOpen] = useState(false);
@@ -419,19 +420,28 @@ export function MapCanvas() {
                 )}
               </div>
 
-              {/* Planned date — transparent full-size native date input overlays the
-                  visible label. Tapping anywhere on the chip reaches the input and
-                  opens the native picker on every platform (including iOS Safari,
-                  where showPicker() was silently no-op'ing). */}
+              {/* Planned date — a real <button> handles the tap and calls
+                  input.click() inside the user gesture. Previous approaches
+                  (opacity-0 overlay, showPicker()) worked in desktop Chrome but
+                  iOS Safari silently ignored both. input.click() is a DOM L2
+                  method universally supported — calling it from an onClick
+                  handler opens the native date picker on every platform. */}
               <div
-                className={`relative bg-surface rounded-xl px-3 py-2 shadow-md border transition-colors ${
+                className={`relative bg-surface rounded-xl shadow-md border transition-colors ${
                   routeData.plannedDate
                     ? 'border-warm/60 ring-1 ring-warm/30'
                     : 'border-[var(--color-border)] hover:border-warm/40'
                 }`}
                 title="Set the date you'll do this route — used to pull the right weather forecast"
               >
-                <div className="pointer-events-none select-none">
+                <button
+                  type="button"
+                  onClick={() => {
+                    plannedDateInputRef.current?.click();
+                  }}
+                  className="block w-full text-left px-3 py-2 cursor-pointer"
+                  aria-label="Pick planned date"
+                >
                   <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
                     <Calendar className="w-2.5 h-2.5" />
                     Date
@@ -441,13 +451,19 @@ export function MapCanvas() {
                       ? new Date(routeData.plannedDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
                       : 'Pick'}
                   </div>
-                </div>
+                </button>
+                {/* Input lives outside the tap target as a pure form element.
+                    Kept visible to Safari (not display:none) so its click handler
+                    actually triggers the native picker. sr-only positions it
+                    off-screen without hiding it from the a11y tree. */}
                 <input
+                  ref={plannedDateInputRef}
                   type="date"
                   value={routeData.plannedDate ?? ''}
                   onChange={(e) => setPlannedDate(e.target.value || undefined)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  className="sr-only"
+                  tabIndex={-1}
                   aria-label="Planned date"
                 />
                 {routeData.plannedDate && (
