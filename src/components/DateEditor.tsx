@@ -78,7 +78,7 @@ export function DateEditor({ value, onSave, onClose }: Props) {
   return (
     <div
       ref={rootRef}
-      className="absolute top-full left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 w-72"
+      className="absolute top-full left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 w-72 max-w-[calc(100vw-1.5rem)]"
     >
       <div className="flex items-center justify-between mb-2">
         <button

@@ -355,7 +355,7 @@ export function MapCanvas() {
         {/* Map UI Overlays — only show when route is loaded */}
         {routeData.loaded && (
           <>
-            <div className="absolute top-3 left-3 z-10 flex gap-2 pointer-events-auto">
+            <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-2 pointer-events-auto max-w-[calc(100%-5.5rem)]">
               <button
                 onClick={() => setColorMode('distance')}
                 aria-pressed={routeColorMode === 'distance'}

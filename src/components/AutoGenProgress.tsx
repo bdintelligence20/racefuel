@@ -55,7 +55,7 @@ export function AutoGenProgress({ phase, open }: AutoGenProgressProps) {
       <div className="absolute inset-0 bg-black/20 backdrop-blur-[2px] pointer-events-auto" />
 
       <div
-        className="relative bg-surface border border-[var(--color-border)] rounded-2xl shadow-2xl px-6 py-5 min-w-[340px] max-w-[420px] pointer-events-auto"
+        className="relative bg-surface border border-[var(--color-border)] rounded-2xl shadow-2xl px-5 py-4 sm:px-6 sm:py-5 w-[calc(100vw-2rem)] max-w-[420px] pointer-events-auto"
         role="status"
         aria-live="polite"
       >

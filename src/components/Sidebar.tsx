@@ -20,18 +20,16 @@ interface StatProps {
 
 function StatRow({ label, value, unit, icon: Icon }: StatProps) {
   return (
-    <div className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-accent/[0.04] transition-colors group">
-      <div className="flex items-center gap-2.5 text-text-secondary">
-        <div className="w-7 h-7 rounded-md bg-warm/10 flex items-center justify-center">
-          <Icon className="w-3.5 h-3.5 text-warm" />
-        </div>
-        <span className="text-xs uppercase tracking-wider font-display font-medium">
+    <div className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-accent/[0.04] transition-colors">
+      <div className="flex items-center gap-2 text-text-secondary min-w-0">
+        <Icon className="w-3 h-3 text-warm flex-shrink-0" />
+        <span className="text-[10px] uppercase tracking-wider font-display font-medium truncate">
           {label}
         </span>
       </div>
-      <div className="font-display text-text-primary">
-        <span className="text-base font-bold">{value}</span>
-        {unit && <span className="text-[10px] text-text-muted ml-1">{unit}</span>}
+      <div className="font-display text-text-primary flex items-baseline gap-1 flex-shrink-0 pl-2">
+        <span className="text-xs font-bold tabular-nums">{value}</span>
+        {unit && <span className="text-[9px] text-text-muted">{unit}</span>}
       </div>
     </div>
   );
@@ -48,81 +46,81 @@ export function Sidebar() {
   return (
     <aside className="w-[min(18rem,85vw)] bg-surface border-r border-[var(--color-border)] flex flex-col h-full z-30 safe-left">
       {/* Header — brand logo (hidden on mobile since MobileNav already shows it) */}
-      <div className="hidden lg:flex p-4 pb-3 justify-center">
+      <div className="hidden lg:flex p-3 pb-2 justify-center">
         <img
           src="/logo.png"
           alt="fuelcue — Route Aware Nutrition"
-          className="h-14 w-auto object-contain"
+          className="h-10 w-auto object-contain"
         />
       </div>
 
       {/* Strava Connection */}
-      <div className="px-4 pb-4 pt-mobile-nav lg:pt-0">
+      <div className="px-3 pb-3 pt-mobile-nav lg:pt-0">
         {strava.isConnected ? (
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-surfaceHighlight border border-[var(--color-border)]">
-            <div className="w-8 h-8 rounded-lg bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
-              <Activity className="w-4 h-4 text-white" />
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-surfaceHighlight border border-[var(--color-border)]">
+            <div className="w-6 h-6 rounded-md bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
+              <Activity className="w-3 h-3 text-white" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="text-[10px] text-text-muted uppercase tracking-wider font-display">Strava</div>
-              <div className="text-sm font-display font-semibold text-text-primary truncate">
+              <div className="text-[9px] text-text-muted uppercase tracking-wider font-display">Strava</div>
+              <div className="text-xs font-display font-semibold text-text-primary truncate">
                 {strava.athlete?.firstname} {strava.athlete?.lastname}
               </div>
             </div>
             <button
               onClick={disconnectStrava}
-              className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-md hover:bg-red-500/10 active:bg-red-500/15 transition-colors text-text-muted hover:text-red-400"
+              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-md hover:bg-red-500/10 active:bg-red-500/15 transition-colors text-text-muted hover:text-red-400"
               title="Disconnect"
               aria-label="Disconnect Strava"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
         ) : (
           <button
             onClick={connectStrava}
             disabled={strava.isLoading}
-            className="w-full flex items-center gap-3 p-3 rounded-xl bg-surfaceHighlight border border-[var(--color-border)] hover:border-[#FC4C02]/40 transition-all cursor-pointer group"
+            className="w-full flex items-center gap-2 p-2 rounded-lg bg-surfaceHighlight border border-[var(--color-border)] hover:border-[#FC4C02]/40 transition-all cursor-pointer group"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#FC4C02] flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
-              <Activity className="w-4 h-4 text-white" />
+            <div className="w-6 h-6 rounded-md bg-[#FC4C02] flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
+              <Activity className="w-3 h-3 text-white" />
             </div>
-            <div className="text-left">
-              <div className="text-[10px] text-text-muted uppercase tracking-wider font-display">
-                {strava.isLoading ? 'Connecting...' : 'Connect to'}
+            <div className="text-left min-w-0">
+              <div className="text-[9px] text-text-muted uppercase tracking-wider font-display">
+                {strava.isLoading ? 'Connecting…' : 'Connect to'}
               </div>
-              <div className="text-sm font-display font-semibold text-text-primary">Strava</div>
+              <div className="text-xs font-display font-semibold text-text-primary">Strava</div>
             </div>
           </button>
         )}
 
         {strava.error && (
-          <p className="mt-2 text-xs text-red-500 font-display">{strava.error}</p>
+          <p className="mt-1.5 text-[10px] text-red-500 font-display">{strava.error}</p>
         )}
       </div>
 
-      <div className="h-px bg-[var(--color-border)] mx-4" />
+      <div className="h-px bg-[var(--color-border)] mx-3" />
 
       {/* Athlete Profile + Preferences — scrollable, surfaces every setting so
           users don't have to open the modal to see what's active. */}
-      <div className="flex-1 p-4 overflow-y-auto overscroll-contain">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xs font-display font-semibold text-text-muted uppercase tracking-wider">
+      <div className="flex-1 p-3 overflow-y-auto overscroll-contain">
+        <div className="flex items-center justify-between mb-1.5 px-1">
+          <h2 className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">
             Athlete Profile
           </h2>
           <button
             onClick={() => setEditProfileOpen(true)}
             aria-label="Edit athlete profile and preferences"
-            className="min-h-[2rem] px-2.5 text-[11px] text-white bg-warm hover:bg-warm-light transition-colors font-display font-bold uppercase tracking-wider flex items-center gap-1 rounded-md shadow-sm"
+            className="min-h-[1.75rem] px-2 text-[10px] text-white bg-warm hover:bg-warm-light transition-colors font-display font-bold uppercase tracking-wider flex items-center gap-1 rounded-md shadow-sm"
           >
             <Edit2 className="w-3 h-3" /> Edit
           </button>
         </div>
 
         {/* Body basics */}
-        <div className="space-y-0.5 mb-3">
-          <StatRow label="Weight" value={userProfile.weight} unit="KG" icon={User} />
-          <StatRow label="Height" value={userProfile.height} unit="CM" icon={Ruler} />
+        <div className="space-y-px mb-2.5">
+          <StatRow label="Weight" value={userProfile.weight} unit="kg" icon={User} />
+          <StatRow label="Height" value={userProfile.height} unit="cm" icon={Ruler} />
           <StatRow
             label="Sport"
             value={(userProfile.sport ?? 'running').replace(/^./, (c) => c.toUpperCase())}
@@ -136,22 +134,22 @@ export function Sidebar() {
           <StatRow label="FTP" value={userProfile.ftp} unit="W" icon={Zap} />
         </div>
 
-        {/* Fueling preferences — the group people couldn't find */}
-        <div className="mb-3">
-          <div className="flex items-center gap-1.5 mb-1.5 px-1">
-            <Settings className="w-3 h-3 text-text-muted" />
-            <h3 className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">
-              Fueling Preferences
+        {/* Fueling preferences */}
+        <div className="mb-2.5">
+          <div className="flex items-center gap-1 mb-1 px-1">
+            <Settings className="w-2.5 h-2.5 text-text-muted" />
+            <h3 className="text-[9px] font-display font-semibold text-text-muted uppercase tracking-wider">
+              Fueling
             </h3>
           </div>
-          <div className="space-y-0.5">
+          <div className="space-y-px">
             <StatRow
               label="Gut"
               value={(userProfile.gutTolerance ?? 'trained').replace(/^./, (c) => c.toUpperCase())}
               icon={Gauge}
             />
             <StatRow
-              label="Carb target"
+              label="Carb tgt"
               value={userProfile.carbTargetGPerHour ? `${userProfile.carbTargetGPerHour}` : 'Auto'}
               unit={userProfile.carbTargetGPerHour ? 'g/h' : undefined}
               icon={Zap}
@@ -164,7 +162,7 @@ export function Sidebar() {
               icon={Activity}
             />
             <StatRow
-              label="Fuel types"
+              label="Fuel"
               value={userProfile.preferredCategories && userProfile.preferredCategories.length > 0
                 ? userProfile.preferredCategories.map((c) => c[0].toUpperCase() + c.slice(1)).join(', ')
                 : 'Any'}
@@ -174,14 +172,14 @@ export function Sidebar() {
         </div>
 
         {/* Sweat & climate */}
-        <div className="mb-3">
-          <div className="flex items-center gap-1.5 mb-1.5 px-1">
-            <Droplets className="w-3 h-3 text-text-muted" />
-            <h3 className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">
-              Sweat &amp; Climate
+        <div className="mb-2.5">
+          <div className="flex items-center gap-1 mb-1 px-1">
+            <Droplets className="w-2.5 h-2.5 text-text-muted" />
+            <h3 className="text-[9px] font-display font-semibold text-text-muted uppercase tracking-wider">
+              Climate
             </h3>
           </div>
-          <div className="space-y-0.5">
+          <div className="space-y-px">
             <StatRow
               label="Sweat Na"
               value={(userProfile.sweatSodiumBucket ?? 'unknown').replace(/^./, (c) => c.toUpperCase())}
@@ -195,12 +193,12 @@ export function Sidebar() {
           </div>
         </div>
 
-        <div className="h-px bg-[var(--color-border)] my-3" />
+        <div className="h-px bg-[var(--color-border)] my-2.5" />
 
         <NutritionStatsCard />
 
         {/* Tools — inside scrollable area so they follow content, not pushed to bottom */}
-        <div className="mt-4 pt-4 border-t border-[var(--color-border)] space-y-2">
+        <div className="mt-3 pt-3 border-t border-[var(--color-border)] space-y-1.5">
         {routeData.loaded && (
           <button
             onClick={async () => {
@@ -220,9 +218,9 @@ export function Sidebar() {
                 toast.error('Failed to save');
               }
             }}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-accent text-white hover:bg-accent-light transition-colors text-xs font-display font-bold uppercase tracking-wider"
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-md bg-accent text-white hover:bg-accent-light transition-colors text-[11px] font-display font-bold uppercase tracking-wider"
           >
-            <Save className="w-3.5 h-3.5" />
+            <Save className="w-3 h-3" />
             {routeData.nutritionPoints.length > 0 ? 'Save Plan' : 'Save Route'}
           </button>
         )}
@@ -234,9 +232,9 @@ export function Sidebar() {
           <button
             key={label}
             onClick={onClick}
-            className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-secondary hover:bg-accent/[0.06] hover:text-text-primary active:scale-[0.98] transition-all text-sm font-display font-medium"
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md bg-surfaceHighlight border border-[var(--color-border)] text-text-secondary hover:bg-accent/[0.06] hover:text-text-primary active:scale-[0.98] transition-all text-[11px] font-display font-medium"
           >
-            <Icon className="w-4 h-4 text-text-muted" />
+            <Icon className="w-3.5 h-3.5 text-text-muted" />
             {label}
           </button>
         ))}
@@ -244,29 +242,29 @@ export function Sidebar() {
       </div>
 
       {/* Footer */}
-      <div className="p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t border-[var(--color-border)] space-y-3">
+      <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-[var(--color-border)] space-y-2">
         {/* User info */}
         {user && (
           <div className="flex items-center gap-2">
             {user.photoURL ? (
-              <img src={user.photoURL} alt="" className="w-7 h-7 rounded-full" />
+              <img src={user.photoURL} alt="" className="w-6 h-6 rounded-full" />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-accent/10 flex items-center justify-center text-accent text-xs font-display font-bold">
+              <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center text-accent text-[10px] font-display font-bold">
                 {(user.displayName || user.email || '?')[0].toUpperCase()}
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-display font-medium text-text-primary truncate">
+              <div className="text-[11px] font-display font-medium text-text-primary truncate">
                 {user.displayName || user.email}
               </div>
             </div>
             <button
               onClick={logout}
-              className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-lg hover:bg-red-500/10 active:bg-red-500/15 text-text-muted hover:text-red-400 transition-colors"
+              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-md hover:bg-red-500/10 active:bg-red-500/15 text-text-muted hover:text-red-400 transition-colors"
               title="Sign out"
               aria-label="Sign out"
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
@@ -275,9 +273,9 @@ export function Sidebar() {
           <ThemeToggle />
           <button
             onClick={resetAll}
-            className="flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500/5 border border-red-500/10 text-red-400/70 hover:bg-red-500/10 hover:text-red-400 transition-colors text-[10px] font-display font-medium"
+            className="flex items-center justify-center gap-1 px-2 py-1 rounded-md bg-red-500/5 border border-red-500/10 text-red-400/70 hover:bg-red-500/10 hover:text-red-400 transition-colors text-[9px] font-display font-medium"
           >
-            <RotateCcw className="w-3 h-3" />
+            <RotateCcw className="w-2.5 h-2.5" />
             Reset
           </button>
         </div>

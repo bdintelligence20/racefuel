@@ -41,7 +41,7 @@ export function EffortEditor({ value, onSave, onClose }: Props) {
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-4 w-64"
+      className="absolute top-full left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-4 w-64 max-w-[calc(100vw-1.5rem)]"
     >
       <div className="flex items-baseline justify-between mb-2">
         <div>

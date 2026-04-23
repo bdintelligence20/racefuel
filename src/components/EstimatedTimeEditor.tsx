@@ -49,7 +49,7 @@ export function EstimatedTimeEditor({ value, isUserSet, onSave, onClear, onClose
   return (
     <div
       ref={rootRef}
-      className="absolute top-full left-0 mt-2 z-30 w-[240px] bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150"
+      className="absolute top-full left-0 mt-2 z-30 w-[240px] max-w-[calc(100vw-1.5rem)] bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150"
     >
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-display text-text-muted uppercase tracking-wider font-semibold">
