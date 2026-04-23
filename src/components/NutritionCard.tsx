@@ -15,6 +15,11 @@ export interface ProductProps {
   priceZAR: number;
   image: string;
   category: ProductCategory;
+  /** Servings in the pack the athlete actually buys. 1 for single-serve gels/
+   *  bars; higher for drink-mix tubs. Drives the "cost of this run" vs
+   *  "total pack cost" split in summary displays. Defaults to 1 when the
+   *  feed doesn't provide it. */
+  servingsPerPack?: number;
 }
 export function NutritionCard({
   name,

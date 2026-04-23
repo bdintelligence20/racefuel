@@ -3,6 +3,7 @@ import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, ShoppingCart, Trash2, Minus, Plus } from 'lucide-react';
 import { useApp, NutritionPoint } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
+import { calculatePlanCost } from '../services/nutrition/costCalculator';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -42,10 +43,13 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
     return Array.from(grouped.values());
   }, [routeData.nutritionPoints]);
 
-  const totalCost = cartItems.reduce(
-    (sum, item) => sum + item.product.priceZAR * item.quantity,
-    0
-  );
+  // Two totals: runCost = per-serving equivalent of what gets consumed on the
+  // run, totalCost = full-pack price (what the athlete actually pays at
+  // checkout). The difference is the tub-pricing inflation feedback flagged.
+  const cost = useMemo(() => calculatePlanCost(routeData.nutritionPoints), [routeData.nutritionPoints]);
+  const runCost = cost.runCostZAR;
+  const totalCost = cost.totalCostZAR;
+  const hasPackInflation = totalCost > runCost + 1;
 
   const totalCarbs = cartItems.reduce(
     (sum, item) => sum + item.product.carbs * item.quantity,
@@ -221,12 +225,21 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
               </div>
             </div>
 
-            {/* Total */}
-            <div className="flex items-center justify-between py-3 border-t border-[var(--color-border)]">
-              <span className="text-sm text-text-secondary uppercase">Total</span>
-              <span className="text-2xl font-display font-bold text-accent-light">
-                R{totalCost.toFixed(2)}
-              </span>
+            {/* Totals — split into "what gets used on the run" vs "what you buy" */}
+            <div className="py-3 border-t border-[var(--color-border)] space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-text-muted uppercase tracking-wider">Cost of this run</span>
+                <span className="text-lg font-display font-bold text-warm tabular-nums">R{runCost.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-text-muted uppercase tracking-wider">Total to buy {hasPackInflation && <span className="text-text-muted/70 lowercase">(full packs)</span>}</span>
+                <span className="text-lg font-display font-bold text-accent-light tabular-nums">R{totalCost.toFixed(2)}</span>
+              </div>
+              {hasPackInflation && (
+                <p className="text-[10px] text-text-muted italic pt-1">
+                  Sports-drink tubs are sold by the pack — the "cost of this run" is the per-serving equivalent of what you'll actually consume.
+                </p>
+              )}
             </div>
 
             {/* Checkout Button */}

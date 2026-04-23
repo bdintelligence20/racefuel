@@ -1,18 +1,22 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Download, Undo2, Redo2 } from 'lucide-react';
 import { ExportModal } from './export/ExportModal';
 import { PlanWarnings } from './PlanWarnings';
+import { calculatePlanCost } from '../services/nutrition/costCalculator';
 
 export function ActionBar() {
   const { routeData, planValidation, canUndo, canRedo, undo, redo } = useApp();
   const [exportOpen, setExportOpen] = useState(false);
 
+  const cost = useMemo(() => calculatePlanCost(routeData.nutritionPoints), [routeData.nutritionPoints]);
+
   if (!routeData.loaded) return null;
 
-  const totalCost = routeData.nutritionPoints.reduce((sum, point) => {
-    return sum + (point.product.priceZAR || 0);
-  }, 0);
+  // Footer shows per-serving "cost of this run" — matches the athlete's
+  // mental model of what they actually used. Full-pack total lives in the
+  // kit modal and plan summary.
+  const runCost = cost.runCostZAR;
 
   const totalCarbs = routeData.nutritionPoints.reduce((sum, point) => {
     return sum + point.product.carbs;
@@ -36,7 +40,7 @@ export function ActionBar() {
             { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-text-primary' },
             { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : carbsPerHour > 90 ? 'text-terrain-rust' : 'text-warm' },
             { label: 'Total', value: totalCarbs + 'g', color: 'text-warm' },
-            { label: 'Cost', value: 'R' + totalCost.toFixed(0), color: 'text-accent' },
+            { label: 'Run cost', value: 'R' + runCost.toFixed(0), color: 'text-accent' },
             ...(planValidation ? [{ label: 'Score', value: String(planValidation.score), color: planValidation.score >= 80 ? 'text-accent' : planValidation.score >= 50 ? 'text-warm' : 'text-terrain-rust' }] : []),
           ].map((stat) => (
             <div key={stat.label} className="flex-shrink-0">

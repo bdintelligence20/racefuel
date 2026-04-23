@@ -3,6 +3,7 @@ import { NutritionCard, ProductProps, ProductCategory } from './NutritionCard';
 import { Search, ShoppingCart, Droplets, Coffee, Zap, ClipboardList, Plus, Package } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useProducts } from '../data/products';
+import { calculatePlanCost } from '../services/nutrition/costCalculator';
 import { CartModal } from './CartModal';
 import { ProductDetailModal } from './ProductDetailModal';
 import { RaceDayChecklist } from './RaceDayChecklist';
@@ -46,10 +47,10 @@ export function NutritionPanel() {
     (sum, p) => sum + p.product.carbs,
     0
   );
-  const totalCost = routeData.nutritionPoints.reduce(
-    (sum, p) => sum + (p.product.priceZAR || 0),
-    0
-  );
+  // "Cost of this run" = per-serving equivalent of what's actually consumed.
+  // Full-pack cost available via cost.totalCostZAR if we ever want both here.
+  const planCost = useMemo(() => calculatePlanCost(routeData.nutritionPoints), [routeData.nutritionPoints]);
+  const totalCost = planCost.runCostZAR;
   const totalSodium = routeData.nutritionPoints.reduce(
     (sum, p) => sum + p.product.sodium,
     0

@@ -1,6 +1,7 @@
 import { useModalBehavior } from '../hooks/useModalBehavior';
 import { Zap, Droplets, Coffee, X, Thermometer, Gauge, Clock, RefreshCw } from 'lucide-react';
 import { GeneratedPlan } from '../services/nutrition/planGenerator';
+import { calculatePlanCost } from '../services/nutrition/costCalculator';
 
 export interface PlanStrategyContext {
   durationHours: number;
@@ -131,10 +132,29 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
           {/* Caffeine guidance line */}
           <p className="text-[11px] text-text-muted italic">{caffeineLine}</p>
 
-          {/* Placement count teaser */}
-          <div className="text-[11px] text-text-muted">
-            {plan.nutritionPoints.length} fuel point{plan.nutritionPoints.length === 1 ? '' : 's'} placed · {plan.metrics.totalCarbs}g total carbs · R{plan.metrics.totalCost.toFixed(0)}
-          </div>
+          {/* Placement + cost teaser — show both figures so the tub-price
+              inflation doesn't confuse the athlete. */}
+          {(() => {
+            const cost = calculatePlanCost(plan.nutritionPoints);
+            const hasPackInflation = cost.totalCostZAR > cost.runCostZAR + 1;
+            return (
+              <div className="text-[11px] text-text-muted space-y-0.5">
+                <div>
+                  {plan.nutritionPoints.length} fuel point{plan.nutritionPoints.length === 1 ? '' : 's'} placed · {plan.metrics.totalCarbs}g total carbs
+                </div>
+                <div>
+                  <span className="text-text-secondary">Cost of this run:</span> R{cost.runCostZAR.toFixed(0)}
+                  {hasPackInflation && (
+                    <>
+                      {' '}<span className="text-text-muted/70">·</span>{' '}
+                      <span className="text-text-secondary">Total to buy:</span> R{cost.totalCostZAR.toFixed(0)}
+                      <span className="text-text-muted/70"> (full packs)</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Actions */}

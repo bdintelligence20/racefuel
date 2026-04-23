@@ -54,6 +54,40 @@ function isSingleServeProduct(p: ProductProps): boolean {
   return true;
 }
 
+/**
+ * Infer servings-per-pack from a product's name+description when the feed
+ * doesn't explicitly provide it. Conservative heuristic: we only return > 1
+ * when the pack is clearly multi-serve (tub, big weight, explicit count).
+ * Otherwise we return 1 so cost maths stays correct for true single-serves.
+ */
+function inferServingsPerPack(title: string, description: string, category: ProductCategory, carbs: number): number {
+  const text = `${title} ${description}`.toLowerCase();
+
+  // Explicit count in the name: "pack of 20", "20 servings", "30 gels".
+  const countMatch = text.match(/(\d{1,3})\s*(serv(ing|e)s?|sachets?|gels?|bars?|chews?|tablets?|tabs?)\b/);
+  if (countMatch) {
+    const n = parseInt(countMatch[1], 10);
+    if (n >= 2 && n <= 200) return n;
+  }
+
+  // Drink-mix tubs — back out servings from pack weight vs per-serving carbs.
+  // Most race drinks are ~30-50g carbs per scoop and 70-90% carb by weight,
+  // so pack_weight_g / (carbs / 0.8) is a reasonable approximation.
+  const weightMatch = text.match(/(\d{3,4})\s*g\b/);
+  const isTubLike = /\btub\b|\btin\b|\bjar\b|\bmix\b|\bpowder\b/.test(text);
+  if (category === 'drink' && (isTubLike || weightMatch) && carbs > 0) {
+    const packGrams = weightMatch ? parseInt(weightMatch[1], 10) : 500;
+    const gramsPerServing = Math.max(20, carbs / 0.75);
+    const est = Math.round(packGrams / gramsPerServing);
+    if (est >= 4 && est <= 80) return est;
+  }
+
+  // Kilogram packs — default to 20 servings unless we can do better.
+  if (/\b\d+\s*kg\b/.test(text) && category === 'drink') return 30;
+
+  return 1;
+}
+
 function parseProductsFromXml(xml: string): ProductProps[] {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xml, 'text/xml');
@@ -88,6 +122,13 @@ function parseProductsFromXml(xml: string): ProductProps[] {
       name = name.slice(vendor.length).replace(/^\s*[-–]\s*/, '').trim();
     }
 
+    // Servings — prefer the feed's explicit value, else infer from name/desc.
+    const feedServings = num('servings_per_pack');
+    const description = text('description');
+    const servingsPerPack = feedServings > 0
+      ? Math.round(feedServings)
+      : inferServingsPerPack(title, description, category, carbs);
+
     results.push({
       id: text('handle'),
       brand: vendor,
@@ -100,6 +141,7 @@ function parseProductsFromXml(xml: string): ProductProps[] {
       priceZAR: price,
       image: firstImage,
       category,
+      servingsPerPack,
     });
   });
 
