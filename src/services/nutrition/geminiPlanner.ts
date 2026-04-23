@@ -55,7 +55,6 @@ export interface GeminiPlanInput {
   humidity: number;
   preferredProductIds?: string[];
   preferredCategories?: Array<'gel' | 'drink' | 'bar' | 'chew'>;
-  budget?: number | null;
   onPhase?: (phase: string) => void;
 }
 
@@ -225,7 +224,7 @@ export function buildPrompt(
   intensity: 'easy' | 'moderate' | 'hard',
   catalog: CatalogLine[],
 ): string {
-  const { distanceKm, durationHours, elevationGainM, profile, temperatureCelsius, humidity, preferredCategories, budget } = input;
+  const { distanceKm, durationHours, elevationGainM, profile, temperatureCelsius, humidity, preferredCategories } = input;
   const segments = input.routeAnalysis?.segments?.map((s) =>
     `${s.startKm.toFixed(1)}-${s.endKm.toFixed(1)}km ${s.type} (${s.avgGradient.toFixed(1)}%)`,
   ) || [];
@@ -258,7 +257,7 @@ Sport: ${profile.sport ?? 'running'}${input.isCompetition ? ' (competition)' : '
 Conditions: ${temperatureCelsius}°C / ${humidity}% RH.
 Intensity: ${intensity}.
 Athlete: ${profile.weight}kg, gut "${profile.gutTolerance ?? 'trained'}" (≤${carbTarget.max} g/h).
-Prefs: categories ${preferredCategories?.length ? preferredCategories.join(',') : 'any'}${profile.preferredBrands?.length ? ` · brands ${profile.preferredBrands.join(', ')} (prioritise if suitable)` : ''}${budget ? ` · budget R${budget}` : ''}.
+Prefs: categories ${preferredCategories?.length ? preferredCategories.join(',') : 'any'}${profile.preferredBrands?.length ? ` · brands ${profile.preferredBrands.join(', ')} (prioritise if suitable)` : ''}.
 
 TARGETS
 Carbs ${carbTarget.target} g/h (${carbTarget.min}-${carbTarget.max})

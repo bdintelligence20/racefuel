@@ -415,9 +415,10 @@ export function MapCanvas() {
                 )}
               </div>
 
-              {/* Planned date — click opens native picker via showPicker(). The old
-                  version wrapped an opacity-0 input in a label, which iOS Safari
-                  ignores. Using a button + showPicker() is reliable everywhere. */}
+              {/* Planned date — transparent full-size native date input overlays the
+                  visible label. Tapping anywhere on the chip reaches the input and
+                  opens the native picker on every platform (including iOS Safari,
+                  where showPicker() was silently no-op'ing). */}
               <div
                 className={`relative bg-surface rounded-xl px-3 py-2 shadow-md border transition-colors ${
                   routeData.plannedDate
@@ -426,16 +427,7 @@ export function MapCanvas() {
                 }`}
                 title="Set the date you'll do this route — used to pull the right weather forecast"
               >
-                <button
-                  type="button"
-                  onClick={() => {
-                    const input = document.getElementById('planned-date-input') as HTMLInputElement | null;
-                    if (input?.showPicker) input.showPicker();
-                    else input?.focus();
-                  }}
-                  className="block w-full text-left cursor-pointer"
-                  aria-label="Pick planned date"
-                >
+                <div className="pointer-events-none select-none">
                   <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
                     <Calendar className="w-2.5 h-2.5" />
                     Date
@@ -445,22 +437,23 @@ export function MapCanvas() {
                       ? new Date(routeData.plannedDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
                       : 'Pick'}
                   </div>
-                </button>
+                </div>
                 <input
-                  id="planned-date-input"
                   type="date"
                   value={routeData.plannedDate ?? ''}
                   onChange={(e) => setPlannedDate(e.target.value || undefined)}
                   min={new Date().toISOString().split('T')[0]}
-                  className="absolute opacity-0 pointer-events-none w-0 h-0"
-                  aria-hidden="true"
-                  tabIndex={-1}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  aria-label="Planned date"
                 />
                 {routeData.plannedDate && (
                   <button
                     type="button"
-                    onClick={() => setPlannedDate(undefined)}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-surface border border-[var(--color-border)] text-text-muted hover:text-text-primary hover:border-warm/50 flex items-center justify-center text-xs leading-none shadow-sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setPlannedDate(undefined);
+                    }}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-surface border border-[var(--color-border)] text-text-muted hover:text-text-primary hover:border-warm/50 flex items-center justify-center text-xs leading-none shadow-sm z-10"
                     aria-label="Clear planned date"
                     title="Clear date"
                   >

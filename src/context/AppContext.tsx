@@ -756,11 +756,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Bundle-aware planning: if a bundle is selected, constrain the generator to its
-      // products and cap total spend at its price.
+      // Bundle-aware planning: if a bundle is selected, constrain the generator
+      // to its products. Price is no longer a planning constraint — it's a
+      // display concern only, so don't pass budget into the planner.
       const selectedBundle = selectedBundleId ? allBundles.find((b) => b.id === selectedBundleId) : null;
       const preferredProductIds = selectedBundle?.products.map((p) => p.productId);
-      const budget = selectedBundle?.priceZAR ?? null;
 
       pushHistory(routeData.nutritionPoints);
 
@@ -776,7 +776,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         humidity,
         preferredCategories: userProfile.preferredCategories,
         preferredProductIds,
-        budget,
       };
 
       // Prefer the Gemini agent when the key is configured. It shares the same

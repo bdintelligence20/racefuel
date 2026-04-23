@@ -32,7 +32,13 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
 
   const { carbTarget, hydrationTarget, caffeineStrategy } = plan;
   const carbsPerHour = carbTarget.target;
-  const carbsTotal = Math.round(carbsPerHour * context.durationHours);
+  // The plan's actual totals (from the placements the planner chose). These must
+  // reconcile with the footer line below — showing "327g target" up top and
+  // "292g in the plan" at the bottom was confusing.
+  const planCarbs = plan.metrics.totalCarbs;
+  const planCarbsPerHour = plan.metrics.carbsPerHour;
+  const planSodium = plan.metrics.totalSodium;
+  const planSodiumPerHour = context.durationHours > 0 ? Math.round(planSodium / context.durationHours) : 0;
   const sodiumPerHour = hydrationTarget.sodiumMgPerHour;
   const fluidPerHour = hydrationTarget.fluidMlPerHour;
   const caffeineTotal = caffeineStrategy.totalCaffeineMg;
@@ -80,34 +86,36 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
             <Pill icon={Thermometer}>{context.temperatureCelsius}°C / {context.humidity}%</Pill>
           </div>
 
-          {/* Target grid */}
+          {/* Target grid — each card shows TARGET as the headline and what the
+              plan actually delivers as the sub, so the top and bottom numbers
+              can't drift apart. */}
           <div className="grid grid-cols-2 gap-2">
             <TargetCard
               icon={Zap}
               label="Carbs"
               value={`${carbsPerHour} g/h`}
-              sub={`~${carbsTotal}g total`}
+              sub={`Plan: ${planCarbsPerHour} g/h · ${planCarbs}g`}
               accent="warm"
             />
             <TargetCard
               icon={Droplets}
               label="Sodium"
               value={`${sodiumPerHour} mg/h`}
-              sub={`~${Math.round(hydrationTarget.sweatRateLPerHour * 100) / 100} L/h sweat`}
+              sub={`Plan: ${planSodiumPerHour} mg/h · ${planSodium}mg`}
               accent="accent"
             />
             <TargetCard
               icon={Droplets}
               label="Fluid"
               value={`${fluidPerHour} ml/h`}
-              sub={`${Math.round(hydrationTarget.replacementFraction * 100)}% replacement`}
+              sub={`~${Math.round(hydrationTarget.sweatRateLPerHour * 100) / 100} L/h sweat, ${Math.round(hydrationTarget.replacementFraction * 100)}% replace`}
               accent="accent"
             />
             <TargetCard
               icon={Coffee}
               label="Caffeine"
               value={caffeineStrategy.timing === 'none' ? 'None' : `${caffeineTotal} mg`}
-              sub={caffeineStrategy.timing}
+              sub={caffeineStrategy.timing === 'none' ? 'short effort' : `plan: ${plan.metrics.totalCaffeine} mg`}
               accent="warm"
             />
           </div>

@@ -19,7 +19,6 @@ export interface PlanGeneratorInput {
   humidity: number;
   preferredProductIds?: string[];
   preferredCategories?: Array<'gel' | 'drink' | 'bar' | 'chew'>;
-  budget?: number | null;
 }
 
 export interface GeneratedPlan {
@@ -199,7 +198,6 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
     humidity,
     preferredProductIds,
     preferredCategories,
-    budget,
   } = input;
 
   const sport = profile.sport ?? 'running';
@@ -352,13 +350,10 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
     );
     if (!product) break; // no usable fuel in catalog
 
-    let chosen: ProductProps = product;
-    if (budget && totalCost + (product.priceZAR || 0) > budget) {
-      const affordable = products
-        .filter((p) => isFuelCandidate(p) && (p.priceZAR || 0) <= budget - totalCost && p.carbs <= dynamicCap);
-      if (affordable.length === 0) break;
-      chosen = byCarbProximity(affordable, perPointTarget)[0];
-    }
+    // Price is purely a display concern — never a planning constraint.
+    // A R100 gel at 5km from the end is exactly where the athlete needs it;
+    // under-fuelling to hit a cost target would be malpractice.
+    const chosen: ProductProps = product;
 
     points.push({
       id: nanoid(),
