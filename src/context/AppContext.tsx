@@ -452,6 +452,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       }
     }).catch(console.error);
+
+    // Hydrate UI preferences from Firestore too — selected bundle + kit flavours.
+    // Keeps the user's kit choice and flavour picks in sync across devices.
+    firestoreService.loadPreferences().then((prefs) => {
+      if (!prefs) return;
+      if (prefs.selectedBundleId !== undefined) {
+        setSelectedBundleIdState(prefs.selectedBundleId ?? null);
+        if (prefs.selectedBundleId) {
+          localStorage.setItem('fuelcue_selected_bundle_id', prefs.selectedBundleId);
+        } else {
+          localStorage.removeItem('fuelcue_selected_bundle_id');
+        }
+      }
+      if (prefs.kitFlavours) {
+        // Mirror into localStorage so the FlavourPicker's existing read path
+        // picks them up without ceremony.
+        localStorage.setItem('fuelcue_kit_flavours', JSON.stringify(prefs.kitFlavours));
+      }
+    }).catch((err) => {
+      console.warn('[preferences] hydrate failed:', err);
+    });
   }, []);
 
   // Check for stored tokens and OAuth callback on mount
@@ -888,6 +909,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRouteData((prev) => ({ ...prev, effortLevel: effort }));
   };
 
+  // Selected bundle — write-through cache pattern. localStorage gives us an
+  // instant initial render; Firestore is the source of truth across devices.
   const [selectedBundleId, setSelectedBundleIdState] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('fuelcue_selected_bundle_id');
@@ -896,6 +919,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSelectedBundleIdState(id);
     if (id) localStorage.setItem('fuelcue_selected_bundle_id', id);
     else localStorage.removeItem('fuelcue_selected_bundle_id');
+    // Fire-and-forget Firestore sync. If the user isn't signed in, skip silently.
+    if (getCurrentUser()) {
+      firestoreService.savePreferences({ selectedBundleId: id }).catch((err) => {
+        console.warn('[preferences] bundle sync failed:', err);
+      });
+    }
   };
 
   const resetRoute = () => {

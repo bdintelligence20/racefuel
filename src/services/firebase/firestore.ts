@@ -59,6 +59,28 @@ export async function loadProfile(): Promise<FirestoreProfile | null> {
   return snap.exists() ? (snap.data() as FirestoreProfile) : null;
 }
 
+// ── User Preferences (UI state that should survive across devices) ──
+
+export interface FirestorePreferences {
+  /** ID of the currently active bundle, or null if none. */
+  selectedBundleId?: string | null;
+  /** Per-bundle flavour selections: { [bundleId]: { [productId]: flavour } } */
+  kitFlavours?: Record<string, Record<string, string>>;
+  updatedAt?: Timestamp;
+}
+
+export async function savePreferences(prefs: Omit<FirestorePreferences, 'updatedAt'>): Promise<void> {
+  await setDoc(userDoc('preferences/data'), {
+    ...prefs,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+export async function loadPreferences(): Promise<FirestorePreferences | null> {
+  const snap = await getDoc(userDoc('preferences/data'));
+  return snap.exists() ? (snap.data() as FirestorePreferences) : null;
+}
+
 // ── Saved Plans ──
 
 export interface FirestorePlan {

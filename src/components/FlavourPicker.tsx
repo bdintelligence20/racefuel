@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Check, ArrowLeft } from 'lucide-react';
 import { ProductBundle } from '../data/bundles';
 import { useProducts } from '../data/products';
+import * as firestoreService from '../services/firebase/firestore';
+import { getCurrentUser } from '../services/firebase/auth';
 
 interface Props {
   bundle: ProductBundle;
@@ -38,13 +40,21 @@ export function loadStoredFlavours(bundleId: string): Record<string, string> {
 }
 
 export function saveStoredFlavours(bundleId: string, selections: Record<string, string>): void {
+  // localStorage first — instant UI. Firestore second — cross-device truth.
+  let all: Record<string, Record<string, string>> = {};
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    const all = raw ? (JSON.parse(raw) as Record<string, Record<string, string>>) : {};
+    all = raw ? (JSON.parse(raw) as Record<string, Record<string, string>>) : {};
     all[bundleId] = selections;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
   } catch {
-    // localStorage full / disabled — silently skip persistence.
+    // localStorage full / disabled — fall through to Firestore anyway.
+    all[bundleId] = selections;
+  }
+  if (getCurrentUser()) {
+    firestoreService.savePreferences({ kitFlavours: all }).catch((err) => {
+      console.warn('[preferences] flavour sync failed:', err);
+    });
   }
 }
 
