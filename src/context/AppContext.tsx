@@ -5,6 +5,8 @@ import { ProductProps } from '../components/NutritionCard';
 import { parseGpx } from '../services/route/gpxParser';
 import { parseTcx } from '../services/route/tcxParser';
 import { analyzeRoute, RouteAnalysis } from '../services/route/routeAnalyzer';
+import { getActiveDurationHours } from '../services/route/timeFormat';
+import { estimateRouteTime, formatHoursAsHms } from '../services/route/timeEstimator';
 import { generatePlan, GeneratedPlan } from '../services/nutrition/planGenerator';
 import { generatePlanWithGemini, isGeminiEnabled } from '../services/nutrition/geminiPlanner';
 import { validatePlan, ValidationResult } from '../services/nutrition/planValidator';
@@ -16,6 +18,7 @@ import { getWeatherForecast, WeatherForecast } from '../services/weather/weather
 import {
   StravaActivitySummary,
   StravaAuthState,
+  StravaRouteSummary,
   initiateOAuth,
   hasOAuthCallback,
   parseOAuthCallback,
@@ -26,6 +29,8 @@ import {
   getAthlete,
   getActivities,
   getActivityStreams,
+  getRoutes as getStravaRoutes,
+  getRouteGpx as getStravaRouteGpx,
   transformActivityToRoute,
 } from '../services/strava';
 
@@ -86,6 +91,13 @@ export interface RouteData {
    *  auto-inferred intensity so a 5/10 training effort doesn't get fueled like
    *  an 8/10 race. Leave undefined to use inferred intensity from pace+elevation. */
   effortLevel?: number;
+  /** Per-route sport override for time estimation. Lets a hiker use the app
+   *  for a route the parser defaulted to "run", or a runner mark a particular
+   *  route as a hike. Leave undefined to fall back to the user profile sport. */
+  routeSport?: 'run' | 'cycle' | 'hike';
+  /** Per-route terrain hint that scales base pace and Naismith intensity.
+   *  Leave undefined for road. */
+  routeSurface?: 'road' | 'trail' | 'mountain';
   path: {
     x: number;
     y: number;
@@ -129,6 +141,8 @@ interface AppContextType {
   strava: StravaAuthState;
   stravaActivities: StravaActivitySummary[];
   stravaActivitiesLoading: boolean;
+  stravaRoutes: StravaRouteSummary[];
+  stravaRoutesLoading: boolean;
 
   // Undo/redo
   canUndo: boolean;
@@ -149,6 +163,8 @@ interface AppContextType {
   setUserEstimatedTime: (hms: string | undefined) => void;
   setPlannedDate: (isoDate: string | undefined) => void;
   setEffortLevel: (effort: number | undefined) => void;
+  setRouteSport: (sport: 'run' | 'cycle' | 'hike' | undefined) => void;
+  setRouteSurface: (surface: 'road' | 'trail' | 'mountain' | undefined) => void;
   selectedBundleId: string | null;
   selectBundle: (id: string | null) => void;
 
@@ -157,6 +173,16 @@ interface AppContextType {
   disconnectStrava: () => void;
   fetchStravaActivities: () => Promise<void>;
   importStravaActivity: (activity: StravaActivitySummary) => Promise<void>;
+  fetchStravaRoutes: () => Promise<void>;
+  importStravaRoute: (route: StravaRouteSummary) => Promise<void>;
+
+  // Backups at checkout — products the user wants to buy alongside the
+  // planned items but that aren't mapped to a waypoint. Extras don't appear
+  // on the route or in any planning view.
+  cartExtras: Array<{ productId: string; quantity: number }>;
+  addCartExtra: (productId: string, quantity?: number) => void;
+  setCartExtraQuantity: (productId: string, quantity: number) => void;
+  removeCartExtra: (productId: string) => void;
   syncProfileFromStrava: () => Promise<void>;
 
   // Reset everything
@@ -303,6 +329,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [strava, setStrava] = useState<StravaAuthState>(defaultStravaState);
   const [stravaActivities, setStravaActivities] = useState<StravaActivitySummary[]>([]);
   const [stravaActivitiesLoading, setStravaActivitiesLoading] = useState(false);
+  const [stravaRoutes, setStravaRoutes] = useState<StravaRouteSummary[]>([]);
+  const [stravaRoutesLoading, setStravaRoutesLoading] = useState(false);
+  const [cartExtras, setCartExtras] = useState<Array<{ productId: string; quantity: number }>>([]);
 
   // Undo/redo
   const undoStack = useRef<HistoryEntry[]>([]);
@@ -375,8 +404,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const timeParts = (routeData.estimatedTime || '3:00:00').split(':').map(Number);
-    const durationHours = timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600;
+    const durationHours = getActiveDurationHours(routeData, 3);
 
     const validation = validatePlan(
       routeData.nutritionPoints,
@@ -389,7 +417,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
 
     setPlanValidation(validation);
-  }, [routeData.nutritionPoints, routeData.loaded, routeData.distanceKm, routeData.estimatedTime, lastGeneratedPlan, userProfile.weight]);
+  }, [routeData.nutritionPoints, routeData.loaded, routeData.distanceKm, routeData.estimatedTime, routeData.userEstimatedTime, lastGeneratedPlan, userProfile.weight]);
 
   // Auto-save plan (debounced)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -628,6 +656,48 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const fetchStravaRoutes = useCallback(async () => {
+    if (!strava.isConnected) return;
+    setStravaRoutesLoading(true);
+    try {
+      const routes = await getStravaRoutes(1, 30);
+      setStravaRoutes(routes);
+    } catch (err) {
+      console.error('Failed to fetch Strava routes:', err);
+      setStrava((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : 'Failed to fetch routes',
+      }));
+    } finally {
+      setStravaRoutesLoading(false);
+    }
+  }, [strava.isConnected]);
+
+  // Strava routes use the GPX export endpoint, so we route them through the
+  // same parseGpx pipeline as a file upload — that means the unified time
+  // estimator handles pace, elevation and Riegel scaling automatically.
+  const importStravaRoute = useCallback(async (route: StravaRouteSummary) => {
+    try {
+      const gpxText = await getStravaRouteGpx(route.id_str || route.id);
+      const parsed = parseGpx(gpxText, route.name);
+      setRouteData({
+        loaded: true,
+        name: route.name,
+        distanceKm: parsed.distanceKm,
+        elevationGain: parsed.elevationGain,
+        estimatedTime: parsed.estimatedTime,
+        path: parsed.path,
+        gpsPath: parsed.gpsPath,
+        nutritionPoints: [],
+        source: 'strava',
+      });
+      toast.success(`Imported "${route.name}" from Strava`);
+    } catch (err) {
+      console.error('Failed to import Strava route:', err);
+      toast.error('Failed to import route — please try again');
+    }
+  }, []);
+
   const syncProfileFromStrava = useCallback(async () => {
     if (!strava.athlete) return;
 
@@ -756,9 +826,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     try {
       // Prefer the user-set expected time if present; fall back to the auto-estimated one.
-      const timeString = routeData.userEstimatedTime || routeData.estimatedTime || '3:00:00';
-      const timeParts = timeString.split(':').map(Number);
-      let durationHours = timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600;
+      let durationHours = getActiveDurationHours(routeData, 0);
       if (!durationHours || durationHours <= 0) {
         durationHours = routeData.distanceKm / 25;
       }
@@ -942,6 +1010,79 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRouteData((prev) => ({ ...prev, effortLevel: effort }));
   };
 
+  // Sport/surface change → re-run the unified estimator with the new
+  // parameters. We don't touch userEstimatedTime: a user-edited time stays.
+  const reestimateAndSet = (
+    prev: RouteData,
+    nextSport: 'run' | 'cycle' | 'hike' | undefined,
+    nextSurface: 'road' | 'trail' | 'mountain' | undefined,
+  ): RouteData => {
+    if (!prev.gpsPath || prev.gpsPath.length < 2) {
+      return { ...prev, routeSport: nextSport, routeSurface: nextSurface };
+    }
+    const cumulativeDistancesKm: number[] = [0];
+    for (let i = 1; i < prev.gpsPath.length; i++) {
+      const a = prev.gpsPath[i - 1];
+      const b = prev.gpsPath[i];
+      // Inline haversine to avoid pulling in another helper.
+      const R = 6371;
+      const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+      const dLon = ((b.lng - a.lng) * Math.PI) / 180;
+      const aTerm =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+      const dKm = R * 2 * Math.atan2(Math.sqrt(aTerm), Math.sqrt(1 - aTerm));
+      cumulativeDistancesKm.push(cumulativeDistancesKm[i - 1] + dKm);
+    }
+    const elevationsM = prev.gpsPath.map((p) => p.elevation ?? 0);
+    const sportForEstimator = nextSport ?? (userProfile.sport === 'cycling' ? 'cycle' : 'run');
+    const { hours } = estimateRouteTime({
+      distanceKm: prev.distanceKm,
+      elevationGainM: prev.elevationGain,
+      sport: sportForEstimator,
+      surface: nextSurface ?? 'road',
+      effortLevel: prev.effortLevel,
+      cumulativeDistancesKm,
+      elevationsM,
+    });
+    return {
+      ...prev,
+      routeSport: nextSport,
+      routeSurface: nextSurface,
+      estimatedTime: formatHoursAsHms(hours),
+    };
+  };
+
+  const setRouteSport = (sport: 'run' | 'cycle' | 'hike' | undefined) => {
+    setRouteData((prev) => reestimateAndSet(prev, sport, prev.routeSurface));
+  };
+
+  const setRouteSurface = (surface: 'road' | 'trail' | 'mountain' | undefined) => {
+    setRouteData((prev) => reestimateAndSet(prev, prev.routeSport, surface));
+  };
+
+  // Cart extras — additive helpers that operate on the productId list. Kept
+  // intentionally tiny since the list is short-lived (rebuilds per checkout).
+  const addCartExtra = (productId: string, quantity = 1) => {
+    setCartExtras((prev) => {
+      const existing = prev.find((e) => e.productId === productId);
+      if (existing) {
+        return prev.map((e) => (e.productId === productId ? { ...e, quantity: e.quantity + quantity } : e));
+      }
+      return [...prev, { productId, quantity }];
+    });
+  };
+  const setCartExtraQuantity = (productId: string, quantity: number) => {
+    setCartExtras((prev) =>
+      quantity <= 0
+        ? prev.filter((e) => e.productId !== productId)
+        : prev.map((e) => (e.productId === productId ? { ...e, quantity } : e)),
+    );
+  };
+  const removeCartExtra = (productId: string) => {
+    setCartExtras((prev) => prev.filter((e) => e.productId !== productId));
+  };
+
   // Selected bundle — write-through cache pattern. localStorage gives us an
   // instant initial render; Firestore is the source of truth across devices.
   const [selectedBundleId, setSelectedBundleIdState] = useState<string | null>(() => {
@@ -1014,6 +1155,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         strava,
         stravaActivities,
         stravaActivitiesLoading,
+        stravaRoutes,
+        stravaRoutesLoading,
 
         canUndo,
         canRedo,
@@ -1032,6 +1175,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setUserEstimatedTime,
         setPlannedDate,
         setEffortLevel,
+        setRouteSport,
+        setRouteSurface,
         selectedBundleId,
         selectBundle,
 
@@ -1039,6 +1184,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         disconnectStrava,
         fetchStravaActivities,
         importStravaActivity,
+        fetchStravaRoutes,
+        importStravaRoute,
+        cartExtras,
+        addCartExtra,
+        setCartExtraQuantity,
+        removeCartExtra,
         syncProfileFromStrava,
 
         resetAll,

@@ -61,8 +61,12 @@ describe('analyzeRoute', () => {
 
     // Hill route should have climb penalty
     expect(hillResult.estimatedTimeHours).toBeGreaterThan(0);
-    // Flat route time should be ~distance/speed
-    expect(flatResult.estimatedTimeHours).toBeCloseTo(50 / 25, 0);
+    // Flat 50 km road run (default sport) — unified estimator pegs ~12 km/h
+    // base, plus Riegel scaling above 21 km. Old assertion of 2h came from
+    // the flat 25 km/h model which gave catastrophic 51-min on 28 km routes
+    // (the bug we're fixing). Sanity-check it's in the 3–6h ballpark.
+    expect(flatResult.estimatedTimeHours).toBeGreaterThan(3);
+    expect(flatResult.estimatedTimeHours).toBeLessThan(6);
   });
 
   it('sums segment distances to approximate total', () => {

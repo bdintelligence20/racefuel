@@ -1,6 +1,6 @@
 // Strava API client
 
-import { StravaAthlete, StravaActivitySummary, StravaStream } from './stravaTypes';
+import { StravaAthlete, StravaActivitySummary, StravaStream, StravaRouteSummary } from './stravaTypes';
 import { getValidAccessToken } from './stravaAuth';
 
 const STRAVA_API_BASE = 'https://www.strava.com/api/v3';
@@ -98,4 +98,38 @@ export async function getActivityStreams(
  */
 export async function getActivity(activityId: number): Promise<StravaActivitySummary> {
   return stravaFetch<StravaActivitySummary>(`/activities/${activityId}`);
+}
+
+/**
+ * List the athlete's saved routes. The previous import flow only pulled
+ * past activities, so a user planning a future race had no way to load the
+ * Strava-route they'd built for it.
+ */
+export async function getRoutes(
+  page = 1,
+  perPage = 30,
+): Promise<StravaRouteSummary[]> {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    per_page: perPage.toString(),
+  });
+  return stravaFetch<StravaRouteSummary[]>(`/athlete/routes?${params.toString()}`);
+}
+
+/**
+ * Export a saved route as a GPX string. We pipe this through parseGpx so the
+ * unified time estimator handles pace, elevation, and Riegel scaling.
+ */
+export async function getRouteGpx(routeId: number | string): Promise<string> {
+  const accessToken = await getValidAccessToken();
+  if (!accessToken) {
+    throw new StravaApiError(401, 'Not authenticated with Strava');
+  }
+  const response = await fetch(`${STRAVA_API_BASE}/routes/${routeId}/export_gpx`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!response.ok) {
+    throw new StravaApiError(response.status, `Failed to export Strava route ${routeId}: ${response.status}`);
+  }
+  return response.text();
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react';
 import { Toaster } from 'sonner';
 import { AppProvider, useApp } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { MapProvider } from './context/MapContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthScreen } from './components/AuthScreen';
 import { Sidebar } from './components/Sidebar';
@@ -256,7 +257,9 @@ function AuthGate() {
   // Signed in — show app
   return (
     <AppProvider>
-      <AppContent />
+      <MapProvider>
+        <AppContent />
+      </MapProvider>
     </AppProvider>
   );
 }

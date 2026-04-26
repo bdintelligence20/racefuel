@@ -4,6 +4,7 @@ import { Search, ShoppingCart, Droplets, Coffee, Zap, ClipboardList, Plus, Packa
 import { useApp } from '../context/AppContext';
 import { useProducts } from '../data/products';
 import { calculatePlanCost } from '../services/nutrition/costCalculator';
+import { getActiveDurationHours } from '../services/route/timeFormat';
 import { CartModal } from './CartModal';
 import { ProductDetailModal } from './ProductDetailModal';
 import { RaceDayChecklist } from './RaceDayChecklist';
@@ -56,9 +57,12 @@ export function NutritionPanel() {
     0
   );
   // "Cost of this run" = per-serving equivalent of what's actually consumed.
-  // Full-pack cost available via cost.totalCostZAR if we ever want both here.
+  // We surface "to buy" alongside whenever buying full packs costs noticeably
+  // more, so a R1357 tub doesn't masquerade as the price of a 23km run.
   const planCost = useMemo(() => calculatePlanCost(routeData.nutritionPoints), [routeData.nutritionPoints]);
-  const totalCost = planCost.runCostZAR;
+  const runCost = planCost.runCostZAR;
+  const totalToBuy = planCost.totalCostZAR;
+  const hasPackInflation = totalToBuy > runCost + 1;
   const totalSodium = routeData.nutritionPoints.reduce(
     (sum, p) => sum + p.product.sodium,
     0
@@ -68,11 +72,11 @@ export function NutritionPanel() {
     0
   );
 
-  // Estimate hourly based on route time
-  const timeStr = routeData.estimatedTime || '3:15:00';
-  const timeParts = timeStr.split(':').map(Number);
-  const hours = timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600 || 3.25;
-  const carbsPerHour = Math.round(totalCarbs / hours);
+  // Hourly figures track whichever duration is currently authoritative —
+  // the user override if they set one, otherwise the auto-estimate. Without
+  // this, editing time in the sidebar leaves carbs/hr frozen.
+  const hours = getActiveDurationHours(routeData, 3.25);
+  const carbsPerHour = hours > 0 ? Math.round(totalCarbs / hours) : 0;
 
   // Get carb target from plan generator if available
   const carbTarget = lastGeneratedPlan?.carbTarget;
@@ -223,13 +227,21 @@ export function NutritionPanel() {
               </div>
             </div>
 
-            <div className="flex justify-between items-center mt-3 pt-3 border-t border-[var(--color-border)]">
-              <span className="text-xs text-text-secondary font-display uppercase tracking-wider">
-                Total ({routeData.nutritionPoints.length} items)
-              </span>
-              <span className="text-lg font-display font-bold text-warm">
-                R{totalCost.toFixed(2)}
-              </span>
+            <div className="mt-3 pt-3 border-t border-[var(--color-border)] space-y-1">
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-text-secondary font-display uppercase tracking-wider">
+                  Cost for this run ({routeData.nutritionPoints.length} items)
+                </span>
+                <span className="text-lg font-display font-bold text-warm">
+                  R{runCost.toFixed(2)}
+                </span>
+              </div>
+              {hasPackInflation && (
+                <div className="flex justify-between items-center text-[11px] text-text-muted font-display">
+                  <span className="uppercase tracking-wider">Total to buy (full packs)</span>
+                  <span className="font-bold tabular-nums">R{totalToBuy.toFixed(2)}</span>
+                </div>
+              )}
             </div>
             <div className="flex gap-2 mt-3">
               <button

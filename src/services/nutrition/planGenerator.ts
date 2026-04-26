@@ -42,7 +42,6 @@ export interface GeneratedPlan {
     totalSodium: number;
     totalCaffeine: number;
     totalCalories: number;
-    totalCost: number;
   };
 }
 
@@ -129,6 +128,14 @@ function isFuelCandidate(p: ProductProps): boolean {
   return true;
 }
 
+interface SelectProductResult {
+  product: ProductProps;
+  /** True when the chosen product matches the user's preferred brand list (or
+   *  no brand preference was set). False means the brand filter had to be
+   *  relaxed to find any viable product. */
+  brandHonoured: boolean;
+}
+
 function selectProduct(
   distanceKm: number,
   totalDistanceKm: number,
@@ -141,7 +148,7 @@ function selectProduct(
   maxCarbsPerPoint: number,
   preferredCategories?: Array<'gel' | 'drink' | 'bar' | 'chew'>,
   preferredBrands?: string[],
-): ProductProps | null {
+): SelectProductResult | null {
   const rawPool = preferredProducts && preferredProducts.length > 0 ? preferredProducts : products;
   const fuelPool = rawPool.filter(isFuelCandidate);
   if (fuelPool.length === 0) return null;
@@ -149,52 +156,52 @@ function selectProduct(
   const budgeted = fuelPool.filter((p) => p.carbs <= maxCarbsPerPoint);
   const basePool = budgeted.length > 0 ? budgeted : fuelPool;
 
-  // Brand preference is a SOFT bias — never filters the pool. Hard-filtering
-  // to a single brand collapses every placement onto whatever narrow range
-  // of carbs that brand offers (e.g. 5×23g gels for a route that needs 4
-  // placements at 40g each). Preferred-brand items get a proximity bonus
-  // via byBrandAwareProximity below, but the pool stays full.
+  // Brand preference is a HARD filter when the user has set one — picking
+  // "Gu" should not leak Maurten gels into the plan. But fall back to the
+  // full pool if brand alone can't satisfy the placement (e.g. only flat
+  // sports drinks in that brand and the placement needs a solid). The
+  // caller is told via brandHonoured so it can surface the fallback.
   const brandSet = preferredBrands && preferredBrands.length > 0 ? new Set(preferredBrands.map((b) => b.toLowerCase())) : null;
 
   const preferredSet = preferredCategories && preferredCategories.length > 0 ? new Set(preferredCategories) : null;
-  const preferredPool = preferredSet ? basePool.filter((p) => preferredSet.has(p.category)) : basePool;
-  const pool = preferredPool.length > 0 ? preferredPool : basePool;
+  const categoryPool = preferredSet ? basePool.filter((p) => preferredSet.has(p.category)) : basePool;
+  const afterCategory = categoryPool.length > 0 ? categoryPool : basePool;
+
+  const brandPool = brandSet ? afterCategory.filter((p) => brandSet.has(p.brand.toLowerCase())) : afterCategory;
+  const brandHonoured = !brandSet || brandPool.length > 0;
+  const pool = brandHonoured ? brandPool : afterCategory;
 
   const gels = pool.filter((p) => p.category === 'gel');
   const drinks = pool.filter((p) => p.category === 'drink');
   const bars = pool.filter((p) => p.category === 'bar');
   const chews = pool.filter((p) => p.category === 'chew');
 
-  // Brand-aware sort — preferred brands get a ~5g proximity credit so they
-  // rise to the top of the top-3 band without locking picks to them.
-  const brandAware = (items: ProductProps[]) =>
-    [...items].sort((a, b) => {
-      const aDist = Math.abs(a.carbs - targetCarbsPerPoint) - (brandSet?.has(a.brand.toLowerCase()) ? 5 : 0);
-      const bDist = Math.abs(b.carbs - targetCarbsPerPoint) - (brandSet?.has(b.brand.toLowerCase()) ? 5 : 0);
-      return aDist - bDist;
-    });
+  const byProximity = (items: ProductProps[]) =>
+    [...items].sort((a, b) => Math.abs(a.carbs - targetCarbsPerPoint) - Math.abs(b.carbs - targetCarbsPerPoint));
+
+  const wrap = (p: ProductProps | null): SelectProductResult | null => (p ? { product: p, brandHonoured } : null);
 
   if (shouldUseCaffeineProduct(distanceKm, totalDistanceKm, caffeineStrat, currentCaffeineMg)) {
     const cafProducts = pool.filter((p) => p.caffeine > 0);
-    if (cafProducts.length > 0) return pickFromSorted(brandAware(cafProducts), 2);
+    if (cafProducts.length > 0) return wrap(pickFromSorted(byProximity(cafProducts), 2));
   }
 
   if (preferSolidNow) {
     const solids = [...bars, ...chews];
     if (solids.length > 0 && (!segment || segment.type !== 'climb')) {
-      return pickFromSorted(brandAware(solids), 3);
+      return wrap(pickFromSorted(byProximity(solids), 3));
     }
-    if (gels.length > 0) return pickFromSorted(brandAware(gels), 3);
+    if (gels.length > 0) return wrap(pickFromSorted(byProximity(gels), 3));
   } else {
     if (drinks.length > 0 && segment?.type !== 'climb') {
-      return pickFromSorted(brandAware(drinks), 3);
+      return wrap(pickFromSorted(byProximity(drinks), 3));
     }
     if (gels.length > 0) {
-      return pickFromSorted(brandAware(gels), 3);
+      return wrap(pickFromSorted(byProximity(gels), 3));
     }
   }
 
-  return pickFromSorted(brandAware(pool), Math.min(5, pool.length));
+  return wrap(pickFromSorted(byProximity(pool), Math.min(5, pool.length)));
 }
 
 function segmentAt(segments: RouteSegment[], km: number): RouteSegment | undefined {
@@ -250,7 +257,7 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
     targetMgPerKg: isCompetition ? 4 : 3,
   });
 
-  const emptyMetrics = { totalCarbs: 0, carbsPerHour: 0, totalSodium: 0, totalCaffeine: 0, totalCalories: 0, totalCost: 0 };
+  const emptyMetrics = { totalCarbs: 0, carbsPerHour: 0, totalSodium: 0, totalCaffeine: 0, totalCalories: 0 };
 
   // Short efforts fall into the <30min / 30–75min tiers — no on-course fueling needed.
   if (carbTarget.target === 0 || durationHours < 1) {
@@ -298,9 +305,12 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
   let totalSodium = 0;
   let totalCaffeine = 0;
   let totalCalories = 0;
-  let totalCost = 0;
   let preferSolid = false;
   let cursorKm = firstKm;
+  // Tracks whether any placement had to ignore the user's preferred brands
+  // because no in-brand product could satisfy the slot. Surfaced in the
+  // rationale so the user understands why a non-Gu product appeared.
+  let brandFallbackTriggered = false;
 
   let safety = 0;
   while (cursorKm < distanceKm - endBufferKm && safety++ < 200) {
@@ -363,7 +373,7 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
     const segForPlacement = segmentAt(segments, placeKm);
     const remainingCarbBudget = Math.max(0, maxTotalCarbs - totalCarbs);
     const dynamicCap = Math.min(absoluteMaxPerPoint, remainingCarbBudget + 5);
-    const product = selectProduct(
+    const selection = selectProduct(
       placeKm,
       distanceKm,
       caffeineStrategy,
@@ -376,12 +386,13 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       preferredCategories,
       profile.preferredBrands,
     );
-    if (!product) break; // no usable fuel in catalog
+    if (!selection) break; // no usable fuel in catalog
+    if (!selection.brandHonoured) brandFallbackTriggered = true;
 
     // Price is purely a display concern — never a planning constraint.
     // A R100 gel at 5km from the end is exactly where the athlete needs it;
     // under-fuelling to hit a cost target would be malpractice.
-    const chosen: ProductProps = product;
+    const chosen: ProductProps = selection.product;
 
     const recordPlacement = (p: ProductProps, km: number) => {
       points.push({
@@ -393,7 +404,6 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       totalSodium += p.sodium;
       totalCaffeine += p.caffeine;
       totalCalories += p.calories;
-      totalCost += p.priceZAR || 0;
     };
 
     recordPlacement(chosen, placeKm);
@@ -421,8 +431,9 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
         preferredCategories,
         profile.preferredBrands,
       );
-      if (companion && companion.id !== chosen.id) {
-        recordPlacement(companion, placeKm + 0.05);
+      if (companion && companion.product.id !== chosen.id) {
+        if (!companion.brandHonoured) brandFallbackTriggered = true;
+        recordPlacement(companion.product, placeKm + 0.05);
       }
     }
 
@@ -442,9 +453,16 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
 
   points.sort((a, b) => a.distanceKm - b.distanceKm);
 
+  const finalCarbTarget: CarbTarget = brandFallbackTriggered && profile.preferredBrands?.length
+    ? {
+        ...carbTarget,
+        rationale: `${carbTarget.rationale} Some placements stepped outside your preferred brand(s) (${profile.preferredBrands.join(', ')}) because no in-brand product fit the slot.`,
+      }
+    : carbTarget;
+
   return {
     nutritionPoints: points,
-    carbTarget,
+    carbTarget: finalCarbTarget,
     hydrationTarget,
     caffeineStrategy,
     metrics: {
@@ -453,7 +471,6 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       totalSodium,
       totalCaffeine,
       totalCalories,
-      totalCost: Math.round(totalCost * 100) / 100,
     },
   };
 }

@@ -1,4 +1,5 @@
 import { GpsPoint } from '../../context/AppContext';
+import { estimateRouteTime } from './timeEstimator';
 
 export interface RouteSegment {
   startKm: number;
@@ -51,8 +52,13 @@ function calcDifficulty(gradient: number, distanceKm: number): number {
 export function analyzeRoute(
   gpsPath: GpsPoint[],
   distanceKm: number,
-  avgSpeedKmh = 25
+  // Retained for API compatibility but no longer used — analyzeRoute now
+  // delegates time estimation to the unified estimator (sport-aware,
+  // elevation-aware, distance-fatigue-aware) so the analysis number can't
+  // disagree with the import number.
+  _avgSpeedKmh = 25
 ): RouteAnalysis {
+  void _avgSpeedKmh;
   if (!gpsPath || gpsPath.length < 2) {
     return {
       segments: [],
@@ -61,7 +67,7 @@ export function analyzeRoute(
       totalFlatKm: 0,
       maxGradient: 0,
       avgDifficulty: 1,
-      estimatedTimeHours: distanceKm / avgSpeedKmh,
+      estimatedTimeHours: estimateRouteTime({ distanceKm, elevationGainM: 0, sport: 'run' }).hours,
     };
   }
 
@@ -132,10 +138,24 @@ export function analyzeRoute(
     ? Math.round((segments.reduce((sum, s) => sum + s.difficulty * s.distanceKm, 0) / distanceKm) * 10) / 10
     : 1;
 
-  // Estimate time accounting for climbing
-  const baseTimeHours = distanceKm / avgSpeedKmh;
-  const climbPenalty = totalClimbingKm * 0.05; // Add ~3 min per km of climbing
-  const estimatedTimeHours = baseTimeHours + climbPenalty;
+  // Time comes from the unified estimator — same one parseGpx/parseTcx use,
+  // so the post-import analysis can't disagree with the import number. We
+  // pass elevation samples so the estimator can run Tobler over per-segment
+  // slope, plus the totalElevationGain from the cumulative climb above as
+  // the Naismith floor.
+  const totalElevationGain = segments
+    .filter((s) => s.elevationChange > 0)
+    .reduce((sum, s) => sum + s.elevationChange, 0);
+  const cumulativeForEstimator = cumulativeDistances;
+  const elevationsForEstimator = gpsPath.map((p) => p.elevation ?? 0);
+  const estimatedTimeHours = estimateRouteTime({
+    distanceKm,
+    elevationGainM: totalElevationGain,
+    sport: 'run',
+    surface: 'road',
+    cumulativeDistancesKm: cumulativeForEstimator,
+    elevationsM: elevationsForEstimator,
+  }).hours;
 
   return {
     segments,

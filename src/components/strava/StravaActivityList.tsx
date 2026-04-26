@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Activity, Calendar, Mountain, ArrowRight, Loader2, X, RefreshCw, Search, ArrowUpDown } from 'lucide-react';
+import { Activity, Calendar, Mountain, ArrowRight, Loader2, X, RefreshCw, Search, ArrowUpDown, Route } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
-import { StravaActivitySummary, ACTIVITY_TYPE_LABELS, formatDistance, formatDuration, formatDate } from '../../services/strava';
+import { StravaActivitySummary, StravaRouteSummary, ACTIVITY_TYPE_LABELS, formatDistance, formatDuration, formatDate } from '../../services/strava';
 
 interface StravaActivityListProps {
   onClose: () => void;
@@ -9,6 +9,7 @@ interface StravaActivityListProps {
 
 type SortKey = 'date' | 'distance' | 'elevation' | 'name';
 type SortDir = 'asc' | 'desc';
+type Tab = 'activities' | 'routes';
 
 export function StravaActivityList({ onClose }: StravaActivityListProps) {
   const {
@@ -17,9 +18,14 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
     stravaActivitiesLoading,
     fetchStravaActivities,
     importStravaActivity,
+    stravaRoutes,
+    stravaRoutesLoading,
+    fetchStravaRoutes,
+    importStravaRoute,
   } = useApp();
 
-  const [importingId, setImportingId] = useState<number | null>(null);
+  const [tab, setTab] = useState<Tab>('activities');
+  const [importingId, setImportingId] = useState<string | number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [activityTypeFilter, setActivityTypeFilter] = useState<string>('all');
   const [sortKey, setSortKey] = useState<SortKey>('date');
@@ -27,10 +33,14 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
   const [minDistance, setMinDistance] = useState(0);
 
   useEffect(() => {
-    if (strava.isConnected && stravaActivities.length === 0) {
+    if (!strava.isConnected) return;
+    if (tab === 'activities' && stravaActivities.length === 0) {
       fetchStravaActivities();
     }
-  }, [strava.isConnected, stravaActivities.length, fetchStravaActivities]);
+    if (tab === 'routes' && stravaRoutes.length === 0) {
+      fetchStravaRoutes();
+    }
+  }, [strava.isConnected, tab, stravaActivities.length, stravaRoutes.length, fetchStravaActivities, fetchStravaRoutes]);
 
   const handleImport = async (activity: StravaActivitySummary) => {
     setImportingId(activity.id);
@@ -43,6 +53,48 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
       setImportingId(null);
     }
   };
+
+  const handleImportRoute = async (route: StravaRouteSummary) => {
+    setImportingId(route.id_str || route.id);
+    try {
+      await importStravaRoute(route);
+      onClose();
+    } catch (error) {
+      console.error('Failed to import route:', error);
+    } finally {
+      setImportingId(null);
+    }
+  };
+
+  const filteredRoutes = useMemo(() => {
+    let result = [...stravaRoutes];
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((r) => r.name.toLowerCase().includes(q));
+    }
+    if (minDistance > 0) {
+      result = result.filter((r) => r.distance / 1000 >= minDistance);
+    }
+    result.sort((a, b) => {
+      let cmp = 0;
+      switch (sortKey) {
+        case 'date':
+          cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+          break;
+        case 'distance':
+          cmp = a.distance - b.distance;
+          break;
+        case 'elevation':
+          cmp = a.elevation_gain - b.elevation_gain;
+          break;
+        case 'name':
+          cmp = a.name.localeCompare(b.name);
+          break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+    return result;
+  }, [stravaRoutes, searchQuery, sortKey, sortDir, minDistance]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -119,17 +171,17 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
               IMPORT FROM <span className="text-[#FC4C02]">STRAVA</span>
             </h2>
             <p className="text-text-secondary text-sm font-display mt-1">
-              Select an activity to import
+              {tab === 'activities' ? 'Select an activity to import' : 'Select a saved route to import'}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => fetchStravaActivities()}
-              disabled={stravaActivitiesLoading}
+              onClick={() => (tab === 'activities' ? fetchStravaActivities() : fetchStravaRoutes())}
+              disabled={tab === 'activities' ? stravaActivitiesLoading : stravaRoutesLoading}
               className="p-2 hover:bg-accent/[0.08] transition-colors"
-              title="Refresh activities"
+              title="Refresh"
             >
-              <RefreshCw className={`w-4 h-4 text-text-secondary ${stravaActivitiesLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 text-text-secondary ${(tab === 'activities' ? stravaActivitiesLoading : stravaRoutesLoading) ? 'animate-spin' : ''}`} />
             </button>
             <button
               onClick={onClose}
@@ -138,6 +190,30 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
               <X className="w-5 h-5 text-text-secondary" />
             </button>
           </div>
+        </div>
+
+        {/* Tabs — Activities (past) vs Saved Routes (future). Without this
+            tab, users planning races had no way to load Strava routes they
+            hadn't ridden yet. */}
+        <div className="flex border-b border-[var(--color-border)] bg-surfaceHighlight">
+          <button
+            type="button"
+            onClick={() => setTab('activities')}
+            className={`flex-1 py-2 text-xs font-display font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${
+              tab === 'activities' ? 'text-[#FC4C02] border-b-2 border-[#FC4C02]' : 'text-text-muted hover:text-text-primary'
+            }`}
+          >
+            <Activity className="w-3 h-3" /> Activities
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('routes')}
+            className={`flex-1 py-2 text-xs font-display font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 ${
+              tab === 'routes' ? 'text-[#FC4C02] border-b-2 border-[#FC4C02]' : 'text-text-muted hover:text-text-primary'
+            }`}
+          >
+            <Route className="w-3 h-3" /> Saved Routes
+          </button>
         </div>
 
         {/* Search & Filters */}
@@ -231,9 +307,77 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
           </div>
         </div>
 
-        {/* Activity List */}
+        {/* List */}
         <div className="flex-1 overflow-y-auto overscroll-contain p-4">
-          {stravaActivitiesLoading && stravaActivities.length === 0 ? (
+          {tab === 'routes' ? (
+            stravaRoutesLoading && stravaRoutes.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 text-[#FC4C02] animate-spin mb-4" />
+                <p className="text-text-secondary font-display text-sm">Loading saved routes...</p>
+              </div>
+            ) : filteredRoutes.length === 0 ? (
+              <div className="text-center py-12">
+                <Route className="w-12 h-12 text-text-muted mx-auto mb-4" />
+                <p className="text-text-secondary">
+                  {stravaRoutes.length === 0 ? 'No saved routes' : 'No matching routes'}
+                </p>
+                <p className="text-text-muted text-sm mt-1">
+                  {stravaRoutes.length === 0 ? 'Build a route on Strava and come back!' : 'Try adjusting your filters'}
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {filteredRoutes.map((route) => {
+                  const id = route.id_str || route.id;
+                  return (
+                    <div
+                      key={id}
+                      className="group p-4 bg-surfaceHighlight border border-[var(--color-border)] hover:border-[#FC4C02]/50 transition-all"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-text-primary truncate group-hover:text-[#FC4C02] transition-colors">
+                              {route.name}
+                            </h3>
+                            {route.starred && (
+                              <span className="text-[9px] font-display uppercase px-1.5 py-0.5 bg-warm/20 text-warm">★</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-4 mt-2 text-sm text-text-secondary font-display flex-wrap">
+                            <span className="text-text-primary font-bold">{formatDistance(route.distance)}</span>
+                            <span className="flex items-center gap-1">
+                              <Mountain className="w-3 h-3" /> {Math.round(route.elevation_gain)}m
+                            </span>
+                            {route.estimated_moving_time > 0 && (
+                              <span>~{formatDuration(route.estimated_moving_time)}</span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleImportRoute(route)}
+                          disabled={importingId !== null}
+                          className="ml-4 px-4 py-2 bg-[#FC4C02]/10 border border-[#FC4C02]/50 text-[#FC4C02] font-bold uppercase text-xs tracking-wider hover:bg-[#FC4C02] hover:text-text-primary transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+                        >
+                          {importingId === id ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                              IMPORTING
+                            </>
+                          ) : (
+                            <>
+                              IMPORT
+                              <ArrowRight className="w-3 h-3" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : stravaActivitiesLoading && stravaActivities.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12">
               <Loader2 className="w-8 h-8 text-[#FC4C02] animate-spin mb-4" />
               <p className="text-text-secondary font-display text-sm">Loading activities...</p>
@@ -308,9 +452,19 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
             {strava.athlete && `${strava.athlete.firstname} ${strava.athlete.lastname}`}
           </span>
           <span>
-            {filteredActivities.length}
-            {filteredActivities.length !== stravaActivities.length && ` / ${stravaActivities.length}`}
-            {' '}activities
+            {tab === 'activities' ? (
+              <>
+                {filteredActivities.length}
+                {filteredActivities.length !== stravaActivities.length && ` / ${stravaActivities.length}`}
+                {' '}activities
+              </>
+            ) : (
+              <>
+                {filteredRoutes.length}
+                {filteredRoutes.length !== stravaRoutes.length && ` / ${stravaRoutes.length}`}
+                {' '}routes
+              </>
+            )}
           </span>
         </div>
       </div>

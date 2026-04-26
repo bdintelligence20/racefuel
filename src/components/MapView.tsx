@@ -2,12 +2,14 @@ import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useApp } from '../context/AppContext';
+import { useMapRegistration } from '../context/MapContext';
 import { ProductProps } from './NutritionCard';
 import { ProductPickerModal } from './ProductPickerModal';
 import { RouteDrawingToolbar } from './RouteDrawingToolbar';
 import { NutritionDetailCard } from './NutritionDetailCard';
 import type { useRouteDrawing } from '../hooks/useRouteDrawing';
 import { toast } from 'sonner';
+import { cumulativeDistancesKm, gpsPositionAtKm, kmFromLngLat } from '../services/route/routeGeometry';
 
 type DrawingApi = ReturnType<typeof useRouteDrawing>;
 
@@ -36,6 +38,7 @@ export type RouteColorMode = 'distance' | 'elevation';
 
 export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingApi; colorMode?: RouteColorMode }) {
   const { routeData, addNutritionPoint, removeNutritionPoint, moveNutritionPoint, loadSavedRoute } = useApp();
+  const registerMap = useMapRegistration();
   const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -75,10 +78,15 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
         center: [18.4241, -33.9249], // Cape Town
         zoom: 10,
         attributionControl: false,
+        // Keep the WebGL framebuffer around after each paint so canvas exports
+        // (Map Image PNG, Share for Social, Flyover Video) can read pixels back.
+        // Without this, drawImage(mapCanvas, ...) returns black on most browsers.
+        preserveDrawingBuffer: true,
       });
 
       map.current.on('load', () => {
         setMapReady(true);
+        if (map.current) registerMap(map.current);
       });
 
       map.current.on('error', (e) => {
@@ -94,12 +102,13 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
     }
 
     return () => {
+      registerMap(null);
       if (map.current) {
         map.current.remove();
         map.current = null;
       }
     };
-  }, []);
+  }, [registerMap]);
 
   // Switch map style when theme changes — setStyle wipes all layers,
   // so we bump a counter to force route re-rendering
@@ -394,25 +403,15 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
     markersRef.current.slice(2).forEach((m) => m.remove());
     markersRef.current = markersRef.current.slice(0, 2);
 
-    // Find the route index closest to a given lngLat — used when a marker is dragged.
-    const closestRouteIndex = (lng: number, lat: number): number => {
-      let bestIdx = 0;
-      let bestDist = Infinity;
-      for (let i = 0; i < gpsPath.length; i++) {
-        const p = gpsPath[i];
-        const d = (p.lng - lng) ** 2 + (p.lat - lat) ** 2;
-        if (d < bestDist) {
-          bestDist = d;
-          bestIdx = i;
-        }
-      }
-      return bestIdx;
-    };
+    // Cumulative haversine distances per vertex — used both for placing
+    // markers at their correct distanceKm position (interpolated, not vertex-
+    // snapped) and for converting drag-end lng/lat back to a sane
+    // distanceKm. Index-ratio math collapses on routes with non-uniform GPS
+    // sample density, which is most real routes.
+    const cumulative = cumulativeDistancesKm(gpsPath);
 
     routeData.nutritionPoints.forEach((point) => {
-      const progress = Math.min(point.distanceKm / routeData.distanceKm, 1);
-      const idx = Math.floor(progress * (gpsPath.length - 1));
-      const gps = gpsPath[idx];
+      const gps = gpsPositionAtKm(gpsPath, cumulative, point.distanceKm);
 
       const el = document.createElement('div');
       el.style.cssText = 'cursor:grab;touch-action:none;';
@@ -445,10 +444,13 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
         el.style.cursor = 'grab';
         if (!dragMoved) return;
         const { lng, lat } = marker.getLngLat();
-        const snappedIdx = closestRouteIndex(lng, lat);
-        const snapped = gpsPath[snappedIdx];
-        marker.setLngLat([snapped.lng, snapped.lat]); // snap visual to route
-        const newKm = (snappedIdx / (gpsPath.length - 1)) * routeData.distanceKm;
+        // Project the dropped lng/lat onto the closest point along the route
+        // line (not the closest vertex) so the stored distanceKm matches
+        // exactly where the marker lands. Then snap the marker visual to the
+        // interpolated point on the line so cursor + truth agree.
+        const newKm = kmFromLngLat(gpsPath, cumulative, lng, lat);
+        const snapped = gpsPositionAtKm(gpsPath, cumulative, newKm);
+        marker.setLngLat([snapped.lng, snapped.lat]);
         moveNutritionPoint(point.id, newKm);
         // Don't open the detail card right after a drag.
         setSelectedMarkerId(null);

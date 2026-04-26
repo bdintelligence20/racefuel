@@ -2,35 +2,71 @@ import { useRef, useMemo, useState, useCallback } from 'react';
 import { GpxDropZone } from './GpxDropZone';
 import { AutoGenerateButton } from './AutoGenerateButton';
 import { MapView } from './MapView';
-import { Navigation, Trash2, ChevronDown, ChevronUp, Clock, Calendar, Gauge } from 'lucide-react';
+import { Navigation, Trash2, ChevronDown, ChevronUp, Clock, Calendar, Gauge, Activity } from 'lucide-react';
 import { EstimatedTimeEditor } from './EstimatedTimeEditor';
 import { EffortEditor } from './EffortEditor';
 import { DateEditor } from './DateEditor';
+import { RouteSportEditor } from './RouteSportEditor';
 import { MapLegend } from './MapLegend';
 import { useApp } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { NutritionMarker } from './NutritionMarker';
 import { useRouteDrawing } from '../hooks/useRouteDrawing';
 
+/** Map an elevation value to the elevation chart's Y coordinate. The chart
+ *  has 10px top padding and 120px usable height; higher elevation = smaller
+ *  Y. Shared between the hover marker and the nutrition-point markers so
+ *  they live on the same curve. */
+function elevationToY(elev: number, minElev: number, maxElev: number): number {
+  const range = maxElev - minElev || 1;
+  return 10 + 120 - ((elev - minElev) / range) * 120;
+}
+
 function ElevationProfile() {
-  const { routeData, routeAnalysis, addNutritionPoint, moveNutritionPoint } = useApp();
+  const { routeData, routeAnalysis, addNutritionPoint, moveNutritionPoint, removeNutritionPoint } = useApp();
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ x: number; km: number; elev: number } | null>(null);
   const [draggingPointId, setDraggingPointId] = useState<string | null>(null);
 
-  const { pathD, areaD, elevations, minElev, maxElev } = useMemo(() => {
+  const { pathD, areaD, elevations, cumulativeKm, totalKm, minElev, maxElev } = useMemo(() => {
     const gpsPath = routeData.gpsPath;
     if (!gpsPath || gpsPath.length === 0) {
-      return { pathD: '', areaD: '', elevations: [], minElev: 0, maxElev: 100 };
+      return { pathD: '', areaD: '', elevations: [], cumulativeKm: [], totalKm: 0, minElev: 0, maxElev: 100 };
     }
 
-    const rawElevs = gpsPath
-      .filter(p => p.elevation !== undefined)
-      .map(p => p.elevation as number);
-
-    if (rawElevs.length === 0) {
-      return { pathD: '', areaD: '', elevations: [], minElev: 0, maxElev: 100 };
+    // Build matched arrays: per-vertex elevation AND per-vertex cumulative
+    // distance. Zipping them lets us anchor the chart's X axis to actual
+    // distance instead of vertex index — without that, dense urban GPS
+    // sampling skewed the curve and the waypoint markers landed off the
+    // line. We carry forward the last seen elevation for any vertex missing
+    // one so the indices stay aligned with cumulative distance.
+    const verts: Array<{ km: number; elev: number }> = [];
+    let acc = 0;
+    let lastElev: number | null = null;
+    for (let i = 0; i < gpsPath.length; i++) {
+      if (i > 0) {
+        const a = gpsPath[i - 1];
+        const b = gpsPath[i];
+        const R = 6371;
+        const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+        const dLon = ((b.lng - a.lng) * Math.PI) / 180;
+        const aTerm =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+        acc += R * 2 * Math.atan2(Math.sqrt(aTerm), Math.sqrt(1 - aTerm));
+      }
+      const e = gpsPath[i].elevation;
+      if (e !== undefined) lastElev = e;
+      if (lastElev != null) verts.push({ km: acc, elev: lastElev });
     }
+
+    if (verts.length === 0) {
+      return { pathD: '', areaD: '', elevations: [], cumulativeKm: [], totalKm: 0, minElev: 0, maxElev: 100 };
+    }
+
+    const rawElevs = verts.map((v) => v.elev);
+    const km = verts.map((v) => v.km);
+    const total = km[km.length - 1] || 1;
 
     // Smooth elevation data to reduce GPS noise — two-pass moving average
     // for a clean, ripple-free profile regardless of input sampling density.
@@ -59,14 +95,25 @@ function ElevationProfile() {
     const padBottom = 20;
     const usableH = viewH - padTop - padBottom;
 
-    // Sample to ~240 points for smooth curve
+    // Sample uniformly along distance (not vertex index) so the X axis is
+    // honest about position. Walk a cursor through `km` to find the elevation
+    // at each evenly-spaced km step.
     const numSamples = Math.min(240, elevs.length);
     const points: { x: number; y: number }[] = [];
-
+    let cursor = 0;
     for (let i = 0; i < numSamples; i++) {
-      const idx = Math.floor((i / (numSamples - 1)) * (elevs.length - 1));
-      const x = (i / (numSamples - 1)) * viewW;
-      const y = padTop + usableH - ((elevs[idx] - min) / range) * usableH;
+      const t = numSamples === 1 ? 0 : i / (numSamples - 1);
+      const targetKm = t * total;
+      while (cursor < km.length - 1 && km[cursor + 1] < targetKm) cursor++;
+      const a = km[cursor];
+      const b = km[Math.min(km.length - 1, cursor + 1)];
+      const segLen = b - a;
+      const interp = segLen > 0 ? (targetKm - a) / segLen : 0;
+      const ea = elevs[cursor];
+      const eb = elevs[Math.min(elevs.length - 1, cursor + 1)];
+      const e = ea + (eb - ea) * Math.max(0, Math.min(1, interp));
+      const x = t * viewW;
+      const y = padTop + usableH - ((e - min) / range) * usableH;
       points.push({ x, y });
     }
 
@@ -84,10 +131,33 @@ function ElevationProfile() {
       pathD: pathStr,
       areaD: areaStr,
       elevations: elevs,
+      cumulativeKm: km,
+      totalKm: total,
       minElev: min,
       maxElev: max,
     };
   }, [routeData.gpsPath]);
+
+  // Look up the smoothed elevation at a target kilometre by binary-searching
+  // the vertex-indexed cumulativeKm array and interpolating. Used by both
+  // the hover crosshair and the waypoint markers so they ride the same curve.
+  const elevAtKm = useCallback((targetKm: number): number => {
+    if (cumulativeKm.length === 0 || elevations.length === 0) return 0;
+    const clamped = Math.max(0, Math.min(totalKm, targetKm));
+    let lo = 0;
+    let hi = cumulativeKm.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (cumulativeKm[mid] < clamped) lo = mid + 1;
+      else hi = mid;
+    }
+    if (lo === 0) return elevations[0];
+    const a = cumulativeKm[lo - 1];
+    const b = cumulativeKm[lo];
+    const segLen = b - a;
+    const t = segLen > 0 ? (clamped - a) / segLen : 0;
+    return elevations[lo - 1] + (elevations[lo] - elevations[lo - 1]) * t;
+  }, [cumulativeKm, elevations, totalKm]);
 
   // Segment colors for gradient
   const segments = routeAnalysis?.segments || [];
@@ -97,15 +167,16 @@ function ElevationProfile() {
     const rect = svgRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const km = x * routeData.distanceKm;
-    const idx = Math.floor(x * (elevations.length - 1));
-    const elev = elevations[Math.min(idx, elevations.length - 1)] || 0;
+    // Look up elevation by distance (not vertex index) so the crosshair
+    // tracks the visible curve across non-uniformly sampled GPX.
+    const elev = elevAtKm(km);
     setHover({ x: x * 1000, km, elev });
 
     // Handle dragging a nutrition point
     if (draggingPointId) {
       moveNutritionPoint(draggingPointId, km);
     }
-  }, [elevations, routeData.distanceKm, draggingPointId, moveNutritionPoint]);
+  }, [elevations.length, routeData.distanceKm, draggingPointId, moveNutritionPoint, elevAtKm]);
 
   const handleMouseLeave = useCallback(() => {
     setHover(null);
@@ -208,56 +279,33 @@ function ElevationProfile() {
                 x1={hover.x} y1="0" x2={hover.x} y2="150"
                 stroke="var(--color-accent)" strokeOpacity="0.3" strokeWidth="1" strokeDasharray="4 4"
               />
-              <circle cx={hover.x} cy={10 + 120 - ((hover.elev - minElev) / (maxElev - minElev || 1)) * 120} r="4" fill="#F5A020" stroke="#3D2152" strokeWidth="2" />
+              <circle cx={hover.x} cy={elevationToY(hover.elev, minElev, maxElev)} r="4" fill="#F5A020" stroke="#3D2152" strokeWidth="2" />
             </>
           )}
 
-          {/* Nutrition point markers (draggable) */}
-          {routeData.nutritionPoints.map((point) => {
-            const x = (point.distanceKm / routeData.distanceKm) * 1000;
-            const isDragging = draggingPointId === point.id;
-            const colorMap: Record<string, string> = {
-              orange: '#F5A020', blue: '#3D2152', white: '#6B5A7A',
-              green: '#E8671A', red: '#C94A1A', yellow: '#F5B830',
-            };
-            const markerColor = colorMap[point.product.color] || '#F5A020';
-            return (
-              <g key={`seg-${point.id}`}>
-                <line
-                  x1={x} y1="0" x2={x} y2="150"
-                  stroke={isDragging ? markerColor : 'rgba(61,33,82,0.2)'}
-                  strokeWidth={isDragging ? 2 : 1}
-                />
-                {/* Draggable handle */}
-                <circle
-                  cx={x} cy="12" r={isDragging ? 8 : 6}
-                  fill={markerColor}
-                  stroke={isDragging ? '#3D2152' : 'rgba(255,255,255,0.8)'}
-                  strokeWidth={isDragging ? 2 : 1}
-                  className="cursor-grab active:cursor-grabbing"
-                  style={{ filter: isDragging ? 'drop-shadow(0 0 4px rgba(245,160,32,0.5))' : undefined }}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    setDraggingPointId(point.id);
-                  }}
-                />
-                {/* Label on marker */}
-                <text
-                  x={x} y="30"
-                  textAnchor="middle"
-                  fill="var(--color-accent)"
-                  fillOpacity="0.6"
-                  fontSize="8"
-                  fontFamily="Montserrat, sans-serif"
-                  fontWeight="600"
-                  pointerEvents="none"
-                >
-                  {point.product.carbs}g
-                </text>
-              </g>
-            );
-          })}
         </svg>
+
+        {/* Waypoint pucks — HTML, so they keep their circular aspect even
+            though the chart SVG uses preserveAspectRatio="none". X comes from
+            cumulative distance (matches the curve's X axis); Y is the curve
+            elevation at that distance, mapped through the SVG's 0–150 unit
+            space onto a percent of this container. NutritionMarker uses
+            -translate-y-full, so its bottom pin lands exactly on the curve. */}
+        {routeData.nutritionPoints.map((point) => {
+          const safeTotal = routeData.distanceKm || 1;
+          const leftPct = (Math.max(0, Math.min(safeTotal, point.distanceKm)) / safeTotal) * 100;
+          const cy = elevationToY(elevAtKm(point.distanceKm), minElev, maxElev);
+          const topPct = (cy / 150) * 100;
+          return (
+            <NutritionMarker
+              key={`elev-${point.id}`}
+              product={point.product}
+              distanceKm={point.distanceKm}
+              onRemove={() => removeNutritionPoint(point.id)}
+              style={{ left: `${leftPct}%`, top: `${topPct}%` }}
+            />
+          );
+        })}
 
         {/* Y-axis elevation labels (left side) */}
         <div className="absolute left-2 top-8 bottom-8 flex flex-col justify-between pointer-events-none z-10">
@@ -314,11 +362,12 @@ export function MapCanvas() {
   const {
     routeData,
     autoGeneratePlan,
-    removeNutritionPoint,
     resetRoute,
     setUserEstimatedTime,
     setPlannedDate,
     setEffortLevel,
+    setRouteSport,
+    setRouteSurface,
   } = useApp();
   const elevationRef = useRef<HTMLDivElement>(null);
   const drawing = useRouteDrawing();
@@ -326,6 +375,7 @@ export function MapCanvas() {
   const [timeEditorOpen, setTimeEditorOpen] = useState(false);
   const [effortEditorOpen, setEffortEditorOpen] = useState(false);
   const [dateEditorOpen, setDateEditorOpen] = useState(false);
+  const [sportEditorOpen, setSportEditorOpen] = useState(false);
   const [elevationCollapsed, setElevationCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(max-width: 767px)').matches;
@@ -489,6 +539,44 @@ export function MapCanvas() {
                   />
                 )}
               </div>
+
+              {/* Route sport / surface — drives the unified time estimator.
+                  Mountain/hike routes look very different in pace from a road
+                  run; this chip is what makes a 176km UTMB import sensible. */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setSportEditorOpen((o) => !o)}
+                  className={`bg-surface rounded-xl px-3 py-2 shadow-md border transition-colors ${
+                    routeData.routeSport || routeData.routeSurface
+                      ? 'border-warm/60 ring-1 ring-warm/30'
+                      : 'border-[var(--color-border)] hover:border-warm/40'
+                  }`}
+                  title="Sport and surface for this route — drives the time estimate"
+                >
+                  <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
+                    <Activity className="w-2.5 h-2.5" />
+                    Sport
+                  </div>
+                  <div className="text-lg font-display font-bold text-text-primary leading-tight">
+                    {routeData.routeSport
+                      ? routeData.routeSport.charAt(0).toUpperCase() + routeData.routeSport.slice(1)
+                      : 'Auto'}
+                    {routeData.routeSurface && (
+                      <span className="text-xs text-text-muted ml-1">/ {routeData.routeSurface}</span>
+                    )}
+                  </div>
+                </button>
+                {sportEditorOpen && (
+                  <RouteSportEditor
+                    sport={routeData.routeSport}
+                    surface={routeData.routeSurface}
+                    onSaveSport={(s) => setRouteSport(s)}
+                    onSaveSurface={(s) => setRouteSurface(s)}
+                    onClose={() => setSportEditorOpen(false)}
+                  />
+                )}
+              </div>
             </div>
 
             <div className="absolute top-3 right-3 z-10 flex gap-2 pointer-events-auto">
@@ -522,15 +610,6 @@ export function MapCanvas() {
           </div>
         )}
       </div>
-
-      {/* Terrain wave divider — only show when expanded elevation is visible */}
-      {showElevation && !elevationCollapsed && (
-        <div className="relative h-4 bg-surface -mt-4 z-10">
-          <svg viewBox="0 0 1200 16" className="w-full h-full" preserveAspectRatio="none">
-            <path d="M0,16 C200,4 400,12 600,6 C800,0 1000,10 1200,4 L1200,16 Z" fill="var(--color-surface)" />
-          </svg>
-        </div>
-      )}
 
       {/* Elevation Profile Panel — only show when route loaded + not drawing */}
       <div
@@ -569,23 +648,6 @@ export function MapCanvas() {
         {showElevation && !elevationCollapsed && (
           <>
             <ElevationProfile />
-
-            {routeData.loaded &&
-            routeData.nutritionPoints.map((point) => {
-              const left = `${point.distanceKm / routeData.distanceKm * 100}%`;
-              return (
-                <NutritionMarker
-                  key={`elev-${point.id}`}
-                  product={point.product}
-                  distanceKm={point.distanceKm}
-                  onRemove={() => removeNutritionPoint(point.id)}
-                  style={{
-                    left,
-                    top: '40%'
-                  }}
-                />
-              );
-            })}
 
             <div className="absolute bottom-2 left-6 right-6 flex justify-between text-[10px] font-display font-medium text-text-muted">
               <span>0km</span>

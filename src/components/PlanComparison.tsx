@@ -5,6 +5,7 @@ import { useApp, NutritionPoint } from '../context/AppContext';
 import { calculateCarbTarget } from '../services/nutrition/carbCalculator';
 import { calculateHydration } from '../services/nutrition/hydrationCalculator';
 import { calculateCaffeineStrategy } from '../services/nutrition/caffeineStrategy';
+import { getActiveDurationHours } from '../services/route/timeFormat';
 
 interface PlanComparisonProps {
   isOpen: boolean;
@@ -127,10 +128,10 @@ function elevationPath(gpsPath: { elevation?: number }[] | undefined, width: num
 export function PlanComparison({ isOpen, onClose }: PlanComparisonProps) {
   const { routeData, userProfile, lastGeneratedPlan } = useApp();
 
-  const hours = useMemo(() => {
-    const timeParts = (routeData.estimatedTime || '3:00:00').split(':').map(Number);
-    return timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600 || 3.25;
-  }, [routeData.estimatedTime]);
+  const hours = useMemo(
+    () => getActiveDurationHours(routeData, 3.25),
+    [routeData.estimatedTime, routeData.userEstimatedTime],
+  );
 
   // Build research-based targets directly — don't depend on auto-generate having run
   const targets = useMemo(() => {

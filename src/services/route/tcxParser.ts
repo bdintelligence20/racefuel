@@ -1,4 +1,5 @@
 import { GpsPoint } from '../../context/AppContext';
+import { estimateRouteTime, formatHoursAsHms as estimatorFormat } from './timeEstimator';
 
 export interface ParsedRoute {
   name: string;
@@ -103,10 +104,38 @@ export function parseTcx(xmlText: string, fileName?: string): ParsedRoute {
     }
   });
 
-  // Estimate time if not available
-  const hours = totalTimeSeconds > 0
-    ? totalTimeSeconds / 3600
-    : totalDistance / 25; // assume 25 km/h
+  // Prefer the activity's actual recorded duration when present (TCX comes
+  // from completed activities). Fall back to the unified estimator with the
+  // GPS samples — drops the old flat 25 km/h fallback that gave 51 min for
+  // a 28 km run.
+  let hours: number;
+  if (totalTimeSeconds > 0) {
+    hours = totalTimeSeconds / 3600;
+  } else {
+    const cumulativeDistancesKm: number[] = [];
+    let acc = 0;
+    for (let i = 0; i < gpsPath.length; i++) {
+      if (i > 0) {
+        acc += haversineDistance(
+          gpsPath[i - 1].lat,
+          gpsPath[i - 1].lng,
+          gpsPath[i].lat,
+          gpsPath[i].lng,
+        );
+      }
+      cumulativeDistancesKm.push(acc);
+    }
+    const elevationsM = gpsPath.map((p) => p.elevation ?? 0);
+    const est = estimateRouteTime({
+      distanceKm: totalDistance,
+      elevationGainM: elevationGain,
+      sport: 'run',
+      surface: 'road',
+      cumulativeDistancesKm,
+      elevationsM,
+    });
+    hours = est.hours;
+  }
 
   // Create path for elevation chart
   const path = gpsPath.map((p, i) => ({
@@ -118,7 +147,7 @@ export function parseTcx(xmlText: string, fileName?: string): ParsedRoute {
     name,
     distanceKm: Math.round(totalDistance * 10) / 10,
     elevationGain: Math.round(elevationGain),
-    estimatedTime: formatTime(hours),
+    estimatedTime: totalTimeSeconds > 0 ? formatTime(hours) : estimatorFormat(hours),
     path,
     gpsPath,
   };

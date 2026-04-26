@@ -1,4 +1,5 @@
 import { GpsPoint } from '../../context/AppContext';
+import { estimateRouteTime, formatHoursAsHms } from './timeEstimator';
 
 export interface ParsedRoute {
   name: string;
@@ -46,6 +47,8 @@ export function parseGpx(xmlText: string, fileName?: string): ParsedRoute {
   const routeName = nameEl?.textContent || fileName?.replace('.gpx', '').replace(/_/g, ' ') || 'Imported Route';
 
   const gpsPath: GpsPoint[] = [];
+  const cumulativeDistancesKm: number[] = [];
+  const elevationsM: number[] = [];
   let totalDistance = 0;
   let totalElevationGain = 0;
   let prevLat: number | null = null;
@@ -63,6 +66,8 @@ export function parseGpx(xmlText: string, fileName?: string): ParsedRoute {
     if (prevLat !== null && prevLng !== null) {
       totalDistance += haversineDistance(prevLat, prevLng, lat, lng);
     }
+    cumulativeDistancesKm.push(totalDistance);
+    elevationsM.push(elevation ?? prevEle ?? 0);
 
     if (elevation !== undefined && prevEle !== null && elevation > prevEle) {
       totalElevationGain += elevation - prevEle;
@@ -73,10 +78,19 @@ export function parseGpx(xmlText: string, fileName?: string): ParsedRoute {
     if (elevation !== undefined) prevEle = elevation;
   });
 
-  const hours = totalDistance / 25;
-  const h = Math.floor(hours);
-  const m = Math.floor((hours - h) * 60);
-  const estimatedTime = `${h}:${m.toString().padStart(2, '0')}:00`;
+  // Sport/surface unknown at GPX-import time — default to road run. The
+  // estimator uses Tobler over the per-sample slope when elevations exist,
+  // otherwise falls back to flat pace + Naismith. Either way the climb floor
+  // alone fixes the "176 km mountain ultra in 6:53" ultra bug.
+  const { hours } = estimateRouteTime({
+    distanceKm: totalDistance,
+    elevationGainM: totalElevationGain,
+    sport: 'run',
+    surface: 'road',
+    cumulativeDistancesKm,
+    elevationsM,
+  });
+  const estimatedTime = formatHoursAsHms(hours);
 
   const path = gpsPath.map((p, i) => ({
     x: (i / (gpsPath.length - 1)) * 1000,

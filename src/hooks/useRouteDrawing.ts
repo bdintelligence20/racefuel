@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { getDirections, getElevationForCoordinates, RoutingProfile } from '../services/route/mapboxDirections';
 import { GpsPoint, RouteData } from '../context/AppContext';
+import { estimateRouteTime, formatHoursAsHms } from '../services/route/timeEstimator';
 
 export type DrawingState = 'idle' | 'placing' | 'routing' | 'complete';
 
@@ -198,17 +199,35 @@ export function useRouteDrawing() {
       }
 
       const finalDistance = segs.reduce((sum, s) => sum + s.distance, 0);
-      const finalDuration = segs.reduce((sum, s) => sum + s.duration, 0);
       const distanceKm = finalDistance / 1000;
       const path = gpsPath.map((p, i) => ({
         x: (i / Math.max(1, gpsPath.length - 1)) * distanceKm * 1000,
         y: p.elevation || 0,
       }));
 
-      const hours = Math.floor(finalDuration / 3600);
-      const minutes = Math.floor((finalDuration % 3600) / 60);
-      const seconds = Math.floor(finalDuration % 60);
-      const estimatedTime = `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      // Mapbox's segment durations are tuned for vehicles/pedestrians on a
+      // road network — they don't reflect athlete pace, fatigue, or climb
+      // cost. Discard them and re-estimate via the unified estimator using
+      // the elevation profile we just fetched, so a drawn 10 km loop matches
+      // what the same route would get on GPX import.
+      const cumulativeDistancesKm: number[] = [0];
+      for (let i = 1; i < gpsPath.length; i++) {
+        const prev = gpsPath[i - 1];
+        const curr = gpsPath[i];
+        const dKm = haversineMeters(prev, curr) / 1000;
+        cumulativeDistancesKm.push(cumulativeDistancesKm[i - 1] + dKm);
+      }
+      const elevationsM = gpsPath.map((p) => p.elevation ?? 0);
+      const sport = profile === 'cycling' ? 'cycle' : 'run';
+      const { hours: estimatedHours } = estimateRouteTime({
+        distanceKm,
+        elevationGainM: elevationGain,
+        sport,
+        surface: 'road',
+        cumulativeDistancesKm,
+        elevationsM,
+      });
+      const estimatedTime = formatHoursAsHms(estimatedHours);
 
       const routeData: RouteData = {
         loaded: true,
@@ -229,7 +248,7 @@ export function useRouteDrawing() {
       setState('placing');
       return null;
     }
-  }, [waypoints, routeSegments, routeName]);
+  }, [waypoints, routeSegments, routeName, profile]);
 
   const cancelDrawing = useCallback(() => {
     sessionRef.current++;

@@ -1,0 +1,39 @@
+{
+  "name": "Cape Town Sample Loop",
+  "gpsPath": [
+    { "lat": -34.0918, "lng": 18.4232, "elevation": 288 },
+    { "lat": -34.0935, "lng": 18.4236, "elevation": 286 },
+    { "lat": -34.0958, "lng": 18.4250, "elevation": 277 },
+    { "lat": -34.0985, "lng": 18.4272, "elevation": 275 },
+    { "lat": -34.1010, "lng": 18.4300, "elevation": 280 },
+    { "lat": -34.1040, "lng": 18.4340, "elevation": 290 },
+    { "lat": -34.1075, "lng": 18.4380, "elevation": 305 },
+    { "lat": -34.1110, "lng": 18.4420, "elevation": 320 },
+    { "lat": -34.1140, "lng": 18.4460, "elevation": 310 },
+    { "lat": -34.1170, "lng": 18.4500, "elevation": 295 },
+    { "lat": -34.1200, "lng": 18.4540, "elevation": 285 }
+  ],
+  "nutritionPoints": [
+    {
+      "id": "a",
+      "distanceKm": 1.5,
+      "product": { "id": "p1", "name": "Energy Gel", "brand": "Maurten", "image": "", "carbs": 25, "sodium": 100, "calories": 100 }
+    },
+    {
+      "id": "b",
+      "distanceKm": 4.0,
+      "product": { "id": "p2", "name": "Roctane Lemonade", "brand": "GU", "image": "", "carbs": 35, "sodium": 125, "calories": 120 }
+    },
+    {
+      "id": "c",
+      "distanceKm": 7.0,
+      "product": { "id": "p3", "name": "Stroopwafel", "brand": "Honey Stinger", "image": "", "carbs": 22, "sodium": 50, "calories": 160 }
+    }
+  ],
+  "options": {
+    "durationSec": 12,
+    "fps": 30,
+    "aspect": "landscape",
+    "terrain3D": true
+  }
+}

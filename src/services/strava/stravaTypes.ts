@@ -68,6 +68,31 @@ export interface StravaOAuthResponse extends StravaTokens {
   athlete: StravaAthlete;
 }
 
+// Strava saved route (from /athlete/routes endpoint). Distinct from
+// activities — these are routes the user has built/saved on Strava but may
+// not have ridden yet, which is the gap our import flow was missing.
+export interface StravaRouteSummary {
+  id: number;
+  id_str: string;
+  name: string;
+  description: string;
+  type: number; // 1 = Ride, 2 = Run
+  sub_type: number; // 1 road, 2 mtb, 3 cx, 4 trail, 5 mixed
+  private: boolean;
+  starred: boolean;
+  timestamp: number;
+  created_at: string;
+  updated_at: string;
+  distance: number; // meters
+  elevation_gain: number; // meters
+  estimated_moving_time: number; // seconds
+  map: {
+    id: string;
+    summary_polyline: string;
+    resource_state: number;
+  };
+}
+
 // Activity type display labels for filtering
 export const ACTIVITY_TYPE_LABELS: Record<string, string> = {
   Ride: 'Cycling',

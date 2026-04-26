@@ -1,13 +1,15 @@
 
 import { useState } from 'react';
 import { useModalBehavior } from '../../hooks/useModalBehavior';
-import { X, FileText, Table, MapPin, Download, Image, Share2 } from 'lucide-react';
+import { X, FileText, Table, MapPin, Download, Image, Share2, Video } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import { useMap } from '../../context/MapContext';
 import { downloadGpx } from '../../services/export/gpxExporter';
 import { downloadCsv } from '../../services/export/csvExporter';
 import { downloadPdf } from '../../services/export/pdfExporter';
 import { exportMapImage } from '../../services/export/mapImageExporter';
 import { ShareModal } from '../ShareModal';
+import { FlyoverExportModal } from './FlyoverExportModal';
 import { toast } from 'sonner';
 
 interface ExportModalProps {
@@ -26,7 +28,9 @@ interface ExportFormat {
 
 export function ExportModal({ isOpen, onClose }: ExportModalProps) {
   const { routeData } = useApp();
+  const map = useMap();
   const [shareOpen, setShareOpen] = useState(false);
+  const [flyoverOpen, setFlyoverOpen] = useState(false);
   useModalBehavior(isOpen, onClose);
 
 
@@ -77,7 +81,7 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
       color: 'text-yellow-400',
       action: async () => {
         try {
-          await exportMapImage(routeData, 'landscape');
+          await exportMapImage(routeData, 'landscape', map);
           toast.success('Map image exported');
           onClose();
         } catch (err) {
@@ -93,6 +97,16 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
       color: 'text-purple-400',
       action: () => {
         setShareOpen(true);
+      },
+    },
+    {
+      id: 'flyover-video',
+      name: 'Flyover Video',
+      description: '3D cinematic flyover with your fuel points. MP4, ready for IG / TikTok / Strava.',
+      icon: Video,
+      color: 'text-cyan-400',
+      action: () => {
+        setFlyoverOpen(true);
       },
     },
   ];
@@ -169,6 +183,7 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
       </div>
 
       <ShareModal isOpen={shareOpen} onClose={() => setShareOpen(false)} />
+      <FlyoverExportModal isOpen={flyoverOpen} onClose={() => setFlyoverOpen(false)} />
     </div>
   );
 }

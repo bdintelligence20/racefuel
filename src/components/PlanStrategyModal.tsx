@@ -33,12 +33,15 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
 
   const { carbTarget, hydrationTarget, caffeineStrategy } = plan;
   const carbsPerHour = carbTarget.target;
-  // The plan's actual totals (from the placements the planner chose). These must
-  // reconcile with the footer line below — showing "327g target" up top and
-  // "292g in the plan" at the bottom was confusing.
-  const planCarbs = plan.metrics.totalCarbs;
-  const planCarbsPerHour = plan.metrics.carbsPerHour;
-  const planSodium = plan.metrics.totalSodium;
+  // Derive everything below from the placements themselves rather than the
+  // pre-computed metrics object. plan.metrics is built once at generation time
+  // and can drift from plan.nutritionPoints if those ever get edited (or if the
+  // metrics calc has a rounding bug). Summing here means the headline, the
+  // sub-line, and the footer can never disagree.
+  const planCarbs = plan.nutritionPoints.reduce((s, p) => s + p.product.carbs, 0);
+  const planSodium = plan.nutritionPoints.reduce((s, p) => s + p.product.sodium, 0);
+  const planCaffeineTotal = plan.nutritionPoints.reduce((s, p) => s + p.product.caffeine, 0);
+  const planCarbsPerHour = context.durationHours > 0 ? Math.round(planCarbs / context.durationHours) : 0;
   const planSodiumPerHour = context.durationHours > 0 ? Math.round(planSodium / context.durationHours) : 0;
   const sodiumPerHour = hydrationTarget.sodiumMgPerHour;
   const fluidPerHour = hydrationTarget.fluidMlPerHour;
@@ -116,7 +119,7 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
               icon={Coffee}
               label="Caffeine"
               value={caffeineStrategy.timing === 'none' ? 'None' : `${caffeineTotal} mg`}
-              sub={caffeineStrategy.timing === 'none' ? 'short effort' : `plan: ${plan.metrics.totalCaffeine} mg`}
+              sub={caffeineStrategy.timing === 'none' ? 'short effort' : `plan: ${planCaffeineTotal} mg`}
               accent="warm"
             />
           </div>
@@ -140,7 +143,7 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
             return (
               <div className="text-[11px] text-text-muted space-y-0.5">
                 <div>
-                  {plan.nutritionPoints.length} fuel point{plan.nutritionPoints.length === 1 ? '' : 's'} placed · {plan.metrics.totalCarbs}g total carbs
+                  {plan.nutritionPoints.length} fuel point{plan.nutritionPoints.length === 1 ? '' : 's'} placed · {planCarbs}g total carbs
                 </div>
                 <div>
                   <span className="text-text-secondary">Cost of this run:</span> R{cost.runCostZAR.toFixed(0)}

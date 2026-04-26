@@ -60,8 +60,15 @@ function isSingleServeProduct(p: ProductProps): boolean {
  * when the pack is clearly multi-serve (tub, big weight, explicit count).
  * Otherwise we return 1 so cost maths stays correct for true single-serves.
  */
-function inferServingsPerPack(title: string, description: string, category: ProductCategory, carbs: number): number {
-  const text = `${title} ${description}`.toLowerCase();
+function inferServingsPerPack(
+  title: string,
+  description: string,
+  category: ProductCategory,
+  carbs: number,
+  variantWeightGrams?: number,
+  variantTitle?: string,
+): number {
+  const text = `${title} ${description} ${variantTitle ?? ''}`.toLowerCase();
 
   // Explicit count in the name: "pack of 20", "20 servings", "30 gels".
   const countMatch = text.match(/(\d{1,3})\s*(serv(ing|e)s?|sachets?|gels?|bars?|chews?|tablets?|tabs?)\b/);
@@ -70,20 +77,32 @@ function inferServingsPerPack(title: string, description: string, category: Prod
     if (n >= 2 && n <= 200) return n;
   }
 
-  // Drink-mix tubs — back out servings from pack weight vs per-serving carbs.
-  // Most race drinks are ~30-50g carbs per scoop and 70-90% carb by weight,
-  // so pack_weight_g / (carbs / 0.8) is a reasonable approximation.
-  const weightMatch = text.match(/(\d{3,4})\s*g\b/);
+  // Drink-mix tubs — prefer the explicit variant weight (Shopify ships
+  // <weight> per variant), then fall back to text-mined weights. The per-pack
+  // gram count divided by an estimated grams-per-serving yields servings.
+  // Most race drinks are 70-90% carb by weight, so grams-per-serving ≈
+  // carbs / 0.75. This gives an order-of-magnitude correct count even when
+  // the actual scoop size isn't published.
   const isTubLike = /\btub\b|\btin\b|\bjar\b|\bmix\b|\bpowder\b/.test(text);
-  if (category === 'drink' && (isTubLike || weightMatch) && carbs > 0) {
-    const packGrams = weightMatch ? parseInt(weightMatch[1], 10) : 500;
-    const gramsPerServing = Math.max(20, carbs / 0.75);
-    const est = Math.round(packGrams / gramsPerServing);
-    if (est >= 4 && est <= 80) return est;
+  if (category === 'drink' && carbs > 0) {
+    let packGrams: number | null = null;
+    if (variantWeightGrams && variantWeightGrams >= 200) {
+      packGrams = variantWeightGrams;
+    } else {
+      const kgMatch = text.match(/(\d+(?:\.\d+)?)\s*kg\b/);
+      if (kgMatch) {
+        packGrams = Math.round(parseFloat(kgMatch[1]) * 1000);
+      } else {
+        const gMatch = text.match(/(\d{3,4})\s*g\b/);
+        if (gMatch) packGrams = parseInt(gMatch[1], 10);
+      }
+    }
+    if (packGrams && (isTubLike || packGrams >= 400)) {
+      const gramsPerServing = Math.max(20, carbs / 0.75);
+      const est = Math.round(packGrams / gramsPerServing);
+      if (est >= 4 && est <= 80) return est;
+    }
   }
-
-  // Kilogram packs — default to 20 servings unless we can do better.
-  if (/\b\d+\s*kg\b/.test(text) && category === 'drink') return 30;
 
   return 1;
 }
@@ -117,17 +136,30 @@ function parseProductsFromXml(xml: string): ProductProps[] {
     const price = firstVariant ? parseFloat(firstVariant.querySelector('price')?.textContent || '0') : 0;
     const firstImage = el.querySelector('images > image > src')?.textContent || '';
 
+    // Variant-level pack weight is the most reliable cue for tub-vs-sachet —
+    // Shopify exports it per variant. Normalise to grams.
+    let variantWeightGrams: number | undefined;
+    let variantTitle: string | undefined;
+    if (firstVariant) {
+      const w = parseFloat(firstVariant.querySelector('weight')?.textContent || '0');
+      const unit = (firstVariant.querySelector('weight_unit')?.textContent || 'g').trim().toLowerCase();
+      if (w > 0) {
+        variantWeightGrams = unit === 'kg' ? Math.round(w * 1000) : Math.round(w);
+      }
+      variantTitle = firstVariant.querySelector('title')?.textContent?.trim() || undefined;
+    }
+
     let name = title;
     if (name.startsWith(vendor)) {
       name = name.slice(vendor.length).replace(/^\s*[-–]\s*/, '').trim();
     }
 
-    // Servings — prefer the feed's explicit value, else infer from name/desc.
+    // Servings — prefer the feed's explicit value, else infer from name/desc + variant weight.
     const feedServings = num('servings_per_pack');
     const description = text('description');
     const servingsPerPack = feedServings > 0
       ? Math.round(feedServings)
-      : inferServingsPerPack(title, description, category, carbs);
+      : inferServingsPerPack(title, description, category, carbs, variantWeightGrams, variantTitle);
 
     results.push({
       id: text('handle'),

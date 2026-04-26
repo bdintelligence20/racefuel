@@ -1,8 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
+import type * as mapboxgl from 'mapbox-gl';
 import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, Download, Share2, Copy, Check, Image } from 'lucide-react';
-import { useApp, NutritionPoint } from '../context/AppContext';
-import { getMapCanvas, ImageDimension, dimensionMap } from '../services/export/mapImageExporter';
+import { useApp, RouteData } from '../context/AppContext';
+import { useMap } from '../context/MapContext';
+import {
+  getMapCanvas,
+  ImageDimension,
+  dimensionMap,
+  drawAspectCover,
+  drawWaypointMarkers,
+} from '../services/export/mapImageExporter';
 import { toast } from 'sonner';
 
 interface ShareModalProps {
@@ -12,8 +20,9 @@ interface ShareModalProps {
 
 function generateShareImage(
   mapCanvas: HTMLCanvasElement,
-  routeData: { name: string; distanceKm: number; elevationGain: number; nutritionPoints: NutritionPoint[]; estimatedTime: string },
-  dimension: ImageDimension
+  routeData: RouteData,
+  dimension: ImageDimension,
+  map: mapboxgl.Map | null
 ): HTMLCanvasElement {
   const outputCanvas = document.createElement('canvas');
   const ctx = outputCanvas.getContext('2d');
@@ -30,10 +39,16 @@ function generateShareImage(
   outputCanvas.width = width;
   outputCanvas.height = height;
 
-  // Draw map
-  ctx.drawImage(mapCanvas, 0, 0, width, height);
+  // Aspect-correct map draw — no horizontal/vertical stretching when output ratio differs from source.
+  const rect = mapCanvas.getBoundingClientRect();
+  const transform = drawAspectCover(ctx, mapCanvas, { width, height }, rect.width, rect.height);
 
-  // Dark overlay
+  // DOM-based nutrition markers aren't part of the WebGL canvas — overlay them ourselves.
+  if (map) {
+    drawWaypointMarkers(ctx, map, routeData, transform, width);
+  }
+
+  // Bottom branding gradient
   const gradient = ctx.createLinearGradient(0, height * 0.5, 0, height);
   gradient.addColorStop(0, 'rgba(0,0,0,0)');
   gradient.addColorStop(1, 'rgba(0,0,0,0.9)');
@@ -92,6 +107,7 @@ function generateShareImage(
 
 export function ShareModal({ isOpen, onClose }: ShareModalProps) {
   const { routeData } = useApp();
+  const map = useMap();
   const [dimension, setDimension] = useState<ImageDimension>('landscape');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -103,7 +119,7 @@ export function ShareModal({ isOpen, onClose }: ShareModalProps) {
     const mapCanvas = getMapCanvas();
     if (!mapCanvas) return;
 
-    const outputCanvas = generateShareImage(mapCanvas, routeData, dimension);
+    const outputCanvas = generateShareImage(mapCanvas, routeData, dimension, map);
     canvasRef.current = outputCanvas;
 
     const url = outputCanvas.toDataURL('image/png');
@@ -112,7 +128,7 @@ export function ShareModal({ isOpen, onClose }: ShareModalProps) {
     return () => {
       URL.revokeObjectURL(url);
     };
-  }, [isOpen, dimension, routeData]);
+  }, [isOpen, dimension, routeData, map]);
   useModalBehavior(isOpen, onClose);
 
 

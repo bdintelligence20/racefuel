@@ -76,7 +76,6 @@ export interface GeminiGeneratedPlan {
     totalSodium: number;
     totalCaffeine: number;
     totalCalories: number;
-    totalCost: number;
   };
   rationale: string;
   source: 'gemini';
@@ -192,7 +191,6 @@ type CatalogLine = {
   sodium: number;
   caffeine: number;
   calories: number;
-  priceZAR: number;
 };
 
 function shuffle<T>(arr: T[]): T[] {
@@ -205,6 +203,8 @@ function shuffle<T>(arr: T[]): T[] {
 }
 
 function toCatalogLines(catalog: ProductProps[]): CatalogLine[] {
+  // Price is intentionally absent — including it would invite the agent to
+  // make implicit cost trade-offs. Cost is a display-layer concern only.
   return catalog.map((p) => ({
     id: p.id,
     brand: p.brand,
@@ -214,7 +214,6 @@ function toCatalogLines(catalog: ProductProps[]): CatalogLine[] {
     sodium: p.sodium,
     caffeine: p.caffeine,
     calories: p.calories,
-    priceZAR: p.priceZAR ?? 0,
   }));
 }
 
@@ -230,8 +229,12 @@ export function buildPrompt(
   caffeineStrategy: CaffeineRecommendation,
   intensity: 'easy' | 'moderate' | 'hard',
   catalog: CatalogLine[],
+  effectivePreferredBrands?: string[],
 ): string {
   const { distanceKm, durationHours, elevationGainM, profile, temperatureCelsius, humidity, preferredCategories } = input;
+  // When the catalog had to fall back to all brands (no in-brand product fit),
+  // don't tell the model to stay in-brand — the catalog itself isn't filtered.
+  const brandsForPrompt = effectivePreferredBrands ?? profile.preferredBrands;
   const segments = input.routeAnalysis?.segments?.map((s) =>
     `${s.startKm.toFixed(1)}-${s.endKm.toFixed(1)}km ${s.type} (${s.avgGradient.toFixed(1)}%)`,
   ) || [];
@@ -264,7 +267,7 @@ Sport: ${profile.sport ?? 'running'}${input.isCompetition ? ' (competition)' : '
 Conditions: ${temperatureCelsius}°C / ${humidity}% RH.
 Intensity: ${intensity}.
 Athlete: ${profile.weight}kg, gut "${profile.gutTolerance ?? 'trained'}" (≤${carbTarget.max} g/h).
-Prefs: categories ${preferredCategories?.length ? preferredCategories.join(',') : 'any'}${profile.preferredBrands?.length ? ` · brands ${profile.preferredBrands.join(', ')} (lean toward these but still mix for variety — don't use the same brand for every placement)` : ''}.
+Prefs: categories ${preferredCategories?.length ? preferredCategories.join(',') : 'any'}${brandsForPrompt?.length ? ` · brands ${brandsForPrompt.join(', ')} (the catalog below has already been hard-filtered to these brands — DO NOT request products from any other brand)` : ''}.
 
 TARGETS
 Carbs ${carbTarget.target} g/h (${carbTarget.min}-${carbTarget.max})
@@ -275,11 +278,14 @@ TERRAIN
 ${segments.length ? segments.join(', ') : 'rolling (no segment data)'}
 
 CATALOG (${catalog.length} items)
-id | brand name | cat | carbs·Na·caf·kcal·R
-${catalog.map((p) => `${p.id} | ${p.brand} ${p.name} | ${p.category} | ${p.carbs}·${p.sodium}·${p.caffeine}·${p.calories}·${p.priceZAR}`).join('\n')}
+id | brand name | cat | carbs·Na·caf·kcal
+${catalog.map((p) => `${p.id} | ${p.brand} ${p.name} | ${p.category} | ${p.carbs}·${p.sodium}·${p.caffeine}·${p.calories}`).join('\n')}
 
 VARIETY
 If multiple catalog items fit equally well, prefer ones you'd use less often to avoid recommending the same products every run. Mix brands across placements when possible.
+
+OVERALL RATIONALE
+Explain your strategic reasoning in 2-3 short sentences (terrain awareness, dual-transporter logic, caffeine timing). Do NOT cite specific gram, mg, or hourly figures — totals are computed from your placements and shown separately, so any numbers you write will conflict with the displayed totals.
 
 Return JSON with 2-8 placements hitting the carb target. Be decisive.
 
@@ -321,10 +327,10 @@ export function materialisePlacements(
   raw: AgentOutput,
   catalog: ProductProps[],
   distanceKm: number,
-): { points: NutritionPoint[]; totals: { carbs: number; sodium: number; caffeine: number; calories: number; cost: number } } {
+): { points: NutritionPoint[]; totals: { carbs: number; sodium: number; caffeine: number; calories: number } } {
   const byId = new Map(catalog.map((p) => [p.id, p]));
   const points: NutritionPoint[] = [];
-  const totals = { carbs: 0, sodium: 0, caffeine: 0, calories: 0, cost: 0 };
+  const totals = { carbs: 0, sodium: 0, caffeine: 0, calories: 0 };
   const sorted = [...(raw.placements ?? [])].sort((a, b) => a.distanceKm - b.distanceKm);
   for (const p of sorted) {
     const product = byId.get(p.productId);
@@ -339,7 +345,6 @@ export function materialisePlacements(
     totals.sodium += product.sodium;
     totals.caffeine += product.caffeine;
     totals.calories += product.calories;
-    totals.cost += product.priceZAR ?? 0;
   }
   return { points, totals };
 }
@@ -392,7 +397,7 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
       carbTarget,
       hydrationTarget,
       caffeineStrategy,
-      metrics: { totalCarbs: 0, carbsPerHour: 0, totalSodium: 0, totalCaffeine: 0, totalCalories: 0, totalCost: 0 },
+      metrics: { totalCarbs: 0, carbsPerHour: 0, totalSodium: 0, totalCaffeine: 0, totalCalories: 0 },
       rationale: 'Effort is too short for on-course fueling — glycogen covers it.',
       source: 'gemini',
     };
@@ -405,10 +410,24 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
   const candidates = toFuelCandidates(sourceCatalog);
   if (candidates.length === 0) return null;
 
-  // Brand preference is a SOFT bias, never a hard filter. The agent sees the
-  // brand hint in the prompt and the full catalog; picking only-High-Five
-  // because the user likes High Five would collapse a 21km plan onto five
-  // 23g gels. Bias-through-prompt preserves variety + respects preference.
+  // Brand preference is a HARD filter. If the user picks "Gu", the agent
+  // should not see Maurten in its catalog — the soft bias kept leaking
+  // off-brand picks because the agent had to balance other goals (variety,
+  // dual transporters). Fall back to the full catalog only if no in-brand
+  // product can fuel the route, and surface the fallback in the rationale.
+  let brandHonoured = true;
+  let brandFiltered = candidates;
+  const preferredBrandSet = profile.preferredBrands && profile.preferredBrands.length > 0
+    ? new Set(profile.preferredBrands.map((b) => b.toLowerCase()))
+    : null;
+  if (preferredBrandSet) {
+    const inBrand = candidates.filter((p) => preferredBrandSet.has(p.brand.toLowerCase()));
+    if (inBrand.length > 0) {
+      brandFiltered = inBrand;
+    } else {
+      brandHonoured = false;
+    }
+  }
 
   // Rough per-point dose guide — what we'd aim for if we split the target
   // into ~5 placements. Drives catalog scoring.
@@ -416,7 +435,7 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
   const targetPerPointG = Math.max(20, Math.min(60, Math.round(rawTotal / 5)));
   const maxPerPointG = Math.min(60, carbTarget.max);
 
-  const shortlist = shortlistCatalog(candidates, targetPerPointG, maxPerPointG);
+  const shortlist = shortlistCatalog(brandFiltered, targetPerPointG, maxPerPointG);
   // Shuffle the order we present products to the agent. With identical inputs
   // and a fixed sort, Flash was anchoring on whichever brand appeared first in
   // the catalog each run. Shuffle + higher temperature breaks that.
@@ -430,6 +449,7 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
     caffeineStrategy,
     intensityBucket,
     toCatalogLines(presented),
+    brandHonoured ? profile.preferredBrands : [],
   );
 
   input.onPhase?.('Reasoning through the plan');
@@ -473,9 +493,24 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
     return null;
   }
 
+  // The catalog handed to the agent was already brand-filtered, so any
+  // off-brand placement only happens when no in-brand product fit the slot —
+  // we already detected that case above as brandHonoured=false.
+  const carbTargetWithFallback = !brandHonoured && profile.preferredBrands?.length
+    ? {
+        ...carbTarget,
+        rationale: `${carbTarget.rationale} No products in your preferred brand(s) (${profile.preferredBrands.join(', ')}) could fuel this route — fell back to the full catalog.`,
+      }
+    : carbTarget;
+
+  const baseRationale = parsed.overallRationale ?? '';
+  const rationale = !brandHonoured && profile.preferredBrands?.length
+    ? `${baseRationale} (Note: stepped outside ${profile.preferredBrands.join(', ')} — no in-brand product fit this route.)`.trim()
+    : baseRationale;
+
   return {
     nutritionPoints: points,
-    carbTarget,
+    carbTarget: carbTargetWithFallback,
     hydrationTarget,
     caffeineStrategy,
     metrics: {
@@ -484,9 +519,8 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
       totalSodium: totals.sodium,
       totalCaffeine: totals.caffeine,
       totalCalories: totals.calories,
-      totalCost: Math.round(totals.cost * 100) / 100,
     },
-    rationale: parsed.overallRationale ?? '',
+    rationale,
     source: 'gemini',
   };
 }

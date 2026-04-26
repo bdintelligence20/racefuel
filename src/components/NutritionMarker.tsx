@@ -18,17 +18,6 @@ export function NutritionMarker({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
-  const colorMap: Record<string, string> = {
-    orange: 'bg-accent border-accent',
-    blue: 'bg-warm border-warm',
-    white: 'bg-white border-white',
-    green: 'bg-accent-light border-accent-light',
-    red: 'bg-red-500 border-red-500',
-    yellow: 'bg-yellow-500 border-yellow-500',
-  };
-
-  const stemColor = colorMap[product.color]?.split(' ')[0] || 'bg-accent';
-
   // Close on outside click or Escape
   useEffect(() => {
     if (!open) return;
@@ -53,10 +42,12 @@ export function NutritionMarker({
   return (
     <div
       ref={rootRef}
-      className="absolute transform -translate-x-1/2 -translate-y-full z-30"
+      // Center the puck on its (left, top) anchor — the elevation chart
+      // passes the curve point as that anchor, so the image circle sits
+      // directly ON the line. No stem, no extra pin dot.
+      className="absolute transform -translate-x-1/2 -translate-y-1/2 z-30"
       style={style}
     >
-      {/* Pin — clickable */}
       <button
         type="button"
         onClick={(e) => {
@@ -82,10 +73,8 @@ export function NutritionMarker({
             {product.name.charAt(0)}
           </div>
         </div>
-        <div className={`w-0.5 h-4 ${stemColor}`} />
-        <div className="w-2 h-2 bg-white rounded-full border-2 border-black" />
 
-        {/* Distance label */}
+        {/* Distance label — sits just below the puck. */}
         <div className="absolute top-full mt-1 bg-black/80 px-1.5 py-0.5 rounded text-[9px] font-display text-white whitespace-nowrap">
           {distanceKm.toFixed(1)}km
         </div>

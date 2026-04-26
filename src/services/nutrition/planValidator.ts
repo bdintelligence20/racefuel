@@ -10,6 +10,10 @@ export interface PlanWarning {
   severity: WarningSeverity;
   message: string;
   detail: string;
+  /** How many points this warning subtracted from the plan score. Lets the
+   *  Score popover render "Late first nutrition (-10)" without re-parsing
+   *  validator internals — single source of truth for the deduction. */
+  points: number;
   distanceKm?: number;  // Location on route where issue occurs
   metric?: string;       // Which metric is affected
 }
@@ -54,6 +58,7 @@ export function validatePlan(
       severity: 'critical',
       message: 'No nutrition planned',
       detail: `A ${durationHours.toFixed(1)}hr effort requires fueling. Add nutrition points to your plan.`,
+      points: 50,
       metric: 'carbs',
     });
     score -= 50;
@@ -71,6 +76,7 @@ export function validatePlan(
         severity: 'warning',
         message: 'Late first nutrition',
         detail: `First nutrition at ${sorted[0].distanceKm.toFixed(1)}km (~${Math.round(gapMinutes)}min). Consider starting earlier for better energy availability.`,
+        points: 10,
         distanceKm: sorted[0].distanceKm,
         metric: 'timing',
       });
@@ -88,6 +94,7 @@ export function validatePlan(
           severity: 'critical',
           message: 'Large nutrition gap',
           detail: `${Math.round(gapMinutes)}min gap between ${sorted[i - 1].distanceKm.toFixed(1)}km and ${sorted[i].distanceKm.toFixed(1)}km. Risk of bonking.`,
+          points: 15,
           distanceKm: sorted[i - 1].distanceKm + gap / 2,
           metric: 'timing',
         });
@@ -98,6 +105,7 @@ export function validatePlan(
           severity: 'warning',
           message: 'Nutrition gap',
           detail: `${Math.round(gapMinutes)}min between points at ${sorted[i - 1].distanceKm.toFixed(1)}km and ${sorted[i].distanceKm.toFixed(1)}km.`,
+          points: 5,
           distanceKm: sorted[i - 1].distanceKm + gap / 2,
           metric: 'timing',
         });
@@ -116,6 +124,7 @@ export function validatePlan(
           severity: 'warning',
           message: 'Products too close',
           detail: `Only ${Math.round(gapMinutes)}min between points. Allow at least 12-15min for gut processing.`,
+          points: 5,
           distanceKm: sorted[i].distanceKm,
           metric: 'timing',
         });
@@ -133,6 +142,7 @@ export function validatePlan(
         severity: 'info',
         message: 'No late-race nutrition',
         detail: `Last nutrition at ${lastPoint.distanceKm.toFixed(1)}km, ${Math.round(timeToFinish)}min from finish. Consider adding fuel for the final push.`,
+        points: 5,
         distanceKm: lastPoint.distanceKm,
         metric: 'timing',
       });
@@ -147,6 +157,7 @@ export function validatePlan(
       severity: 'info',
       message: 'Carb target capped by gut tolerance',
       detail: `Tier would allow up to ${carbTarget.tierMaxBeforeGutCap}g/h, but your gut-trained ceiling caps the plan at ${carbTarget.max}g/h. Raise gradually with training.`,
+      points: 0,
       metric: 'carbs',
     });
   }
@@ -157,6 +168,7 @@ export function validatePlan(
       severity: 'warning',
       message: 'Fluid capped at 800 ml/h',
       detail: 'Long-event hyponatremia guardrail (Hew-Butler 2015). Anything above 800 ml/h on a >4h effort needs matched sodium intake.',
+      points: 5,
       metric: 'fluid',
     });
     score -= 5;
@@ -168,6 +180,7 @@ export function validatePlan(
       severity: 'critical',
       message: 'Hyponatremia risk',
       detail: 'Fluid-to-sodium ratio exceeds 1.5 L per gram. Reduce fluid intake, raise sodium, or both — especially in the back half of the event.',
+      points: 20,
       metric: 'sodium',
     });
     score -= 20;
@@ -181,6 +194,7 @@ export function validatePlan(
         severity: 'critical',
         message: 'Carbs below minimum',
         detail: `${carbsPerHour}g/hr is below the recommended minimum of ${carbTarget.min}g/hr for this effort. Risk of energy depletion.`,
+        points: 20,
         metric: 'carbs',
       });
       score -= 20;
@@ -190,6 +204,7 @@ export function validatePlan(
         severity: 'warning',
         message: 'Carbs below target',
         detail: `${carbsPerHour}g/hr vs target of ${carbTarget.target}g/hr. Consider adding more carbohydrate sources.`,
+        points: 10,
         metric: 'carbs',
       });
       score -= 10;
@@ -199,6 +214,7 @@ export function validatePlan(
         severity: 'warning',
         message: 'Carbs above maximum',
         detail: `${carbsPerHour}g/hr exceeds the ${carbTarget.max}g/hr maximum. Risk of GI distress unless gut is trained for this intake.`,
+        points: 10,
         metric: 'carbs',
       });
       score -= 10;
@@ -214,6 +230,7 @@ export function validatePlan(
         severity: 'warning',
         message: 'Low sodium intake',
         detail: `${Math.round(sodiumPerHour)}mg/hr sodium vs recommended ${hydrationTarget.sodiumMgPerHour}mg/hr. Consider adding electrolyte products.`,
+        points: 10,
         metric: 'sodium',
       });
       score -= 10;
@@ -229,6 +246,7 @@ export function validatePlan(
         severity: 'critical',
         message: 'Excessive caffeine',
         detail: `${Math.round(caffeinePerKg * 10) / 10}mg/kg caffeine exceeds safe performance dose of 6mg/kg. Risk of GI issues, anxiety, elevated HR.`,
+        points: 15,
         metric: 'caffeine',
       });
       score -= 15;
@@ -238,6 +256,7 @@ export function validatePlan(
         severity: 'info',
         message: 'High caffeine intake',
         detail: `${Math.round(caffeinePerKg * 10) / 10}mg/kg caffeine. This is above moderate dose. Ensure you have trained with this amount.`,
+        points: 0,
         metric: 'caffeine',
       });
     }
@@ -252,6 +271,7 @@ export function validatePlan(
           severity: 'info',
           message: 'Early caffeine',
           detail: `Caffeine at ${firstCaf.distanceKm.toFixed(1)}km is earlier than optimal. Save caffeine for the final 40-50% for maximum benefit.`,
+          points: 5,
           distanceKm: firstCaf.distanceKm,
           metric: 'caffeine',
         });

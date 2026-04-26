@@ -1,0 +1,28 @@
+[project]
+name = "racefuel-flyover"
+version = "0.0.1"
+description = "Cloud Run service that renders fuelcue route flyovers to MP4 via headless Mapbox + ffmpeg."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "playwright>=1.47.0",
+    "pydantic>=2.8.0",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+# Stage C will add firebase-admin + google-cloud-storage; for v1 the service
+# returns the MP4 directly in the HTTP response so we can prove the pipeline
+# without standing up Firestore/Storage integration.
+firebase = [
+    "firebase-admin>=6.5.0",
+    "google-cloud-storage>=2.18.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
