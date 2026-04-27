@@ -222,9 +222,6 @@ export function EarlyAccessModal({ isOpen, onClose }: EarlyAccessModalProps) {
                   </>
                 )}
               </button>
-              <p className="text-[10px] text-[#A0929E] text-center mt-3">
-                Already have an account? Open <a href="/app" className="text-[#3D2152] font-bold hover:text-[#F5A020] transition-colors">fuelcue.com/app</a> to sign in.
-              </p>
             </div>
           </form>
         )}
