@@ -9,10 +9,7 @@ initializeApp();
 
 const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 
-// Using Resend's shared sender so we don't need DNS verification on fuelcue.com
-// to start. Once the domain is verified in Resend, swap FROM_ADDRESS to
-// 'fuelcue <hello@fuelcue.com>'.
-const FROM_ADDRESS = 'fuelcue <onboarding@resend.dev>';
+const FROM_ADDRESS = 'fuelcue <hello@fuelcue.com>';
 const REPLY_TO = 'nicholasflemmer@gmail.com';
 const ADMIN_EMAIL = 'nicholasflemmer@gmail.com';
 const APP_URL = 'https://fuelcue.com';
