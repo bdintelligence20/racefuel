@@ -1,0 +1,39 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // User-owned subtree: only the signed-in owner can read/write their own data.
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Public early-access waitlist: anyone may submit a single, shape-validated
+    // record. No reads, updates, or deletes from clients — admin SDK (Cloud
+    // Function) handles those internally.
+    match /earlyAccessRequests/{docId} {
+      allow create: if isValidEarlyAccessSubmission(request.resource.data);
+      allow read, update, delete: if false;
+    }
+
+    // Default deny everything else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidEarlyAccessSubmission(d) {
+      return d.keys().hasOnly(
+               ['name', 'email', 'sport', 'notes',
+                'createdAt', 'userAgent', 'referrer']
+             )
+             && d.name is string    && d.name.size()  > 0   && d.name.size()  <= 200
+             && d.email is string   && d.email.size() > 0   && d.email.size() <= 200
+             && d.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
+             && (d.sport    == null || (d.sport is string    && d.sport.size()    <= 60))
+             && (d.notes    == null || (d.notes is string    && d.notes.size()    <= 2000))
+             && (d.userAgent == null || (d.userAgent is string && d.userAgent.size() <= 500))
+             && (d.referrer == null || (d.referrer is string && d.referrer.size() <= 500))
+             && d.createdAt == request.time;
+    }
+  }
+}

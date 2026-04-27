@@ -114,7 +114,7 @@ function ScrollKmBadge({ progress }: { progress: MotionValue<number> }) {
 /* ════════════════════════════════════════════════
    LANDING PAGE
    ════════════════════════════════════════════════ */
-export function LandingPage({ onEnterApp }: { onEnterApp: () => void }) {
+export function LandingPage({ onRequestAccess }: { onRequestAccess: () => void }) {
   const pageRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: pageRef, offset: ['start start', 'end end'] });
 
@@ -152,10 +152,10 @@ export function LandingPage({ onEnterApp }: { onEnterApp: () => void }) {
           <ScrollKmBadge progress={scrollYProgress} />
         </div>
         <button
-          onClick={onEnterApp}
+          onClick={onRequestAccess}
           className="group flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-xl bg-[#3D2152] text-white text-xs sm:text-[13px] font-bold hover:bg-[#5C2D6E] transition-colors"
         >
-          Open App
+          Early Access
           <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
         </button>
       </nav>
@@ -223,12 +223,12 @@ export function LandingPage({ onEnterApp }: { onEnterApp: () => void }) {
               transition={{ duration: 0.6, delay: 0.7 }}
             >
               <button
-                onClick={onEnterApp}
+                onClick={onRequestAccess}
                 className="group relative flex items-center gap-2.5 px-7 py-4 rounded-2xl bg-[#3D2152] text-white font-bold text-[13px] uppercase tracking-wider overflow-hidden"
               >
                 <span className="absolute inset-0 bg-gradient-to-r from-[#F5A020] to-[#E8671A] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <span className="relative flex items-center gap-2.5">
-                  Plan your race
+                  Request Early Access
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </span>
               </button>
@@ -569,10 +569,10 @@ export function LandingPage({ onEnterApp }: { onEnterApp: () => void }) {
                 </h2>
               </div>
               <button
-                onClick={onEnterApp}
+                onClick={onRequestAccess}
                 className="hidden lg:flex items-center gap-2 text-[#3D2152] text-[13px] font-display font-bold hover:gap-3 transition-all"
               >
-                Try it now <ChevronRight className="w-4 h-4" />
+                Get on the list <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </Reveal>
@@ -651,12 +651,12 @@ export function LandingPage({ onEnterApp }: { onEnterApp: () => void }) {
           </Reveal>
           <Reveal delay={0.35}>
             <button
-              onClick={onEnterApp}
+              onClick={onRequestAccess}
               className="group relative inline-flex items-center gap-3 px-10 py-5 rounded-2xl bg-[#3D2152] text-white font-display font-bold text-base overflow-hidden"
             >
               <span className="absolute inset-0 bg-gradient-to-r from-[#F5A020] via-[#E8671A] to-[#3D2152] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               <span className="relative flex items-center gap-3">
-                Open fuelcue
+                Get Early Access
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </span>
             </button>

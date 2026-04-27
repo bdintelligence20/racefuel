@@ -10,6 +10,7 @@ import { NutritionPanel } from './components/NutritionPanel';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ActionBar } from './components/ActionBar';
 import { LandingPage } from './components/LandingPage';
+import { EarlyAccessModal } from './components/EarlyAccessModal';
 import { AutoGenProgress } from './components/AutoGenProgress';
 import { PlanStrategyModal } from './components/PlanStrategyModal';
 import { Menu, X, Map, Package } from 'lucide-react';
@@ -190,9 +191,8 @@ function useRoute() {
 
 function AuthGate() {
   const { user, loading } = useAuth();
-  const { pathname, navigate } = useRoute();
-
-  const goToApp = () => navigate('/app');
+  const { pathname } = useRoute();
+  const [earlyAccessOpen, setEarlyAccessOpen] = useState(false);
 
   // If a Strava OAuth callback (?code=... or ?error=...) lands at '/', push it to /app.
   useEffect(() => {
@@ -217,7 +217,11 @@ function AuthGate() {
   if (pathname === '/' || pathname === '') {
     return (
       <>
-        <LandingPage onEnterApp={goToApp} />
+        <LandingPage onRequestAccess={() => setEarlyAccessOpen(true)} />
+        <EarlyAccessModal
+          isOpen={earlyAccessOpen}
+          onClose={() => setEarlyAccessOpen(false)}
+        />
         <Toaster
           position="bottom-center"
           toastOptions={{
