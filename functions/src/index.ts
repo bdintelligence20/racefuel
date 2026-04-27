@@ -20,7 +20,7 @@ const APP_URL = 'https://fuelcue.com';
 interface EarlyAccessDoc {
   name: string;
   email: string;
-  sport?: string | null;
+  sports?: string[];
   notes?: string | null;
 }
 
@@ -41,7 +41,9 @@ export const onEarlyAccessRequest = onDocumentCreated(
 
     const name = (data.name || '').trim();
     const email = (data.email || '').trim().toLowerCase();
-    const sport = data.sport ? String(data.sport).trim() : null;
+    const sports = Array.isArray(data.sports)
+      ? data.sports.map((s) => String(s).trim()).filter(Boolean).slice(0, 10)
+      : [];
     const notes = data.notes ? String(data.notes).trim() : null;
     const firstName = name.split(/\s+/)[0] || 'there';
 
@@ -60,8 +62,8 @@ export const onEarlyAccessRequest = onDocumentCreated(
         to: email,
         replyTo: REPLY_TO,
         subject: "You're on the fuelcue early-access list",
-        html: confirmationHtml(firstName, sport),
-        text: confirmationText(firstName, sport),
+        html: confirmationHtml(firstName, sports),
+        text: confirmationText(firstName, sports),
       });
       if (result.error) throw result.error;
       confirmationId = result.data?.id ?? null;
@@ -78,8 +80,8 @@ export const onEarlyAccessRequest = onDocumentCreated(
         to: ADMIN_EMAIL,
         replyTo: email,
         subject: `[fuelcue] new early-access signup — ${name}`,
-        html: adminHtml({ name, email, sport, notes, docId }),
-        text: adminText({ name, email, sport, notes, docId }),
+        html: adminHtml({ name, email, sports, notes, docId }),
+        text: adminText({ name, email, sports, notes, docId }),
       });
       if (result.error) throw result.error;
       adminId = result.data?.id ?? null;
@@ -109,9 +111,10 @@ export const onEarlyAccessRequest = onDocumentCreated(
 
 /* ------------------------ email body templates ------------------------ */
 
-function confirmationHtml(firstName: string, sport: string | null): string {
-  const sportLine = sport
-    ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3D2152;">We've noted that you're focused on <b>${escapeHtml(sport)}</b> — we'll prioritise routes and products that fit when we send your invite.</p>`
+function confirmationHtml(firstName: string, sports: string[]): string {
+  const sportPhrase = formatSports(sports);
+  const sportLine = sportPhrase
+    ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#3D2152;">We've noted that you're focused on <b>${escapeHtml(sportPhrase)}</b> — we'll prioritise routes and products that fit when we send your invite.</p>`
     : '';
   return `<!doctype html>
 <html lang="en">
@@ -156,12 +159,13 @@ function confirmationHtml(firstName: string, sport: string | null): string {
 </html>`;
 }
 
-function confirmationText(firstName: string, sport: string | null): string {
+function confirmationText(firstName: string, sports: string[]): string {
+  const sportPhrase = formatSports(sports);
   return [
     `Hey ${firstName} — you're on the fuelcue early-access list.`,
     '',
     "Thanks for signing up. We're letting athletes in gradually so we can shape the product around real race-day feedback.",
-    sport ? `We've noted you're focused on ${sport} — we'll prioritise routes and products that fit.` : '',
+    sportPhrase ? `We've noted you're focused on ${sportPhrase} — we'll prioritise routes and products that fit.` : '',
     '',
     "In the next week or two we'll send through your invite link plus a quick walkthrough on planning nutrition for a real course.",
     '',
@@ -173,14 +177,15 @@ function confirmationText(firstName: string, sport: string | null): string {
 }
 
 function adminHtml(d: {
-  name: string; email: string; sport: string | null; notes: string | null; docId: string;
+  name: string; email: string; sports: string[]; notes: string | null; docId: string;
 }): string {
+  const sportsList = d.sports.length ? d.sports.map(escapeHtml).join(', ') : '—';
   return `<div style="font-family:-apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;color:#111;font-size:14px;line-height:1.55;">
     <h2 style="margin:0 0 12px;font-size:18px;">New early-access signup</h2>
     <table cellspacing="0" cellpadding="6" border="0" style="border-collapse:collapse;">
       <tr><td style="color:#666;">Name</td><td><b>${escapeHtml(d.name)}</b></td></tr>
       <tr><td style="color:#666;">Email</td><td><a href="mailto:${escapeHtml(d.email)}">${escapeHtml(d.email)}</a></td></tr>
-      <tr><td style="color:#666;">Sport</td><td>${escapeHtml(d.sport || '—')}</td></tr>
+      <tr><td style="color:#666;">Sports</td><td>${sportsList}</td></tr>
       <tr><td style="color:#666;vertical-align:top;">Notes</td><td>${d.notes ? escapeHtml(d.notes).replace(/\n/g, '<br />') : '—'}</td></tr>
       <tr><td style="color:#666;">Doc&nbsp;ID</td><td><code>${escapeHtml(d.docId)}</code></td></tr>
     </table>
@@ -188,17 +193,24 @@ function adminHtml(d: {
 }
 
 function adminText(d: {
-  name: string; email: string; sport: string | null; notes: string | null; docId: string;
+  name: string; email: string; sports: string[]; notes: string | null; docId: string;
 }): string {
   return [
     'New early-access signup',
     '',
-    `Name:  ${d.name}`,
-    `Email: ${d.email}`,
-    `Sport: ${d.sport || '—'}`,
-    `Notes: ${d.notes || '—'}`,
-    `Doc:   ${d.docId}`,
+    `Name:   ${d.name}`,
+    `Email:  ${d.email}`,
+    `Sports: ${d.sports.length ? d.sports.join(', ') : '—'}`,
+    `Notes:  ${d.notes || '—'}`,
+    `Doc:    ${d.docId}`,
   ].join('\n');
+}
+
+function formatSports(sports: string[]): string {
+  if (sports.length === 0) return '';
+  if (sports.length === 1) return sports[0];
+  if (sports.length === 2) return `${sports[0]} and ${sports[1]}`;
+  return `${sports.slice(0, -1).join(', ')}, and ${sports[sports.length - 1]}`;
 }
 
 function escapeHtml(s: string): string {

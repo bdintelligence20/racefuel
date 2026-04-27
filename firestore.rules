@@ -23,13 +23,13 @@ service cloud.firestore {
 
     function isValidEarlyAccessSubmission(d) {
       return d.keys().hasOnly(
-               ['name', 'email', 'sport', 'notes',
+               ['name', 'email', 'sports', 'notes',
                 'createdAt', 'userAgent', 'referrer']
              )
              && d.name is string    && d.name.size()  > 0   && d.name.size()  <= 200
              && d.email is string   && d.email.size() > 0   && d.email.size() <= 200
              && d.email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
-             && (d.sport    == null || (d.sport is string    && d.sport.size()    <= 60))
+             && d.sports is list && d.sports.size() <= 10
              && (d.notes    == null || (d.notes is string    && d.notes.size()    <= 2000))
              && (d.userAgent == null || (d.userAgent is string && d.userAgent.size() <= 500))
              && (d.referrer == null || (d.referrer is string && d.referrer.size() <= 500))
