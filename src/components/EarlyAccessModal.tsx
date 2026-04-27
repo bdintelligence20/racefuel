@@ -84,8 +84,8 @@ export function EarlyAccessModal({ isOpen, onClose }: EarlyAccessModalProps) {
       setStatus('error');
       setErrorMessage(
         err instanceof Error
-          ? `Couldn't submit — ${err.message}. Please email hello@fuelcue.app instead.`
-          : 'Could not submit. Please email hello@fuelcue.app instead.'
+          ? `Couldn't submit — ${err.message}. Please email hello@fuelcue.com instead.`
+          : 'Could not submit. Please email hello@fuelcue.com instead.'
       );
     }
   };
@@ -223,7 +223,7 @@ export function EarlyAccessModal({ isOpen, onClose }: EarlyAccessModalProps) {
                 )}
               </button>
               <p className="text-[10px] text-[#A0929E] text-center mt-3">
-                Already have an account? Open <a href="/app" className="text-[#3D2152] font-bold hover:text-[#F5A020] transition-colors">fuelcue.app/app</a> to sign in.
+                Already have an account? Open <a href="/app" className="text-[#3D2152] font-bold hover:text-[#F5A020] transition-colors">fuelcue.com/app</a> to sign in.
               </p>
             </div>
           </form>

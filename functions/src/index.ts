@@ -9,10 +9,13 @@ initializeApp();
 
 const RESEND_API_KEY = defineSecret('RESEND_API_KEY');
 
-const FROM_ADDRESS = 'fuelcue <hello@fuelcue.app>';
-const REPLY_TO = 'hello@fuelcue.app';
+// Using Resend's shared sender so we don't need DNS verification on fuelcue.com
+// to start. Once the domain is verified in Resend, swap FROM_ADDRESS to
+// 'fuelcue <hello@fuelcue.com>'.
+const FROM_ADDRESS = 'fuelcue <onboarding@resend.dev>';
+const REPLY_TO = 'nicholasflemmer@gmail.com';
 const ADMIN_EMAIL = 'nicholasflemmer@gmail.com';
-const APP_URL = 'https://fuelcue.app';
+const APP_URL = 'https://fuelcue.com';
 
 interface EarlyAccessDoc {
   name: string;
@@ -138,13 +141,13 @@ function confirmationHtml(firstName: string, sport: string | null): string {
               </p>
               <div style="border-top:1px solid rgba(61,33,82,0.1);margin-top:8px;padding-top:18px;font-size:12px;color:#6B5A7A;">
                 Nic — fuelcue<br />
-                <a href="${APP_URL}" style="color:#F5A020;text-decoration:none;font-weight:600;">fuelcue.app</a>
+                <a href="${APP_URL}" style="color:#F5A020;text-decoration:none;font-weight:600;">fuelcue.com</a>
               </div>
             </td>
           </tr>
         </table>
         <div style="margin-top:18px;font-size:11px;color:#A0929E;letter-spacing:0.04em;">
-          You're getting this email because you requested early access at fuelcue.app.
+          You're getting this email because you requested early access at fuelcue.com.
         </div>
       </td>
     </tr>
