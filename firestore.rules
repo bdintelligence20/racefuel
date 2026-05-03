@@ -16,6 +16,14 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
+    // Orders: only the customer (matched by email) can read their own order.
+    // All writes go through the Cloud Function via Admin SDK (bypasses rules).
+    match /orders/{orderId} {
+      allow read: if request.auth != null
+                  && request.auth.token.email == resource.data.customer.email;
+      allow write: if false;
+    }
+
     // Default deny everything else.
     match /{document=**} {
       allow read, write: if false;
