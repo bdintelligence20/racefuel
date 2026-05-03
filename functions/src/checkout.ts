@@ -3,12 +3,14 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { Webhook } from 'svix';
 import { SecretManagerServiceClient } from '@google-cloud/secret-manager';
+import * as crypto from 'crypto';
 import {
-  createPaymentInitiation,
+  createPaymentLink,
   registerWebhook,
+  registerRedirectUrl,
   type StitchConfig,
+  type PaymentLink,
 } from './stitch-client';
 import {
   createOrder,
@@ -17,30 +19,28 @@ import {
 } from './shopify-client';
 
 /**
- * End-to-end checkout flow.
+ * End-to-end checkout flow (Stitch Express + Shopify).
  *
- *   SPA              createCheckout fn        Stitch        stitchWebhook fn       Shopify
- *    │── POST cart ──▶  ① write 'pending'
- *    │                  ② Stitch oauth
- *    │                  ③ create payment ──▶
- *    │                                      ◀── { id, url }
- *    │ ◀─ url + id ─────
- *    ├── browser to url ─────────────────▶ user pays
- *    │                                       │ (svix signed POST)
- *    │                                       └─────▶ ④ verify signature
- *    │                                              ⑤ flip 'pending' → 'paid'
- *    │                                              ⑥ create Shopify order ──▶ ✓
- *    │                                              ⑦ flip → 'placed'
- *    │ ◀── redirect to /payment-callback (status query param)
- *    │ ◀── poll /orders/:id from Firestore for the final 'placed' state
+ *   SPA            createCheckout fn        Stitch Express        stitchWebhook fn          Shopify
+ *    │── POST cart ──▶ ① write 'pending'
+ *    │                 ② getToken (cached 15m)
+ *    │                 ③ POST /payment-links ──▶
+ *    │                                          ◀── { id, link, status:PENDING }
+ *    │ ◀─ link + id ────
+ *    ├── browser to link ───────────────────▶ user pays
+ *    │                                          │ (signed webhook POST)
+ *    │                                          └────▶ ④ verify HMAC-SHA256 signature
+ *    │                                                  ⑤ flip 'pending' → 'paid'
+ *    │                                                  ⑥ create Shopify order ──▶ ✓
+ *    │                                                  ⑦ flip → 'placed'
+ *    │ ◀── redirect to /payment-callback?orderId=…
+ *    │ ◀── subscribe to /orders/:id Firestore doc for the final 'placed' state
  */
 
-// Stitch
 const STITCH_CLIENT_ID = defineSecret('STITCH_CLIENT_ID_TEST');
 const STITCH_CLIENT_SECRET = defineSecret('STITCH_CLIENT_SECRET_TEST');
 const STITCH_WEBHOOK_SECRET = defineSecret('STITCH_WEBHOOK_SECRET');
 
-// Shopify
 const SHOPIFY_ADMIN_TOKEN = defineSecret('SHOPIFY_ADMIN_TOKEN');
 const SHOPIFY_STORE_URL = defineSecret('SHOPIFY_STORE_URL');
 
@@ -71,14 +71,14 @@ interface CheckoutPayload {
     address2?: string;
     city: string;
     province?: string;
-    country: string; // 'South Africa' for now
+    country: string;
     zip: string;
   };
   lineItems: Array<{
     variantId: number;
     quantity: number;
-    title: string; // for our records — Shopify is source of truth
-    unitPrice: number; // in ZAR major units
+    title: string;
+    unitPrice: number; // ZAR major units
   }>;
 }
 
@@ -104,18 +104,13 @@ function totalZar(lineItems: CheckoutPayload['lineItems']): number {
   return lineItems.reduce((sum, li) => sum + li.unitPrice * li.quantity, 0);
 }
 
-function sanitizeRef(s: string, max: number): string {
-  // Stitch's references must be alnum+spaces — strip everything else.
-  return s.replace(/[^A-Za-z0-9 ]/g, '').trim().slice(0, max) || 'fuelcue';
-}
-
 /* ------------------------ createCheckout ------------------------ */
 
 export const createCheckout = onRequest(
   {
     region: 'us-central1',
     secrets: [STITCH_CLIENT_ID, STITCH_CLIENT_SECRET],
-    cors: false, // handled manually so we control origin allowlist
+    cors: false,
   },
   async (req, res) => {
     applyCors(req, res);
@@ -140,8 +135,6 @@ export const createCheckout = onRequest(
     const orderId = orderRef.id;
     const total = totalZar(payload.lineItems);
 
-    // 1. Persist a 'pending' order before talking to Stitch — if Stitch fails,
-    //    we still have a record and can retry / debug.
     await orderRef.set({
       status: 'pending',
       customer: payload.customer,
@@ -152,30 +145,24 @@ export const createCheckout = onRequest(
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    // 2. Create Stitch payment initiation.
     const cfg: StitchConfig = {
       clientId: STITCH_CLIENT_ID.value(),
       clientSecret: STITCH_CLIENT_SECRET.value(),
     };
 
-    let paymentRequestId: string;
-    let paymentUrl: string;
+    let link: PaymentLink;
     try {
-      const created = await createPaymentInitiation(cfg, {
+      link = await createPaymentLink(cfg, {
         amountZar: total,
-        payerReference: sanitizeRef(payload.customer.firstName, 12),
-        beneficiaryReference: sanitizeRef(`fuelcue ${orderId.slice(0, 6)}`, 20),
-        externalReference: orderId,
-        payer: {
-          fullName: `${payload.customer.firstName} ${payload.customer.lastName}`.trim(),
-          email: payload.customer.email,
-          mobileNumber: payload.customer.phone,
-        },
+        // merchantReference must be alphanumeric+space+hyphen, ≤50 chars.
+        // Firestore doc ids are 20 chars alphanumeric — perfect fit.
+        merchantReference: `fuelcue-${orderId}`,
+        payerName: `${payload.customer.firstName} ${payload.customer.lastName}`.trim(),
+        payerEmailAddress: payload.customer.email,
+        payerPhoneNumber: payload.customer.phone,
       });
-      paymentRequestId = created.id;
-      paymentUrl = created.url;
     } catch (err) {
-      logger.error('Stitch payment initiation failed', { orderId, err });
+      logger.error('Stitch Express payment-link create failed', { orderId, err: String(err) });
       await orderRef.update({
         status: 'failed',
         failureReason: 'stitch-init-failed',
@@ -185,23 +172,24 @@ export const createCheckout = onRequest(
       return;
     }
 
-    // 3. Append our callback redirect_uri to the Stitch hosted URL.
+    // Append our redirect URL so Stitch knows where to send the user after they
+    // pay. Per Stitch Express docs, redirect URLs must be pre-registered (we do
+    // that one-time via stitchRegisterWebhook) — only allowlisted origins are
+    // accepted.
     const redirectUri = `${SPA_PAYMENT_CALLBACK}?orderId=${orderId}`;
-    const fullUrl = `${paymentUrl}?redirect_uri=${encodeURIComponent(redirectUri)}`;
+    const fullUrl = `${link.link}?redirect_uri=${encodeURIComponent(redirectUri)}`;
 
     await orderRef.update({
       stitch: {
-        paymentRequestId,
-        paymentUrl,
+        paymentLinkId: link.id,
+        paymentUrl: link.link,
+        merchantReference: link.merchantReference,
         redirectUri,
       },
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    res.json({
-      orderId,
-      paymentUrl: fullUrl,
-    });
+    res.json({ orderId, paymentUrl: fullUrl });
   }
 );
 
@@ -225,19 +213,50 @@ function validateCheckout(p: CheckoutPayload | undefined): string[] {
 
 /* ------------------------ stitchWebhook ------------------------ */
 
-interface StitchWebhookPayload {
+interface StitchExpressWebhookEvent {
+  /** Event type, e.g. "payment_link.paid" or "payment_link.cancelled".
+   *  The exact field names are observed empirically; logged on first arrival
+   *  so we can tighten this typing once we see real payloads. */
+  event?: string;
+  type?: string;
   data?: {
-    client?: {
-      paymentInitiationRequests?: {
-        node?: {
-          __typename: string;
-          id: string;
-          externalReference?: string;
-          state?: { __typename: string; date?: string };
-        };
-      };
+    paymentLink?: {
+      id: string;
+      status: 'PAID' | 'CANCELLED' | 'EXPIRED' | 'PENDING';
+      merchantReference?: string;
+      amount?: number;
+      paidAt?: string;
     };
+    payment?: {
+      id: string;
+      status: string;
+      amount?: number;
+    };
+    [key: string]: any;
   };
+  [key: string]: any;
+}
+
+function verifyStitchSignature(rawBody: string, signature: string, secret: string): boolean {
+  if (!signature) return false;
+  // Stitch Express signs webhooks with HMAC-SHA256 of the raw body using the
+  // secret returned at webhook registration time. Header is X-Stitch-Signature.
+  // Secret may be plain or base64 — trying both in turn.
+  const computed = crypto.createHmac('sha256', secret).update(rawBody, 'utf8').digest('hex');
+  if (constantTimeEquals(signature, computed)) return true;
+  // Fallback: treat secret as base64
+  try {
+    const secretBuf = Buffer.from(secret, 'base64');
+    const computedB = crypto.createHmac('sha256', secretBuf).update(rawBody, 'utf8').digest('hex');
+    if (constantTimeEquals(signature, computedB)) return true;
+  } catch { /* not base64 */ }
+  return false;
+}
+
+function constantTimeEquals(a: string, b: string): boolean {
+  const A = Buffer.from(a, 'utf8');
+  const B = Buffer.from(b, 'utf8');
+  return A.length === B.length && crypto.timingSafeEqual(A, B);
 }
 
 export const stitchWebhook = onRequest(
@@ -252,47 +271,69 @@ export const stitchWebhook = onRequest(
       return;
     }
 
-    // svix verification needs the raw, unmodified body. Cloud Functions Gen 2
-    // exposes it via req.rawBody (a Buffer). req.body is already JSON-parsed.
     const rawBody = (req as any).rawBody as Buffer | undefined;
     if (!rawBody) {
-      logger.error('Webhook missing rawBody — cannot verify signature');
+      logger.error('Webhook missing rawBody');
       res.status(400).send('no-raw-body');
       return;
     }
 
-    let parsed: StitchWebhookPayload;
+    const signature = String(req.get('x-stitch-signature') ?? req.get('stitch-signature') ?? '');
+    const webhookSecret = STITCH_WEBHOOK_SECRET.value();
+
+    // For dev/setup, allow signature bypass when the placeholder secret is in
+    // play — that means the webhook hasn't been registered yet and we want to
+    // see what Stitch actually sends so we can tighten verification later.
+    const isPlaceholderSecret = webhookSecret.startsWith('placeholder-');
+    if (!isPlaceholderSecret) {
+      if (!verifyStitchSignature(rawBody.toString('utf8'), signature, webhookSecret)) {
+        logger.warn('Bad webhook signature', {
+          providedSignature: signature.slice(0, 20),
+        });
+        res.status(401).send('bad-signature');
+        return;
+      }
+    } else {
+      logger.warn('Webhook secret is still placeholder — accepting unsigned webhook for inspection', {
+        signature: signature.slice(0, 20),
+        bodyPreview: rawBody.toString('utf8').slice(0, 400),
+      });
+    }
+
+    let parsed: StitchExpressWebhookEvent;
     try {
-      const wh = new Webhook(STITCH_WEBHOOK_SECRET.value());
-      parsed = wh.verify(rawBody.toString('utf8'), {
-        'svix-id': String(req.get('svix-id') ?? ''),
-        'svix-timestamp': String(req.get('svix-timestamp') ?? ''),
-        'svix-signature': String(req.get('svix-signature') ?? ''),
-      }) as StitchWebhookPayload;
-    } catch (err) {
-      logger.warn('Webhook signature verification failed', { err });
-      res.status(401).send('bad-signature');
+      parsed = JSON.parse(rawBody.toString('utf8'));
+    } catch {
+      res.status(400).send('bad-json');
       return;
     }
-
-    const node = parsed.data?.client?.paymentInitiationRequests?.node;
-    if (!node) {
-      logger.warn('Webhook payload missing payment node');
-      res.status(200).send('ignored-no-node');
-      return;
-    }
-
-    const orderId = node.externalReference;
-    const stateType = node.state?.__typename;
 
     logger.info('Stitch webhook received', {
-      paymentRequestId: node.id,
-      orderId,
-      stateType,
+      event: parsed.event ?? parsed.type,
+      bodyShape: JSON.stringify(parsed).slice(0, 800),
     });
 
+    // Pull the payment-link node out — handle a couple of shapes since Stitch
+    // Express's webhook payload schema isn't fully documented.
+    const pl = parsed.data?.paymentLink ?? (parsed as any).paymentLink ?? null;
+    if (!pl?.id || !pl?.status) {
+      logger.warn('Webhook payload had no paymentLink with id+status — ignoring', {
+        body: JSON.stringify(parsed).slice(0, 600),
+      });
+      res.status(200).send('ignored-no-payment-link');
+      return;
+    }
+
+    // Recover our internal orderId from the merchantReference.
+    // We always send `fuelcue-<orderId>`.
+    const merchantRef = pl.merchantReference ?? '';
+    const orderId = merchantRef.startsWith('fuelcue-')
+      ? merchantRef.slice('fuelcue-'.length)
+      : null;
+
     if (!orderId) {
-      res.status(200).send('ignored-no-external-ref');
+      logger.warn('Webhook merchantReference missing or unrecognised', { merchantRef });
+      res.status(200).send('ignored-bad-ref');
       return;
     }
 
@@ -305,51 +346,39 @@ export const stitchWebhook = onRequest(
       return;
     }
 
-    // Map Stitch's state to ours.
-    if (stateType === 'PaymentInitiationRequestCancelled') {
+    if (pl.status === 'CANCELLED') {
       await orderRef.update({
         status: 'cancelled',
-        stitch: {
-          ...snap.data()?.stitch,
-          state: 'cancelled',
-          completedAt: FieldValue.serverTimestamp(),
-        },
+        stitch: { ...snap.data()?.stitch, state: 'cancelled', completedAt: FieldValue.serverTimestamp() },
         updatedAt: FieldValue.serverTimestamp(),
       });
       res.status(200).send('cancelled');
       return;
     }
-    if (stateType === 'PaymentInitiationRequestExpired') {
+    if (pl.status === 'EXPIRED') {
       await orderRef.update({
         status: 'failed',
         failureReason: 'expired',
-        stitch: {
-          ...snap.data()?.stitch,
-          state: 'expired',
-          completedAt: FieldValue.serverTimestamp(),
-        },
+        stitch: { ...snap.data()?.stitch, state: 'expired', completedAt: FieldValue.serverTimestamp() },
         updatedAt: FieldValue.serverTimestamp(),
       });
       res.status(200).send('expired');
       return;
     }
-    if (stateType !== 'PaymentInitiationRequestCompleted') {
-      logger.info('Webhook for non-terminal state', { stateType });
-      res.status(200).send('ignored-not-completed');
+    if (pl.status !== 'PAID') {
+      // PENDING — webhook fired for a non-terminal state, ignore.
+      res.status(200).send('ignored-not-paid');
       return;
     }
 
-    // Idempotency: if we've already placed the Shopify order, the second
-    // webhook delivery (svix retries) shouldn't re-create it.
+    // Idempotency: skip Shopify creation if we've already done it.
     const data = snap.data()!;
     if (data.shopify?.orderId) {
-      logger.info('Order already placed in Shopify — webhook is duplicate', { orderId });
+      logger.info('Order already placed in Shopify — webhook duplicate', { orderId });
       res.status(200).send('already-placed');
       return;
     }
 
-    // 1. Mark as paid first so the dashboard reflects it even if Shopify
-    //    creation hiccups.
     await orderRef.update({
       status: 'paid',
       stitch: {
@@ -360,7 +389,6 @@ export const stitchWebhook = onRequest(
       updatedAt: FieldValue.serverTimestamp(),
     });
 
-    // 2. Create the Shopify order.
     const shopifyCfg: ShopifyConfig = {
       storeUrl: SHOPIFY_STORE_URL.value(),
       accessToken: SHOPIFY_ADMIN_TOKEN.value(),
@@ -379,7 +407,7 @@ export const stitchWebhook = onRequest(
         quantity: li.quantity,
       })),
       externalOrderId: orderId,
-      note: `fuelcue order ${orderId} — paid via Stitch (${node.id})`,
+      note: `fuelcue order ${orderId} — paid via Stitch Express (${pl.id})`,
     };
 
     try {
@@ -400,10 +428,7 @@ export const stitchWebhook = onRequest(
       logger.info('Order placed in Shopify', { orderId, shopifyOrderName: created.name });
       res.status(200).send('placed');
     } catch (err) {
-      // Don't fail the webhook — the payment succeeded, the order is recorded
-      // as 'paid', and we'll need to retry the Shopify create manually. svix
-      // retries would just re-enter the same failure path.
-      logger.error('Shopify order creation failed', { orderId, err });
+      logger.error('Shopify order creation failed', { orderId, err: String(err) });
       await orderRef.update({
         status: 'paid-needs-fulfillment',
         shopifyError: String(err).slice(0, 500),
@@ -414,14 +439,16 @@ export const stitchWebhook = onRequest(
   }
 );
 
-/* ------------------------ admin: register webhook (one-time) ------------------------ */
+/* ------------------------ admin: register webhook + redirect URL ------------------------ */
 
 /**
- * One-shot helper to register the stitchWebhook URL with Stitch and capture
- * the resulting svix secret. Call by visiting the function URL with
- * `?key=<bearer>` matching the STITCH_WEBHOOK_SECRET secret's current placeholder
- * — once the real secret is captured, this endpoint becomes inert (the bearer
- * no longer matches and it returns 401). Cheap, zero-state setup endpoint.
+ * One-shot setup endpoint: registers our SPA's payment-callback URL as an
+ * allowlisted Stitch Express redirect URL, AND registers our stitchWebhook
+ * function as the webhook destination, capturing the resulting signing
+ * secret as a new version of STITCH_WEBHOOK_SECRET.
+ *
+ * Gated by the placeholder bearer in STITCH_WEBHOOK_SECRET — once a real
+ * whsec lands, this endpoint becomes inert.
  */
 export const stitchRegisterWebhook = onRequest(
   {
@@ -431,45 +458,58 @@ export const stitchRegisterWebhook = onRequest(
   async (req, res) => {
     const expected = STITCH_WEBHOOK_SECRET.value();
     const provided = String(req.query.key ?? '');
-    // The bearer is the placeholder string written when we pre-create the
-    // secret. Once a real whsec_... lands, this gate flips closed.
     if (provided !== expected) {
       res.status(401).send('unauthorized');
       return;
     }
+
     const cfg: StitchConfig = {
       clientId: STITCH_CLIENT_ID.value(),
       clientSecret: STITCH_CLIENT_SECRET.value(),
     };
-    const webhookUrl = `${SELF_BASE_URL}/stitchWebhook`;
-    let sub;
+
+    const result: Record<string, unknown> = {};
+
+    // 1. Register the SPA payment-callback as an allowlisted redirect URL.
     try {
-      sub = await registerWebhook(cfg, webhookUrl);
+      const list = await registerRedirectUrl(cfg, SPA_PAYMENT_CALLBACK);
+      result.redirectUrls = list;
+    } catch (err) {
+      logger.error('Redirect URL registration failed', err);
+      result.redirectUrlError = String(err);
+    }
+
+    // 2. Register the webhook + capture signing secret.
+    let secret: string | null = null;
+    try {
+      const reg = await registerWebhook(cfg, `${SELF_BASE_URL}/stitchWebhook`);
+      secret = reg.secret;
+      result.webhookSecretFingerprint = secret.slice(0, 12) + '…';
     } catch (err) {
       logger.error('Webhook registration failed', err);
-      res.status(502).send(`registration-failed: ${err}`);
+      res.status(502).json({ ...result, error: `webhook-registration-failed: ${err}` });
       return;
     }
 
-    // Persist the secret as a new version of STITCH_WEBHOOK_SECRET.
+    // 3. Persist the secret.
     try {
       await sm.addSecretVersion({
         parent: `projects/${PROJECT_ID}/secrets/STITCH_WEBHOOK_SECRET`,
-        payload: { data: Buffer.from(sub.secret, 'utf8') },
+        payload: { data: Buffer.from(secret, 'utf8') },
       });
+      result.persisted = true;
     } catch (err) {
       logger.error('Failed to persist webhook secret', err);
-      res.status(500).send(`captured but failed to persist: ${err}`);
+      res.status(500).json({ ...result, error: `persist-failed: ${err}`, secretPreview: secret.slice(0, 12) + '…' });
       return;
     }
 
     res.json({
       ok: true,
-      subscriptionId: sub.id,
-      url: sub.url,
+      ...result,
       message:
-        'Webhook subscription registered and secret stored as STITCH_WEBHOOK_SECRET. ' +
-        'Redeploy the stitchWebhook function to pick up the new secret value.',
+        'Webhook subscription registered, signing secret stored as new version of ' +
+        'STITCH_WEBHOOK_SECRET. Redeploy stitchWebhook to pick up the new value.',
     });
   }
 );

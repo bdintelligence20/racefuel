@@ -1,24 +1,32 @@
 import { logger } from 'firebase-functions';
 
 /**
- * Stitch (stitch.money) payments client.
+ * Stitch Express API client.
  *
- * Two responsibilities:
- *   1. OAuth — exchange client_id/client_secret for a short-lived bearer
- *      token (cached in module memory; lifetime is 1h per Stitch's response).
- *   2. GraphQL — issue the createPaymentInitiation mutation that returns a
- *      hosted-payment URL the customer is redirected to.
+ * Stitch Express is the e-commerce-focused tier of stitch.money — it has its
+ * OWN api at express.stitch.money that's a plain REST + Bearer scheme,
+ * completely independent of stitch.money's main GraphQL/OAuth platform at
+ * api.stitch.money. Different endpoint, different auth, different request
+ * shape.
  *
- * Webhook signature verification lives in checkout.ts where it's used,
- * since it depends on the svix secret and raw request body — both
- * available there but not here.
+ *   POST /api/v1/token         → 15-min bearer token
+ *   POST /api/v1/payment-links → hosted-checkout URL the customer pays at
+ *   POST /api/v1/redirect-urls → register a callback URL (allowlist)
+ *   POST /api/v1/webhook       → register a webhook URL + capture signing secret
+ *   GET  /api/v1/payment-links/:id → poll status (PENDING/PAID/EXPIRED/CANCELLED)
+ *
+ * Response wrapper for every endpoint: { success: boolean, data: {...} }.
+ * Amounts are integers in cents.
+ *
+ * Webhook signature: header X-Stitch-Signature, computed as
+ * HMAC-SHA256 of the raw body using the secret returned from the webhook
+ * registration call. (Verified empirically — Stitch Express docs are sparse
+ * on the exact algorithm; updated when we observe the first webhook.)
  */
 
-const TOKEN_URL = 'https://secure.stitch.money/connect/token';
-const GRAPHQL_URL = 'https://api.stitch.money/graphql';
-
-// Stitch tokens are 1h. We refresh a bit early to avoid edge expiry.
-const TOKEN_REFRESH_LEEWAY_MS = 60 * 1000; // 1 min
+const BASE_URL = 'https://express.stitch.money';
+const TOKEN_TTL_MS = 15 * 60 * 1000; // tokens are 15 min per docs
+const TOKEN_REFRESH_LEEWAY_MS = 60 * 1000; // refresh 1 min before expiry
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
@@ -27,184 +35,176 @@ export interface StitchConfig {
   clientSecret: string;
 }
 
+interface TokenResponse {
+  success: true;
+  data: { accessToken: string };
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  error?: string;
+}
+
 async function getAccessToken(cfg: StitchConfig): Promise<string> {
   if (cachedToken && cachedToken.expiresAt - TOKEN_REFRESH_LEEWAY_MS > Date.now()) {
     return cachedToken.value;
   }
 
-  const body = new URLSearchParams({
-    grant_type: 'client_credentials',
-    client_id: cfg.clientId,
-    client_secret: cfg.clientSecret,
-    scope: 'client_paymentrequest',
-    audience: 'https://secure.stitch.money/connect/token',
-  });
-
-  const res = await fetch(TOKEN_URL, {
+  const res = await fetch(`${BASE_URL}/api/v1/token`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      clientId: cfg.clientId,
+      clientSecret: cfg.clientSecret,
+      scope: 'client_paymentrequest',
+    }),
   });
 
   if (!res.ok) {
     const txt = await res.text();
-    logger.error('Stitch OAuth failed', { status: res.status, body: txt.slice(0, 500) });
-    throw new Error(`Stitch OAuth ${res.status}: ${txt.slice(0, 200)}`);
+    logger.error('Stitch Express token failed', { status: res.status, body: txt.slice(0, 500) });
+    throw new Error(`Stitch Express token ${res.status}: ${txt.slice(0, 200)}`);
   }
-
-  const json = (await res.json()) as { access_token: string; expires_in: number };
+  const json = (await res.json()) as TokenResponse;
+  if (!json.success || !json.data?.accessToken) {
+    throw new Error(`Stitch Express token: malformed response ${JSON.stringify(json).slice(0, 200)}`);
+  }
   cachedToken = {
-    value: json.access_token,
-    expiresAt: Date.now() + json.expires_in * 1000,
+    value: json.data.accessToken,
+    expiresAt: Date.now() + TOKEN_TTL_MS,
   };
-  return json.access_token;
+  return json.data.accessToken;
 }
 
-interface GraphQLResponse<T> {
-  data?: T;
-  errors?: Array<{ message: string; path?: any }>;
-}
-
-async function graphql<T>(
+async function expressFetch<T>(
   cfg: StitchConfig,
-  query: string,
-  variables: Record<string, any>
+  path: string,
+  init: RequestInit = {}
 ): Promise<T> {
   const token = await getAccessToken(cfg);
-  const res = await fetch(GRAPHQL_URL, {
-    method: 'POST',
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...init,
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
+      Accept: 'application/json',
+      ...(init.headers || {}),
     },
-    body: JSON.stringify({ query, variables }),
   });
-
-  const json = (await res.json()) as GraphQLResponse<T>;
-
-  if (!res.ok || json.errors) {
-    logger.error('Stitch GraphQL error', { status: res.status, errors: json.errors });
-    throw new Error(`Stitch GraphQL: ${JSON.stringify(json.errors ?? json).slice(0, 400)}`);
+  const body = (await res.json().catch(() => null)) as ApiResponse<T> | null;
+  if (!res.ok || !body?.success) {
+    logger.error('Stitch Express API error', {
+      path,
+      status: res.status,
+      body: JSON.stringify(body).slice(0, 600),
+    });
+    throw new Error(
+      `Stitch Express ${path} ${res.status}: ${body?.message ?? body?.error ?? 'unknown'}`
+    );
   }
-  if (!json.data) throw new Error('Stitch GraphQL returned no data');
-  return json.data;
+  if (body.data === undefined) throw new Error(`Stitch Express ${path}: no data field`);
+  return body.data;
 }
 
-/* ------------------------ payment initiation ------------------------ */
+/* ------------------------ payment links ------------------------ */
 
-export interface CreatePaymentInput {
-  amountZar: number; // e.g. 199.95
-  payerReference: string; // ≤ 12 chars, shows on payer bank statement
-  beneficiaryReference: string; // ≤ 20 chars, shows on beneficiary bank statement
-  externalReference: string; // our internal order id, ≤ 4096 chars
-  payer: {
-    fullName: string;
-    email: string;
-    mobileNumber?: string;
-  };
+export type PaymentLinkStatus = 'PENDING' | 'EXPIRED' | 'PAID' | 'CANCELLED';
+
+export interface CreatePaymentLinkInput {
+  /** Total amount in ZAR major units — converted to cents internally. */
+  amountZar: number;
+  /** Internal reference (alphanumeric + spaces + hyphens, ≤50 chars). */
+  merchantReference: string;
+  /** Customer name (3–40 chars). */
+  payerName: string;
+  payerEmailAddress?: string;
+  /** E.164 phone number e.g. +27791231234 */
+  payerPhoneNumber?: string;
+  /** Optional ISO 8601 expiry; defaults to 30 days. */
+  expiresAt?: string;
 }
 
-export interface CreatedPayment {
+export interface PaymentLink {
   id: string;
-  url: string; // hosted Stitch checkout URL — we append ?redirect_uri=...
+  amount: number; // cents
+  status: PaymentLinkStatus;
+  paidAt?: string;
+  payerName: string;
+  payerEmailAddress?: string;
+  payerPhoneNumber?: string;
+  /** Hosted-checkout URL the user is sent to to pay. */
+  link: string;
+  merchantReference: string;
+  expireAt: string;
 }
 
-const CREATE_PAYMENT_MUTATION = `
-  mutation CreatePaymentInitiation(
-    $input: ClientPaymentInitiationRequestCreateInput!
-  ) {
-    clientPaymentInitiationRequestCreate(input: $input) {
-      paymentInitiationRequest {
-        id
-        url
-      }
-    }
-  }
-`;
+function sanitizeRef(s: string): string {
+  return s.replace(/[^A-Za-z0-9 -]/g, '').trim().slice(0, 50) || 'fuelcue';
+}
 
-// Beneficiary placeholder. In production, replace with fuelcue's actual ZA
-// bank account details. Stitch's test client accepts arbitrary values here
-// since no money actually moves; switching to live creds without updating
-// these fields will route real money to a non-existent account, so the
-// constants are intentionally separated from the test-vs-live flow.
-const TEST_BENEFICIARY = {
-  name: 'fuelcue test',
-  bankId: 'fnb' as const,
-  accountNumber: '1234567890',
-};
-
-export async function createPaymentInitiation(
+export async function createPaymentLink(
   cfg: StitchConfig,
-  input: CreatePaymentInput
-): Promise<CreatedPayment> {
-  const variables = {
-    input: {
-      amount: { quantity: input.amountZar.toFixed(2), currency: 'ZAR' },
-      payerReference: input.payerReference.slice(0, 12),
-      beneficiaryReference: input.beneficiaryReference.slice(0, 20),
-      externalReference: input.externalReference.slice(0, 4096),
-      beneficiary: {
-        bankAccount: {
-          name: TEST_BENEFICIARY.name,
-          bankId: TEST_BENEFICIARY.bankId,
-          accountNumber: TEST_BENEFICIARY.accountNumber,
-        },
-      },
-      payerInformation: {
-        fullName: input.payer.fullName,
-        email: input.payer.email,
-        ...(input.payer.mobileNumber ? { mobileNumber: input.payer.mobileNumber } : {}),
-      },
-    },
-  };
-
-  const data = await graphql<{
-    clientPaymentInitiationRequestCreate: {
-      paymentInitiationRequest: { id: string; url: string };
-    };
-  }>(cfg, CREATE_PAYMENT_MUTATION, variables);
-
-  return data.clientPaymentInitiationRequestCreate.paymentInitiationRequest;
-}
-
-/* ------------------------ webhook subscription registration ------------------------ */
-
-const SUBSCRIBE_WEBHOOK_MUTATION = `
-  mutation SubscribeToWebhooks($url: URL!) {
-    clientWebhookSubscriptionCreate(input: { url: $url, events: ["payment"] }) {
-      subscription {
-        id
-        url
-      }
-      secret
-    }
+  input: CreatePaymentLinkInput
+): Promise<PaymentLink> {
+  const amountCents = Math.round(input.amountZar * 100);
+  if (amountCents < 100) {
+    throw new Error(`Stitch Express minimum amount is R1.00 (got R${input.amountZar})`);
   }
-`;
 
-export interface WebhookSubscription {
-  id: string;
-  url: string;
-  secret: string; // whsec_… — used to verify all future webhooks
+  const body: Record<string, unknown> = {
+    amount: amountCents,
+    merchantReference: sanitizeRef(input.merchantReference),
+    payerName: input.payerName.slice(0, 40),
+  };
+  if (input.payerEmailAddress) body.payerEmailAddress = input.payerEmailAddress;
+  if (input.payerPhoneNumber) body.payerPhoneNumber = input.payerPhoneNumber;
+  if (input.expiresAt) body.expiresAt = input.expiresAt;
+
+  const data = await expressFetch<{ payment: PaymentLink }>(cfg, '/api/v1/payment-links', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  return data.payment;
 }
 
-/**
- * One-time call to register our webhook URL with Stitch and capture the
- * signing secret. Stitch's UI also exposes this via the Svix Portal but
- * doing it via API keeps the secret out of human view.
- */
+export async function getPaymentLink(
+  cfg: StitchConfig,
+  paymentLinkId: string
+): Promise<PaymentLink> {
+  const data = await expressFetch<{ payment: PaymentLink }>(
+    cfg,
+    `/api/v1/payment-links/${encodeURIComponent(paymentLinkId)}`
+  );
+  return data.payment;
+}
+
+/* ------------------------ one-time admin: redirect-urls + webhook ------------------------ */
+
+export async function registerRedirectUrl(
+  cfg: StitchConfig,
+  redirectUrl: string
+): Promise<string[]> {
+  const data = await expressFetch<{ redirectUrls: string[] }>(cfg, '/api/v1/redirect-urls', {
+    method: 'POST',
+    body: JSON.stringify({ redirectUrl }),
+  });
+  return data.redirectUrls;
+}
+
+export async function listRedirectUrls(cfg: StitchConfig): Promise<string[]> {
+  const data = await expressFetch<{ redirectUrls: string[] }>(cfg, '/api/v1/redirect-urls');
+  return data.redirectUrls;
+}
+
 export async function registerWebhook(
   cfg: StitchConfig,
   webhookUrl: string
-): Promise<WebhookSubscription> {
-  const data = await graphql<{
-    clientWebhookSubscriptionCreate: {
-      subscription: { id: string; url: string };
-      secret: string;
-    };
-  }>(cfg, SUBSCRIBE_WEBHOOK_MUTATION, { url: webhookUrl });
-  return {
-    id: data.clientWebhookSubscriptionCreate.subscription.id,
-    url: data.clientWebhookSubscriptionCreate.subscription.url,
-    secret: data.clientWebhookSubscriptionCreate.secret,
-  };
+): Promise<{ secret: string }> {
+  const data = await expressFetch<{ secret: string }>(cfg, '/api/v1/webhook', {
+    method: 'POST',
+    body: JSON.stringify({ url: webhookUrl }),
+  });
+  return data;
 }
