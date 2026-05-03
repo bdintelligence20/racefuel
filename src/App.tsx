@@ -13,6 +13,9 @@ import { LandingPage } from './components/LandingPage';
 import { EarlyAccessModal } from './components/EarlyAccessModal';
 import { AutoGenProgress } from './components/AutoGenProgress';
 import { PlanStrategyModal } from './components/PlanStrategyModal';
+import { CheckoutTest } from './components/CheckoutTest';
+import { PaymentCallback } from './components/PaymentCallback';
+import { AdminOrders } from './components/AdminOrders';
 import { Menu, X, Map, Package } from 'lucide-react';
 
 const MapCanvas = lazy(() =>
@@ -206,11 +209,13 @@ function AuthGate() {
   }, [pathname]);
 
   // Redirect unknown paths to landing
+  const KNOWN_PATHS = ['/', '/app', '/checkout-test', '/payment-callback', '/admin/orders', ''];
   useEffect(() => {
-    if (pathname !== '/' && pathname !== '/app' && pathname !== '') {
+    if (!KNOWN_PATHS.includes(pathname)) {
       window.history.replaceState({}, '', '/');
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   // Landing page is public — /
@@ -258,7 +263,12 @@ function AuthGate() {
     return <AuthScreen />;
   }
 
-  // Signed in — show app
+  // Signed-in routes
+  if (pathname === '/checkout-test') return <CheckoutTest />;
+  if (pathname === '/payment-callback') return <PaymentCallback />;
+  if (pathname === '/admin/orders') return <AdminOrders />;
+
+  // Default signed-in surface — the main app
   return (
     <AppProvider>
       <MapProvider>
