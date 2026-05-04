@@ -131,11 +131,22 @@ function AppContent() {
 
       <div className={`
         fixed lg:relative left-0 right-0 lg:left-auto top-mobile-nav lg:top-0 bottom-0 z-30
-        ${mobileTab === 'nutrition' ? 'block' : 'hidden lg:block'}
+        flex flex-col
+        ${mobileTab === 'nutrition' ? 'flex' : 'hidden lg:flex'}
       `}>
         <ErrorBoundary>
-          <NutritionPanel />
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <NutritionPanel />
+          </div>
         </ErrorBoundary>
+        {/* Mobile-only ActionBar inside the Fuel tab so Share + Export are
+            always reachable regardless of which tab the user is on. The
+            primary copy still lives at the bottom of the Map tab; this is
+            a duplicate render that the browser only ever shows for one
+            tab at a time. */}
+        <div className="lg:hidden flex-shrink-0">
+          <ActionBar />
+        </div>
       </div>
 
       {!onboardingComplete && <OnboardingModal />}

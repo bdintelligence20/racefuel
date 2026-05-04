@@ -406,12 +406,18 @@ export function MapCanvas() {
         {/* Map UI Overlays — only show when route is loaded */}
         {routeData.loaded && (
           <>
-            <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10 flex flex-wrap gap-1.5 sm:gap-2 pointer-events-auto max-w-[calc(100%-4.5rem)] sm:max-w-[calc(100%-5.5rem)]">
+            {/* Stat chips: single horizontal scrollable strip on mobile so
+                all six (Distance, Elevation, Time, Date, Effort, Sport) are
+                always reachable; flex-wrap on desktop where there's room. */}
+            <div
+              className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10 flex flex-nowrap sm:flex-wrap gap-1.5 sm:gap-2 pointer-events-auto max-w-[calc(100%-4.5rem)] sm:max-w-[calc(100%-5.5rem)] overflow-x-auto sm:overflow-visible no-scrollbar"
+              style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch' }}
+            >
               <button
                 onClick={() => setColorMode('distance')}
                 aria-pressed={routeColorMode === 'distance'}
                 title="Color route by distance"
-                className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border text-left transition-colors ${
+                className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border flex-shrink-0 text-left transition-colors ${
                   routeColorMode === 'distance'
                     ? 'border-warm ring-1 ring-warm/30'
                     : 'border-[var(--color-border)] hover:border-warm/40'
@@ -426,7 +432,7 @@ export function MapCanvas() {
                 onClick={() => setColorMode('elevation')}
                 aria-pressed={routeColorMode === 'elevation'}
                 title="Color route by elevation"
-                className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border text-left transition-colors ${
+                className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border flex-shrink-0 text-left transition-colors ${
                   routeColorMode === 'elevation'
                     ? 'border-warm ring-1 ring-warm/30'
                     : 'border-[var(--color-border)] hover:border-warm/40'
@@ -443,7 +449,7 @@ export function MapCanvas() {
                 <button
                   onClick={() => setTimeEditorOpen((v) => !v)}
                   title="Set your expected finish time"
-                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border text-left transition-colors ${
+                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border flex-shrink-0 text-left transition-colors ${
                     routeData.userEstimatedTime
                       ? 'border-warm/60 ring-1 ring-warm/30'
                       : 'border-[var(--color-border)] hover:border-warm/40'
@@ -481,7 +487,7 @@ export function MapCanvas() {
                   type="button"
                   onClick={() => setDateEditorOpen((v) => !v)}
                   title="Set the date you'll do this route — used to pull the right weather forecast"
-                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border text-left transition-colors ${
+                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border flex-shrink-0 text-left transition-colors ${
                     routeData.plannedDate
                       ? 'border-warm/60 ring-1 ring-warm/30'
                       : 'border-[var(--color-border)] hover:border-warm/40'
@@ -514,7 +520,7 @@ export function MapCanvas() {
                 <button
                   type="button"
                   onClick={() => setEffortEditorOpen((o) => !o)}
-                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border transition-colors ${
+                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border flex-shrink-0 transition-colors ${
                     routeData.effortLevel != null
                       ? 'border-warm/60 ring-1 ring-warm/30'
                       : 'border-[var(--color-border)] hover:border-warm/40'
@@ -548,7 +554,7 @@ export function MapCanvas() {
                 <button
                   type="button"
                   onClick={() => setSportEditorOpen((o) => !o)}
-                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border transition-colors ${
+                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border flex-shrink-0 transition-colors ${
                     routeData.routeSport || routeData.routeSurface
                       ? 'border-warm/60 ring-1 ring-warm/30'
                       : 'border-[var(--color-border)] hover:border-warm/40'
