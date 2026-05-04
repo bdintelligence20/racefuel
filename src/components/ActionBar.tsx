@@ -90,11 +90,13 @@ export function ActionBar() {
         </div>
 
         {/* Actions row.
-            Mobile (< sm): every button is a compact iOS-tab-bar-style cell —
-            icon stacked above a small label so the user can read what they're
-            tapping without sacrificing horizontal space.
-            Desktop (sm+): inline icon + label. */}
-        <div className="flex items-stretch gap-1 sm:gap-2">
+            Mobile: 6-column CSS grid so every button is exactly 1/6 of the
+            width — guaranteed to fit on every viewport, no risk of a flex
+            spacer pushing items off-screen.
+            Desktop (sm+): horizontal flex with the original two-group
+            layout (left: undo/redo, right: share/export). */}
+        <div className="grid grid-cols-6 gap-1 sm:flex sm:items-stretch sm:gap-2 sm:justify-between">
+          {/* Left group */}
           <ActionButton
             mobileLabel="Undo"
             desktopLabel="Undo"
@@ -123,8 +125,7 @@ export function ActionBar() {
             title="Clear route"
           />
 
-          <div className="flex-1" />
-
+          {/* Right group */}
           <ActionButton
             mobileLabel="Auto"
             desktopLabel="Auto"
@@ -228,10 +229,9 @@ function ActionButton({
       title={title}
       className={`
         ${mobileOnly ? 'lg:hidden' : ''}
-        flex-shrink-0
         flex flex-col sm:flex-row items-center justify-center
         gap-0.5 sm:gap-2
-        w-[46px] sm:w-auto h-12 sm:h-10
+        w-full sm:w-auto h-12 sm:h-10
         sm:px-4
         rounded-xl
         ${t.bg}
@@ -239,6 +239,7 @@ function ActionButton({
         font-display font-bold uppercase
         active:scale-95 transition-all
         disabled:opacity-30 disabled:cursor-not-allowed
+        sm:flex-shrink-0
       `}
     >
       <span className={tone === 'primary' || tone === 'warm-filled' ? 'text-white' : t.mobileText}>
