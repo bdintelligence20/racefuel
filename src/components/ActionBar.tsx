@@ -35,13 +35,6 @@ export function ActionBar() {
   return (
     <>
       <div className="bg-surface border-t border-[var(--color-border)] px-2 sm:px-4 py-3 lg:px-5 lg:py-3 flex flex-col gap-2 safe-bottom">
-        {/* DIAGNOSTIC — temporary marker so we can tell at a glance whether
-            a phone is loading the latest build. Remove once the cache
-            saga is over. */}
-        <div className="lg:hidden -mt-1 mb-1 text-[10px] font-mono tabular-nums text-warm bg-warm/10 rounded px-2 py-0.5 flex items-center justify-between">
-          <span>build 9d3f-action-bar</span>
-          <span className="opacity-60">Map tab should show 6 buttons →</span>
-        </div>
         {/* Warning pills used to live here, but they duplicated the content of
             the Score popover and ate scarce mobile vertical real estate. The
             Score (i) popover is now the single home for plan warnings. */}
