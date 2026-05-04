@@ -8,6 +8,7 @@ import { EffortEditor } from './EffortEditor';
 import { DateEditor } from './DateEditor';
 import { RouteSportEditor } from './RouteSportEditor';
 import { MapLegend } from './MapLegend';
+import { MobileNutritionStrip } from './MobileNutritionStrip';
 import { useApp } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { NutritionMarker } from './NutritionMarker';
@@ -610,6 +611,16 @@ export function MapCanvas() {
           </div>
         )}
       </div>
+
+      {/* Mobile-only nutrition strip — sits directly above the elevation
+          profile so dragging onto the chart is a short downward gesture.
+          Hidden on lg+ where the existing NutritionPanel sidebar is visible. */}
+      {showElevation && (
+        <MobileNutritionStrip
+          elevationRef={elevationRef}
+          routeKm={routeData.distanceKm}
+        />
+      )}
 
       {/* Elevation Profile Panel — only show when route loaded + not drawing */}
       <div

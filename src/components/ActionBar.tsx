@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Download, Undo2, Redo2, Info } from 'lucide-react';
+import { Download, Undo2, Redo2, Info, Share2 } from 'lucide-react';
 import { ExportModal } from './export/ExportModal';
+import { FlyoverExportModal } from './export/FlyoverExportModal';
 import { ScorePopover } from './ScorePopover';
 import { calculatePlanCost } from '../services/nutrition/costCalculator';
 import { getActiveDurationHours } from '../services/route/timeFormat';
@@ -9,6 +10,7 @@ import { getActiveDurationHours } from '../services/route/timeFormat';
 export function ActionBar() {
   const { routeData, planValidation, canUndo, canRedo, undo, redo } = useApp();
   const [exportOpen, setExportOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
 
   const cost = useMemo(() => calculatePlanCost(routeData.nutritionPoints), [routeData.nutritionPoints]);
@@ -111,6 +113,16 @@ export function ActionBar() {
           <div className="flex-1" />
 
           <button
+            onClick={() => setShareOpen(true)}
+            disabled={routeData.nutritionPoints.length === 0}
+            title="Make a shareable cinematic flyover video of your route + fuel points"
+            className="h-10 px-4 rounded-xl bg-surfaceHighlight border border-warm/30 hover:border-warm hover:bg-warm/[0.08] text-warm font-display font-bold uppercase text-xs tracking-wider flex items-center gap-2 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            <Share2 className="w-4 h-4" />
+            Share
+          </button>
+
+          <button
             onClick={() => setExportOpen(true)}
             disabled={routeData.nutritionPoints.length === 0}
             className="h-10 px-5 rounded-xl bg-accent hover:bg-accent-light text-white font-display font-bold uppercase text-xs tracking-wider flex items-center gap-2 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
@@ -122,6 +134,7 @@ export function ActionBar() {
       </div>
 
       <ExportModal isOpen={exportOpen} onClose={() => setExportOpen(false)} />
+      <FlyoverExportModal isOpen={shareOpen} onClose={() => setShareOpen(false)} />
     </>
   );
 }
