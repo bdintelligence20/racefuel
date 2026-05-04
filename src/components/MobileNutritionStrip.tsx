@@ -57,13 +57,11 @@ export function MobileNutritionStrip() {
   const allProducts = useMemo(() => [...customProducts, ...products], [products, customProducts]);
 
   const visibleProducts = useMemo(() => {
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      return allProducts
-        .filter((p) => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q))
-        .slice(0, 30);
-    }
-    return allProducts.slice(0, 24);
+    const q = query.trim().toLowerCase();
+    if (!q) return allProducts;
+    return allProducts.filter(
+      (p) => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q)
+    );
   }, [allProducts, query]);
 
   function cancelPress() {
