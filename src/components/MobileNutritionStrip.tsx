@@ -8,25 +8,26 @@ import { useProducts } from '../data/products';
 import { loadCustomProducts } from './CustomProductModal';
 
 /**
- * Mobile nutrition strip — a horizontal product picker that lives just
- * above the elevation profile.
+ * Mobile nutrition strip — horizontal product picker above the elevation
+ * profile.
  *
- *   - Swipe left/right anywhere on the strip → scrolls horizontally
- *     through the catalogue. Native browser pan, no JS in the way.
- *   - Long-press a card (~280ms hold) → enters drag mode. A floating
- *     ghost follows the finger; release over the route on the map to
- *     drop a fuel point at the closest GPS vertex.
+ *   - Swipe left/right anywhere on the strip → browser-native horizontal
+ *     scroll. NO global non-passive pointermove listener while the user
+ *     is just browsing — earlier versions registered one during the
+ *     "intent" phase of drag detection and that was racing the browser's
+ *     scroll handler, blocking horizontal swipes entirely.
+ *   - Long-press a card (~280ms hold) → enters drag mode. We then register
+ *     a window-level pointermove listener and follow the finger to a drop
+ *     on the route line. Quick taps with motion before the timer fires
+ *     cancel the press locally on the card.
  *
- * The long-press gate is the key trick: until it fires, we don't
- * interfere with the browser's scroll handling at all. Once it fires we
- * preventDefault on subsequent moves so the page doesn't try to scroll
- * with the drag.
+ * The split between "card-local pointer events for press detection"
+ * and "window-level pointer events for active drag" is the trick that
+ * keeps native horizontal scroll working.
  */
 
 const LONG_PRESS_MS = 280;
-// If the finger moves beyond this in either axis BEFORE the timer
-// fires, we cancel the press — it's a scroll gesture, not a drag.
-const LONG_PRESS_CANCEL_PX = 8;
+const PRESS_CANCEL_PX = 8;
 
 export function MobileNutritionStrip() {
   const { addNutritionPoint, routeData } = useApp();
@@ -40,10 +41,9 @@ export function MobileNutritionStrip() {
   const dragRef = useRef(drag);
   dragRef.current = drag;
 
-  // Long-press machinery lives in refs so the timer/state across pointer
-  // events doesn't trigger React re-renders unnecessarily.
+  // Per-card press tracking. Lives in refs so we don't re-render on every
+  // pointermove event during the intent phase.
   const pressRef = useRef<{
-    pointerId: number;
     product: ProductProps;
     startX: number;
     startY: number;
@@ -54,10 +54,7 @@ export function MobileNutritionStrip() {
     setCustomProducts(loadCustomProducts());
   }, []);
 
-  const allProducts = useMemo(
-    () => [...customProducts, ...products],
-    [products, customProducts]
-  );
+  const allProducts = useMemo(() => [...customProducts, ...products], [products, customProducts]);
 
   const visibleProducts = useMemo(() => {
     if (query.trim()) {
@@ -69,75 +66,64 @@ export function MobileNutritionStrip() {
     return allProducts.slice(0, 24);
   }, [allProducts, query]);
 
-  /* ───────────────── pointer event flow ───────────────── */
-
   function cancelPress() {
     const p = pressRef.current;
     if (p?.timer) clearTimeout(p.timer);
     pressRef.current = null;
   }
 
-  function handlePointerDown(e: React.PointerEvent, product: ProductProps) {
-    // Mouse uses the existing HTML5 native drag pipeline (already wired
-    // by MapView.handleDrop). We only handle touch + pen here.
-    if (e.pointerType === 'mouse') return;
+  /* ───────────────── card-local pointer handlers ───────────────── */
 
+  function onCardPointerDown(e: React.PointerEvent, product: ProductProps) {
+    if (e.pointerType === 'mouse') return; // mouse uses native HTML5 drag
     cancelPress();
-
-    const timer = setTimeout(() => {
-      const cur = pressRef.current;
-      if (!cur) return;
-      // Long-press tripped → enter drag mode.
-      setDrag({ product, x: cur.startX, y: cur.startY });
-      // Optional haptic — quietly fails if the browser doesn't support it.
-      try { (navigator as any).vibrate?.(15); } catch {}
-    }, LONG_PRESS_MS);
-
     pressRef.current = {
-      pointerId: e.pointerId,
       product,
       startX: e.clientX,
       startY: e.clientY,
-      timer,
+      timer: setTimeout(() => {
+        const p = pressRef.current;
+        if (!p) return;
+        // Long-press tripped → enter drag mode.
+        setDrag({ product: p.product, x: p.startX, y: p.startY });
+        try { (navigator as any).vibrate?.(15); } catch {}
+      }, LONG_PRESS_MS),
     };
   }
 
-  // Window listeners while a press is active OR a drag is in progress.
-  // Listeners are passive whenever possible so they never fight the
-  // browser's scroll detection.
-  useEffect(() => {
-    function onMove(e: PointerEvent) {
-      if (dragRef.current) {
-        // Already dragging — follow the finger, block the page scroll.
-        if (e.cancelable) e.preventDefault();
-        setDrag({ ...dragRef.current!, x: e.clientX, y: e.clientY });
-        return;
-      }
-      // Pre-drag: if the finger has wandered, this is a scroll, not a drag.
-      const p = pressRef.current;
-      if (!p) return;
-      const dx = Math.abs(e.clientX - p.startX);
-      const dy = Math.abs(e.clientY - p.startY);
-      if (dx > LONG_PRESS_CANCEL_PX || dy > LONG_PRESS_CANCEL_PX) {
-        cancelPress();
-      }
+  function onCardPointerMove(e: React.PointerEvent) {
+    const p = pressRef.current;
+    if (!p) return;
+    if (Math.abs(e.clientX - p.startX) > PRESS_CANCEL_PX || Math.abs(e.clientY - p.startY) > PRESS_CANCEL_PX) {
+      cancelPress();
     }
+  }
 
+  /* ─────────── window-level handlers for active drag only ─────────── */
+
+  // Critically: this effect only runs (and only registers the global
+  // listeners) once we've actually entered drag mode. During the intent
+  // phase, no global non-passive listener exists, so the browser is free
+  // to handle horizontal swipes natively.
+  useEffect(() => {
+    if (!drag) return;
+
+    function onMove(e: PointerEvent) {
+      // Now that drag is active, blocking page scroll IS what we want.
+      if (e.cancelable) e.preventDefault();
+      const cur = dragRef.current;
+      if (!cur) return;
+      setDrag({ ...cur, x: e.clientX, y: e.clientY });
+    }
     function onUp(e: PointerEvent) {
       const cur = dragRef.current;
-      cancelPress();
       setDrag(null);
       if (cur) placeFromScreenCoords(cur.product, e.clientX, e.clientY);
     }
-
     function onCancel() {
-      cancelPress();
       setDrag(null);
     }
 
-    // Non-passive only matters when we want to preventDefault. We do that
-    // exclusively during active drag (handled inside onMove); registering
-    // the listener as non-passive is fine.
     window.addEventListener('pointermove', onMove, { passive: false });
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onCancel);
@@ -146,7 +132,8 @@ export function MobileNutritionStrip() {
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onCancel);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drag !== null]);
 
   function placeFromScreenCoords(product: ProductProps, clientX: number, clientY: number) {
     if (!map) return;
@@ -176,7 +163,6 @@ export function MobileNutritionStrip() {
   }
 
   function handleDragStart(e: React.DragEvent, product: ProductProps) {
-    // Native HTML5 drag for mouse users — picked up by MapView.handleDrop.
     e.dataTransfer.setData('application/json', JSON.stringify(product));
     e.dataTransfer.effectAllowed = 'copy';
   }
@@ -211,12 +197,11 @@ export function MobileNutritionStrip() {
           </div>
         )}
 
-        {/* Scrollable card row. touch-action:pan-x lets the browser fully
-            handle horizontal swipes; vertical pans are absorbed by our
-            long-press detection. */}
         <div
           className="flex gap-2 px-3 pb-2 overflow-x-auto overflow-y-hidden no-scrollbar"
           style={{
+            // pan-x lets the browser horizontally scroll the strip natively;
+            // none locks scrolling once we're actively dragging.
             touchAction: drag ? 'none' : 'pan-x',
             WebkitOverflowScrolling: 'touch',
             overscrollBehaviorX: 'contain',
@@ -234,8 +219,10 @@ export function MobileNutritionStrip() {
                   key={p.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, p)}
-                  onPointerDown={(e) => handlePointerDown(e, p)}
+                  onPointerDown={(e) => onCardPointerDown(e, p)}
+                  onPointerMove={onCardPointerMove}
                   onPointerCancel={cancelPress}
+                  onPointerUp={cancelPress}
                   style={{
                     background: `${p.color}15`,
                     borderColor: `${p.color}40`,

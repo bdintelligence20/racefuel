@@ -34,7 +34,7 @@ export function ActionBar() {
 
   return (
     <>
-      <div className="bg-surface border-t border-[var(--color-border)] px-4 py-3 lg:px-5 lg:py-3 flex flex-col gap-2 safe-bottom">
+      <div className="bg-surface border-t border-[var(--color-border)] px-2 sm:px-4 py-3 lg:px-5 lg:py-3 flex flex-col gap-2 safe-bottom">
         {/* Warning pills used to live here, but they duplicated the content of
             the Score popover and ate scarce mobile vertical real estate. The
             Score (i) popover is now the single home for plan warnings. */}
@@ -231,7 +231,7 @@ function ActionButton({
         flex-shrink-0
         flex flex-col sm:flex-row items-center justify-center
         gap-0.5 sm:gap-2
-        w-[52px] sm:w-auto h-12 sm:h-10
+        w-[46px] sm:w-auto h-12 sm:h-10
         sm:px-4
         rounded-xl
         ${t.bg}
