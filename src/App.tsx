@@ -88,7 +88,7 @@ function MobileNav({
 
 // Build marker — set per-build via the comment below for easy bump on every push.
 // Bump this on every commit while we're chasing the cache saga.
-const BUILD_MARKER = 'BUILD-V8-PURE-CAROUSEL';
+const BUILD_MARKER = 'BUILD-V9-WIDTH-CONSTRAINT';
 
 function AppContent() {
   const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan } = useApp();

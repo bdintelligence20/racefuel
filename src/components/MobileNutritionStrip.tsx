@@ -94,12 +94,18 @@ export function MobileNutritionStrip() {
         </div>
       )}
 
-      {/* Bare native scroll. No pointer events, no touch-action overrides,
-          no JS interference. Just a flex row with overflow-x: auto and
-          fixed-width children. */}
+      {/* Bare native scroll. The two props that make this work:
+            - w-full: pin the container to the parent's width.
+            - minWidth: 0: allow the flex container to be SMALLER than the
+              sum of its children's intrinsic widths (otherwise flex's
+              default min-width:auto expands the container to fit content,
+              and overflow-x-auto never triggers).
+          Without those two, the flex row silently expands to ~11000px wide
+          (one card × 110px × 100 products) and there's no overflow to
+          scroll. Took me too long to spot. */}
       <div
-        className="flex gap-2 px-3 pb-2 overflow-x-auto overflow-y-hidden no-scrollbar"
-        style={{ WebkitOverflowScrolling: 'touch' }}
+        className="flex gap-2 px-3 pb-2 overflow-x-auto overflow-y-hidden no-scrollbar w-full"
+        style={{ WebkitOverflowScrolling: 'touch', minWidth: 0 }}
       >
         {visibleProducts.length === 0 ? (
           <div className="text-[11px] text-text-muted py-3 font-display">
