@@ -88,7 +88,7 @@ function MobileNav({
 
 // Build marker — set per-build via the comment below for easy bump on every push.
 // Bump this on every commit while we're chasing the cache saga.
-const BUILD_MARKER = 'BUILD-V6-POLISH';
+const BUILD_MARKER = 'BUILD-V7-NO-DRAGGABLE';
 
 function AppContent() {
   const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan } = useApp();

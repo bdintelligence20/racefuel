@@ -73,7 +73,14 @@ export function MobileNutritionStrip() {
   /* ───────────────── card-local pointer handlers ───────────────── */
 
   function onCardPointerDown(e: React.PointerEvent, product: ProductProps) {
-    if (e.pointerType === 'mouse') return; // mouse uses native HTML5 drag
+    if (e.pointerType === 'mouse') {
+      // Mouse: enter drag immediately on mousedown — drag-to-place feels
+      // natural on desktop, no long-press needed.
+      setDrag({ product, x: e.clientX, y: e.clientY });
+      return;
+    }
+    // Touch / pen: long-press to enter drag, otherwise the gesture is a
+    // horizontal swipe (browser scrolls the strip natively).
     cancelPress();
     pressRef.current = {
       product,
@@ -82,7 +89,6 @@ export function MobileNutritionStrip() {
       timer: setTimeout(() => {
         const p = pressRef.current;
         if (!p) return;
-        // Long-press tripped → enter drag mode.
         setDrag({ product: p.product, x: p.startX, y: p.startY });
         try { (navigator as any).vibrate?.(15); } catch {}
       }, LONG_PRESS_MS),
@@ -160,10 +166,10 @@ export function MobileNutritionStrip() {
     addNutritionPoint(product, distanceKm);
   }
 
-  function handleDragStart(e: React.DragEvent, product: ProductProps) {
-    e.dataTransfer.setData('application/json', JSON.stringify(product));
-    e.dataTransfer.effectAllowed = 'copy';
-  }
+  // No HTML5 native drag — `draggable=true` on iOS Safari triggers the
+  // native long-press-to-drag gesture, which conflicts with horizontal
+  // swipe-to-scroll on the strip. Mouse + touch both go through pointer
+  // events above for drag-to-place.
 
   return (
     <>
@@ -218,8 +224,6 @@ export function MobileNutritionStrip() {
               return (
                 <div
                   key={p.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, p)}
                   onPointerDown={(e) => onCardPointerDown(e, p)}
                   onPointerMove={onCardPointerMove}
                   onPointerCancel={cancelPress}
