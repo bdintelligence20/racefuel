@@ -597,7 +597,11 @@ export function MapCanvas() {
               </button>
             </div>
 
-            <div className="absolute bottom-6 right-4 z-10 pointer-events-auto">
+            {/* Floating auto-gen FAB — desktop only; on mobile this would
+                clash with the nutrition strip + elevation panel that live
+                directly below the map area. ActionBar surfaces the same
+                action at the bottom of both mobile tabs. */}
+            <div className="hidden lg:block absolute bottom-6 right-4 z-10 pointer-events-auto">
               <AutoGenerateButton onClick={autoGeneratePlan} />
             </div>
 

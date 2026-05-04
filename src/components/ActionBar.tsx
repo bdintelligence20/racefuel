@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Download, Undo2, Redo2, Info, Share2 } from 'lucide-react';
+import { Download, Undo2, Redo2, Info, Share2, Zap } from 'lucide-react';
 import { ExportModal } from './export/ExportModal';
 import { FlyoverExportModal } from './export/FlyoverExportModal';
 import { ScorePopover } from './ScorePopover';
@@ -8,7 +8,7 @@ import { calculatePlanCost } from '../services/nutrition/costCalculator';
 import { getActiveDurationHours } from '../services/route/timeFormat';
 
 export function ActionBar() {
-  const { routeData, planValidation, canUndo, canRedo, undo, redo } = useApp();
+  const { routeData, planValidation, canUndo, canRedo, undo, redo, autoGeneratePlan } = useApp();
   const [exportOpen, setExportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
@@ -111,6 +111,18 @@ export function ActionBar() {
           </div>
 
           <div className="flex-1" />
+
+          {/* Auto-generate — mobile only. On desktop this is a floating FAB
+              on the map itself; on mobile that FAB would clash with the
+              strip + elevation, so we host it here instead. */}
+          <button
+            onClick={autoGeneratePlan}
+            title="Auto-generate a science-backed nutrition plan for this route"
+            className="lg:hidden h-10 px-3 rounded-xl bg-warm hover:bg-warm-light text-white font-display font-bold uppercase text-xs tracking-wider flex items-center gap-1.5 active:scale-95 transition-all shadow-[0_0_12px_rgba(245,160,32,0.25)]"
+          >
+            <Zap className="w-4 h-4 fill-current" />
+            Auto
+          </button>
 
           <button
             onClick={() => setShareOpen(true)}
