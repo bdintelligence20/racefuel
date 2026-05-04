@@ -89,70 +89,169 @@ export function ActionBar() {
           )}
         </div>
 
-        {/* Actions row. On narrow phones every button is icon-only so all
-            six fit in one row; on sm+ we add visible labels. Clear and Auto
-            were previously map overlays that got buried under the strip /
-            elevation panel — surfacing them here keeps every primary action
-            reachable from a single thumb-friendly bar. */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <button
+        {/* Actions row.
+            Mobile (< sm): every button is a compact iOS-tab-bar-style cell —
+            icon stacked above a small label so the user can read what they're
+            tapping without sacrificing horizontal space.
+            Desktop (sm+): inline icon + label. */}
+        <div className="flex items-stretch gap-1 sm:gap-2">
+          <ActionButton
+            mobileLabel="Undo"
+            desktopLabel="Undo"
+            icon={<Undo2 className="w-[18px] h-[18px]" />}
             onClick={undo}
             disabled={!canUndo}
-            className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent/[0.08] active:scale-95 transition-all"
+            tone="neutral"
             title="Undo"
-          >
-            <Undo2 className="w-4 h-4" />
-          </button>
-          <button
+          />
+          <ActionButton
+            mobileLabel="Redo"
+            desktopLabel="Redo"
+            icon={<Redo2 className="w-[18px] h-[18px]" />}
             onClick={redo}
             disabled={!canRedo}
-            className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent/[0.08] active:scale-95 transition-all"
+            tone="neutral"
             title="Redo"
-          >
-            <Redo2 className="w-4 h-4" />
-          </button>
-          <button
+          />
+          <ActionButton
+            mobileLabel="Clear"
+            desktopLabel="Clear"
+            icon={<Trash2 className="w-[18px] h-[18px]" />}
             onClick={resetRoute}
-            className="lg:hidden w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-surfaceHighlight border border-red-500/20 hover:bg-red-500/10 hover:border-red-500/40 text-red-400/80 hover:text-red-400 active:scale-95 transition-all"
+            tone="danger"
+            mobileOnly
             title="Clear route"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          />
 
           <div className="flex-1" />
 
-          <button
+          <ActionButton
+            mobileLabel="Auto"
+            desktopLabel="Auto"
+            icon={<Zap className="w-[18px] h-[18px] fill-current" />}
             onClick={autoGeneratePlan}
+            tone="warm-filled"
+            mobileOnly
             title="Auto-generate a science-backed nutrition plan for this route"
-            className="lg:hidden h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl bg-warm hover:bg-warm-light text-white font-display font-bold uppercase text-[11px] sm:text-xs tracking-wider flex items-center gap-1.5 active:scale-95 transition-all shadow-[0_0_12px_rgba(245,160,32,0.25)]"
-          >
-            <Zap className="w-4 h-4 fill-current" />
-            <span className="hidden sm:inline">Auto</span>
-          </button>
-
-          <button
+          />
+          <ActionButton
+            mobileLabel="Share"
+            desktopLabel="Share"
+            icon={<Share2 className="w-[18px] h-[18px]" />}
             onClick={() => setShareOpen(true)}
             disabled={routeData.nutritionPoints.length === 0}
+            tone="warm-outline"
             title="Make a shareable cinematic flyover video of your route + fuel points"
-            className="h-9 sm:h-10 px-2.5 sm:px-4 rounded-xl bg-surfaceHighlight border border-warm/30 hover:border-warm hover:bg-warm/[0.08] text-warm font-display font-bold uppercase text-[11px] sm:text-xs tracking-wider flex items-center gap-1.5 sm:gap-2 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <Share2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Share</span>
-          </button>
-
-          <button
+          />
+          <ActionButton
+            mobileLabel="Export"
+            desktopLabel="Export"
+            icon={<Download className="w-[18px] h-[18px]" />}
             onClick={() => setExportOpen(true)}
             disabled={routeData.nutritionPoints.length === 0}
-            className="h-9 sm:h-10 px-2.5 sm:px-5 rounded-xl bg-accent hover:bg-accent-light text-white font-display font-bold uppercase text-[11px] sm:text-xs tracking-wider flex items-center gap-1.5 sm:gap-2 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Export</span>
-          </button>
+            tone="primary"
+            title="Export this plan as GPX, PDF, CSV, image…"
+          />
         </div>
       </div>
 
       <ExportModal isOpen={exportOpen} onClose={() => setExportOpen(false)} />
       <FlyoverExportModal isOpen={shareOpen} onClose={() => setShareOpen(false)} />
     </>
+  );
+}
+
+/* ───────────────────── ActionButton ─────────────────────
+   Two layouts:
+     - Mobile (< sm): vertical stack — icon on top, tiny label below. Each
+       cell is a fixed 56px wide (54px on really tight viewports), giving
+       3 icon-stacks on the left + 3 on the right enough room on a 360–
+       430px-wide phone without truncation.
+     - Desktop (sm+): horizontal — icon then inline label, padded.
+
+   The 'mobileOnly' flag hides the cell on lg+ (used for Auto and Clear,
+   which have desktop equivalents elsewhere on the map). */
+type ButtonTone = 'neutral' | 'danger' | 'primary' | 'warm-filled' | 'warm-outline';
+
+const TONE_CLASSES: Record<ButtonTone, { bg: string; mobileText: string; desktopText: string }> = {
+  neutral: {
+    bg: 'bg-surfaceHighlight border border-[var(--color-border)] hover:bg-accent/[0.08]',
+    mobileText: 'text-text-primary',
+    desktopText: 'text-text-primary',
+  },
+  danger: {
+    bg: 'bg-surfaceHighlight border border-red-500/20 hover:bg-red-500/10 hover:border-red-500/40',
+    mobileText: 'text-red-400',
+    desktopText: 'text-red-400/80 hover:text-red-400',
+  },
+  primary: {
+    bg: 'bg-accent hover:bg-accent-light',
+    mobileText: 'text-white',
+    desktopText: 'text-white',
+  },
+  'warm-filled': {
+    bg: 'bg-warm hover:bg-warm-light shadow-[0_0_12px_rgba(245,160,32,0.25)]',
+    mobileText: 'text-white',
+    desktopText: 'text-white',
+  },
+  'warm-outline': {
+    bg: 'bg-surfaceHighlight border border-warm/30 hover:border-warm hover:bg-warm/[0.08]',
+    mobileText: 'text-warm',
+    desktopText: 'text-warm',
+  },
+};
+
+function ActionButton({
+  mobileLabel,
+  desktopLabel,
+  icon,
+  onClick,
+  disabled,
+  tone,
+  mobileOnly,
+  title,
+}: {
+  mobileLabel: string;
+  desktopLabel: string;
+  icon: React.ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  tone: ButtonTone;
+  mobileOnly?: boolean;
+  title?: string;
+}) {
+  const t = TONE_CLASSES[tone];
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`
+        ${mobileOnly ? 'lg:hidden' : ''}
+        flex-shrink-0
+        flex flex-col sm:flex-row items-center justify-center
+        gap-0.5 sm:gap-2
+        w-[52px] sm:w-auto h-12 sm:h-10
+        sm:px-4
+        rounded-xl
+        ${t.bg}
+        ${t.desktopText}
+        font-display font-bold uppercase
+        active:scale-95 transition-all
+        disabled:opacity-30 disabled:cursor-not-allowed
+      `}
+    >
+      <span className={tone === 'primary' || tone === 'warm-filled' ? 'text-white' : t.mobileText}>
+        {icon}
+      </span>
+      {/* Mobile label — small, fits under the icon */}
+      <span className={`text-[9px] sm:hidden tracking-wider ${tone === 'primary' || tone === 'warm-filled' ? 'text-white' : t.mobileText}`}>
+        {mobileLabel}
+      </span>
+      {/* Desktop label — inline, larger */}
+      <span className="hidden sm:inline text-xs tracking-wider">
+        {desktopLabel}
+      </span>
+    </button>
   );
 }
