@@ -54,19 +54,23 @@ export default defineConfig({
           },
         ],
       },
+      // No precaching of the app shell — every request flows to the network
+      // (where nginx's no-cache on index.html + immutable on hashed chunks
+      // handles browser-side caching). This is intentional: the previous
+      // setup precached every JS bundle, and on a deploy users on an open
+      // tab kept seeing stale code until they manually hard-reloaded. With
+      // precache empty, fresh deploys land for users on the next page load
+      // with zero intervention.
+      //
+      // The SW is still present (for installability + the runtime cache of
+      // mapbox tiles), it just doesn't gate the app shell anymore.
       workbox: {
-        // Activate new SW immediately instead of waiting for all tabs to close, and
-        // let it take control of already-open clients. Without these, users with the
-        // PWA open never pick up new deploys until they manually close every tab.
         skipWaiting: true,
         clientsClaim: true,
-        // Nuke caches from previous Workbox revisions so stale bundles don't linger.
         cleanupOutdatedCaches: true,
-        // Precache index.html as a navigation fallback so SPA routes still work offline,
-        // but serve the network copy when available so stale HTML never shadows new JS.
-        navigateFallback: 'index.html',
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024, // 4 MB (mapbox-gl is large)
-        globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2}'],
+        globPatterns: [],
+        navigateFallback: null,
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/api\.mapbox\.com\/.*/i,
@@ -75,11 +79,9 @@ export default defineConfig({
               cacheName: 'mapbox-tiles',
               expiration: {
                 maxEntries: 500,
-                maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                maxAgeSeconds: 60 * 60 * 24 * 30,
               },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
           {
@@ -91,9 +93,7 @@ export default defineConfig({
                 maxEntries: 1000,
                 maxAgeSeconds: 60 * 60 * 24 * 30,
               },
-              cacheableResponse: {
-                statuses: [0, 200],
-              },
+              cacheableResponse: { statuses: [0, 200] },
             },
           },
         ],
