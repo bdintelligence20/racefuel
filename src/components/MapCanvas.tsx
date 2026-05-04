@@ -2,7 +2,7 @@ import { useRef, useMemo, useState, useCallback } from 'react';
 import { GpxDropZone } from './GpxDropZone';
 import { AutoGenerateButton } from './AutoGenerateButton';
 import { MapView } from './MapView';
-import { Navigation, Trash2, ChevronDown, ChevronUp, Clock, Calendar, Gauge, Activity } from 'lucide-react';
+import { Navigation, Trash2, ChevronUp, Clock, Calendar, Gauge, Activity, X } from 'lucide-react';
 import { EstimatedTimeEditor } from './EstimatedTimeEditor';
 import { EffortEditor } from './EffortEditor';
 import { DateEditor } from './DateEditor';
@@ -643,22 +643,22 @@ export function MapCanvas() {
           Elevation
         </div>
 
-        {/* Collapse toggle. Bigger + clearly labelled when expanded so users
-            can find the "close" action easily on mobile. */}
+        {/* Collapse toggle. Bigger touch-target on mobile + visible label
+            when expanded so users can actually find it. */}
         {showElevation && (
           <button
             onClick={() => setElevationCollapsed(v => !v)}
             aria-label={elevationCollapsed ? 'Expand elevation profile' : 'Collapse elevation profile'}
-            className={`absolute top-1.5 right-3 z-20 flex items-center justify-center gap-1 rounded-md bg-surface border border-[var(--color-border)] shadow-sm text-text-muted hover:text-text-primary hover:bg-surfaceHighlight transition-colors ${
-              elevationCollapsed ? 'w-7 h-7' : 'h-7 px-2.5'
+            className={`absolute top-2 right-3 z-20 flex items-center justify-center gap-1.5 rounded-lg bg-surface border border-[var(--color-border)] shadow-md text-text-primary hover:bg-surfaceHighlight active:scale-95 transition-all ${
+              elevationCollapsed ? 'w-9 h-9' : 'h-9 px-3'
             }`}
           >
             {elevationCollapsed ? (
-              <ChevronUp className="w-3.5 h-3.5" />
+              <ChevronUp className="w-4 h-4" />
             ) : (
               <>
-                <ChevronDown className="w-3.5 h-3.5" />
-                <span className="text-[10px] font-display font-bold uppercase tracking-wider">Close</span>
+                <X className="w-4 h-4" strokeWidth={2.5} />
+                <span className="text-[11px] font-display font-bold uppercase tracking-wider">Close</span>
               </>
             )}
           </button>

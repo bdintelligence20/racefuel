@@ -5,19 +5,16 @@ import { useApp } from '../context/AppContext';
 import { useProducts } from '../data/products';
 import { loadCustomProducts } from './CustomProductModal';
 import { toast } from 'sonner';
+import useEmblaCarousel from 'embla-carousel-react';
 
 /**
- * Mobile nutrition strip — a horizontal product carousel above the
- * elevation profile. Pure native scroll: no pointer events, no JS-driven
- * drag detection, no global listeners. Earlier versions tried to layer a
- * long-press-to-drag gesture on top and that subtly broke iOS Safari's
- * horizontal swipe handling.
+ * Mobile nutrition strip — horizontal product carousel above the
+ * elevation profile.
  *
- * Tap a card to add it as a fuel point at the next-best position along
- * the route (evenly distributed). Users can move the marker afterwards
- * by dragging it on the map. Drag-from-strip to place can be re-added
- * later if needed, but only with a gesture model that doesn't interfere
- * with the native scroll.
+ * After several rounds of fighting native overflow-x scroll across iOS
+ * Safari + Chrome, this is now an Embla Carousel: a small, well-tested
+ * library that handles touch / momentum / inertia consistently across
+ * browsers. Drag-to-place can layer on top later.
  */
 
 export function MobileNutritionStrip() {
@@ -26,6 +23,14 @@ export function MobileNutritionStrip() {
   const [customProducts, setCustomProducts] = useState<ProductProps[]>(loadCustomProducts);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+
+  // Embla in "free-scroll" mode (no snap-to-slide) so it feels exactly
+  // like native overflow-x — fling and momentum, no forced page jumps.
+  const [emblaRef] = useEmblaCarousel({
+    axis: 'x',
+    dragFree: true,
+    containScroll: 'trimSnaps',
+  });
 
   useEffect(() => {
     setCustomProducts(loadCustomProducts());
@@ -42,12 +47,11 @@ export function MobileNutritionStrip() {
   }, [allProducts, query]);
 
   function onCardTap(product: ProductProps) {
-    // Place the fuel point at an evenly distributed position. We slot it
-    // into the largest gap between existing fuel points (or the start/end
-    // of the route if none yet). Users can drag the marker on the map to
-    // move it after.
     const totalKm = routeData.distanceKm;
-    if (!totalKm) return;
+    if (!totalKm) {
+      toast.error('Load a route first to add fuel points');
+      return;
+    }
     const existing = [...routeData.nutritionPoints]
       .map((n) => n.distanceKm)
       .sort((a, b) => a - b);
@@ -94,51 +98,43 @@ export function MobileNutritionStrip() {
         </div>
       )}
 
-      {/* Bare native scroll. The two props that make this work:
-            - w-full: pin the container to the parent's width.
-            - minWidth: 0: allow the flex container to be SMALLER than the
-              sum of its children's intrinsic widths (otherwise flex's
-              default min-width:auto expands the container to fit content,
-              and overflow-x-auto never triggers).
-          Without those two, the flex row silently expands to ~11000px wide
-          (one card × 110px × 100 products) and there's no overflow to
-          scroll. Took me too long to spot. */}
-      <div
-        className="flex gap-2 px-3 pb-2 overflow-x-auto overflow-y-hidden no-scrollbar w-full"
-        style={{ WebkitOverflowScrolling: 'touch', minWidth: 0 }}
-      >
-        {visibleProducts.length === 0 ? (
-          <div className="text-[11px] text-text-muted py-3 font-display">
-            No products match "{query}".
-          </div>
-        ) : (
-          visibleProducts.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => onCardTap(p)}
-              style={{
-                background: `${p.color}15`,
-                borderColor: `${p.color}40`,
-              }}
-              className="flex-shrink-0 flex flex-col items-start text-left rounded-lg border px-2 py-1.5 w-[110px] active:opacity-70 transition-opacity"
-            >
-              <div
-                className="text-[8.5px] font-display font-bold uppercase tracking-wider truncate w-full"
-                style={{ color: p.color }}
+      {/* Embla viewport — overflow:hidden + the lib's pointer-event drag.
+          Slides container + slides come next. */}
+      <div className="overflow-hidden px-3 pb-2" ref={emblaRef}>
+        <div className="flex gap-2">
+          {visibleProducts.length === 0 ? (
+            <div className="text-[11px] text-text-muted py-3 font-display">
+              No products match "{query}".
+            </div>
+          ) : (
+            visibleProducts.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onCardTap(p)}
+                style={{
+                  background: `${p.color}15`,
+                  borderColor: `${p.color}40`,
+                  flex: '0 0 110px',
+                }}
+                className="flex flex-col items-start text-left rounded-lg border px-2 py-1.5 active:opacity-70 transition-opacity"
               >
-                {p.brand}
-              </div>
-              <div className="text-[11px] font-display font-semibold text-text-primary truncate w-full leading-tight mt-0.5">
-                {p.name}
-              </div>
-              <div className="text-[9.5px] text-text-muted font-display tabular-nums mt-1">
-                {p.carbs}g · {p.calories}kcal
-              </div>
-            </button>
-          ))
-        )}
-        <div className="flex-shrink-0 w-1" aria-hidden />
+                <div
+                  className="text-[8.5px] font-display font-bold uppercase tracking-wider truncate w-full"
+                  style={{ color: p.color }}
+                >
+                  {p.brand}
+                </div>
+                <div className="text-[11px] font-display font-semibold text-text-primary truncate w-full leading-tight mt-0.5">
+                  {p.name}
+                </div>
+                <div className="text-[9.5px] text-text-muted font-display tabular-nums mt-1">
+                  {p.carbs}g · {p.calories}kcal
+                </div>
+              </button>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );
