@@ -1,4 +1,5 @@
 import './index.css';
+import './registerSW';
 import { createRoot } from "react-dom/client";
 import { App } from "./App";
 

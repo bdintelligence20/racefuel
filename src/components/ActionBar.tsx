@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Download, Undo2, Redo2, Info, Share2, Zap } from 'lucide-react';
+import { Download, Undo2, Redo2, Info, Share2, Zap, Trash2 } from 'lucide-react';
 import { ExportModal } from './export/ExportModal';
 import { FlyoverExportModal } from './export/FlyoverExportModal';
 import { ScorePopover } from './ScorePopover';
@@ -8,7 +8,7 @@ import { calculatePlanCost } from '../services/nutrition/costCalculator';
 import { getActiveDurationHours } from '../services/route/timeFormat';
 
 export function ActionBar() {
-  const { routeData, planValidation, canUndo, canRedo, undo, redo, autoGeneratePlan } = useApp();
+  const { routeData, planValidation, canUndo, canRedo, undo, redo, autoGeneratePlan, resetRoute } = useApp();
   const [exportOpen, setExportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
@@ -89,58 +89,64 @@ export function ActionBar() {
           )}
         </div>
 
-        {/* Actions row */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <button
-              onClick={undo}
-              disabled={!canUndo}
-              className="w-10 h-10 flex items-center justify-center rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent/[0.08] active:scale-95 transition-all"
-              title="Undo"
-            >
-              <Undo2 className="w-4 h-4" />
-            </button>
-            <button
-              onClick={redo}
-              disabled={!canRedo}
-              className="w-10 h-10 flex items-center justify-center rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent/[0.08] active:scale-95 transition-all"
-              title="Redo"
-            >
-              <Redo2 className="w-4 h-4" />
-            </button>
-          </div>
+        {/* Actions row. On narrow phones every button is icon-only so all
+            six fit in one row; on sm+ we add visible labels. Clear and Auto
+            were previously map overlays that got buried under the strip /
+            elevation panel — surfacing them here keeps every primary action
+            reachable from a single thumb-friendly bar. */}
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <button
+            onClick={undo}
+            disabled={!canUndo}
+            className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent/[0.08] active:scale-95 transition-all"
+            title="Undo"
+          >
+            <Undo2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={redo}
+            disabled={!canRedo}
+            className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-primary disabled:opacity-30 disabled:cursor-not-allowed hover:bg-accent/[0.08] active:scale-95 transition-all"
+            title="Redo"
+          >
+            <Redo2 className="w-4 h-4" />
+          </button>
+          <button
+            onClick={resetRoute}
+            className="lg:hidden w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 flex items-center justify-center rounded-xl bg-surfaceHighlight border border-red-500/20 hover:bg-red-500/10 hover:border-red-500/40 text-red-400/80 hover:text-red-400 active:scale-95 transition-all"
+            title="Clear route"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
 
           <div className="flex-1" />
 
-          {/* Auto-generate — mobile only. On desktop this is a floating FAB
-              on the map itself; on mobile that FAB would clash with the
-              strip + elevation, so we host it here instead. */}
           <button
             onClick={autoGeneratePlan}
             title="Auto-generate a science-backed nutrition plan for this route"
-            className="lg:hidden h-10 px-3 rounded-xl bg-warm hover:bg-warm-light text-white font-display font-bold uppercase text-xs tracking-wider flex items-center gap-1.5 active:scale-95 transition-all shadow-[0_0_12px_rgba(245,160,32,0.25)]"
+            className="lg:hidden h-9 sm:h-10 px-2.5 sm:px-3 rounded-xl bg-warm hover:bg-warm-light text-white font-display font-bold uppercase text-[11px] sm:text-xs tracking-wider flex items-center gap-1.5 active:scale-95 transition-all shadow-[0_0_12px_rgba(245,160,32,0.25)]"
           >
             <Zap className="w-4 h-4 fill-current" />
-            Auto
+            <span className="hidden sm:inline">Auto</span>
           </button>
 
           <button
             onClick={() => setShareOpen(true)}
             disabled={routeData.nutritionPoints.length === 0}
             title="Make a shareable cinematic flyover video of your route + fuel points"
-            className="h-10 px-4 rounded-xl bg-surfaceHighlight border border-warm/30 hover:border-warm hover:bg-warm/[0.08] text-warm font-display font-bold uppercase text-xs tracking-wider flex items-center gap-2 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            className="h-9 sm:h-10 px-2.5 sm:px-4 rounded-xl bg-surfaceHighlight border border-warm/30 hover:border-warm hover:bg-warm/[0.08] text-warm font-display font-bold uppercase text-[11px] sm:text-xs tracking-wider flex items-center gap-1.5 sm:gap-2 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Share2 className="w-4 h-4" />
-            Share
+            <span className="hidden sm:inline">Share</span>
           </button>
 
           <button
             onClick={() => setExportOpen(true)}
             disabled={routeData.nutritionPoints.length === 0}
-            className="h-10 px-5 rounded-xl bg-accent hover:bg-accent-light text-white font-display font-bold uppercase text-xs tracking-wider flex items-center gap-2 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            className="h-9 sm:h-10 px-2.5 sm:px-5 rounded-xl bg-accent hover:bg-accent-light text-white font-display font-bold uppercase text-[11px] sm:text-xs tracking-wider flex items-center gap-1.5 sm:gap-2 active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" />
-            Export
+            <span className="hidden sm:inline">Export</span>
           </button>
         </div>
       </div>

@@ -423,7 +423,7 @@ export function MapCanvas() {
                     : 'border-[var(--color-border)] hover:border-warm/40'
                 }`}
               >
-                <div className="text-[9px] text-text-muted uppercase tracking-widest font-display">Distance</div>
+                <div className="hidden sm:block text-[9px] text-text-muted uppercase tracking-widest font-display">Distance</div>
                 <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight">
                   {routeData.distanceKm.toFixed(1)}<span className="text-xs text-text-muted ml-0.5">km</span>
                 </div>
@@ -438,7 +438,7 @@ export function MapCanvas() {
                     : 'border-[var(--color-border)] hover:border-warm/40'
                 }`}
               >
-                <div className="text-[9px] text-text-muted uppercase tracking-widest font-display">Elevation</div>
+                <div className="hidden sm:block text-[9px] text-text-muted uppercase tracking-widest font-display">Elevation</div>
                 <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight">
                   {routeData.elevationGain}<span className="text-xs text-text-muted ml-0.5">m</span>
                 </div>
@@ -455,7 +455,7 @@ export function MapCanvas() {
                       : 'border-[var(--color-border)] hover:border-warm/40'
                   }`}
                 >
-                  <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
+                  <div className="hidden sm:flex text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
                     <Clock className="w-2.5 h-2.5" />
                     Time {routeData.userEstimatedTime ? '· yours' : '· auto'}
                   </div>
@@ -493,7 +493,7 @@ export function MapCanvas() {
                       : 'border-[var(--color-border)] hover:border-warm/40'
                   }`}
                 >
-                  <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
+                  <div className="hidden sm:flex text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
                     <Calendar className="w-2.5 h-2.5" />
                     Date
                   </div>
@@ -527,7 +527,7 @@ export function MapCanvas() {
                   }`}
                   title="Set perceived effort for this run — 5/10 for training, 8/10 for race"
                 >
-                  <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
+                  <div className="hidden sm:flex text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
                     <Gauge className="w-2.5 h-2.5" />
                     Effort
                   </div>
@@ -561,7 +561,7 @@ export function MapCanvas() {
                   }`}
                   title="Sport and surface for this route — drives the time estimate"
                 >
-                  <div className="text-[9px] text-text-muted uppercase tracking-widest font-display flex items-center gap-1">
+                  <div className="hidden sm:flex text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
                     <Activity className="w-2.5 h-2.5" />
                     Sport
                   </div>
@@ -586,7 +586,9 @@ export function MapCanvas() {
               </div>
             </div>
 
-            <div className="absolute top-3 right-3 z-10 flex gap-2 pointer-events-auto">
+            {/* Floating Clear — desktop only. Mobile uses the trash icon
+                in ActionBar so it can never get hidden by the strip. */}
+            <div className="hidden lg:flex absolute top-3 right-3 z-10 gap-2 pointer-events-auto">
               <button
                 onClick={resetRoute}
                 className="h-10 flex items-center gap-1.5 px-3 rounded-xl border border-red-500/20 bg-surface hover:bg-red-500/10 hover:border-red-500/40 transition-colors group shadow-md"
