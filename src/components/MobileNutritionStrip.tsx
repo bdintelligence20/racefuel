@@ -167,7 +167,7 @@ export function MobileNutritionStrip() {
 
   return (
     <>
-      <div className="lg:hidden bg-surfaceHighlight border-t border-[var(--color-border)] flex-shrink-0">
+      <div className="lg:hidden bg-surfaceHighlight border-t border-[var(--color-border)] flex-shrink-0 w-full min-w-0">
         <div className="flex items-center gap-2 px-3 pt-2 pb-1">
           <span className="text-[9px] font-display font-semibold text-text-muted uppercase tracking-wider">
             Fuel · hold &amp; drag onto route
@@ -196,13 +196,16 @@ export function MobileNutritionStrip() {
         )}
 
         <div
-          className="flex gap-2 px-3 pb-2 overflow-x-auto overflow-y-hidden no-scrollbar"
+          className="flex gap-2 px-3 pb-2 overflow-x-auto overflow-y-hidden no-scrollbar w-full"
           style={{
             // pan-x lets the browser horizontally scroll the strip natively;
             // none locks scrolling once we're actively dragging.
             touchAction: drag ? 'none' : 'pan-x',
             WebkitOverflowScrolling: 'touch',
             overscrollBehaviorX: 'contain',
+            // Without min-width: 0, the flex container expands to fit its
+            // children's intrinsic width and overflow-x-auto never triggers.
+            minWidth: 0,
           }}
         >
           {visibleProducts.length === 0 ? (

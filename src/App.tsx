@@ -123,10 +123,19 @@ function AppContent() {
       <div className={`flex-1 flex flex-col relative pt-mobile-nav lg:pt-0 ${mobileTab === 'map' ? 'flex' : 'hidden lg:flex'}`}>
         <ErrorBoundary>
           <Suspense fallback={<MapLoadingFallback />}>
-            <MapCanvas />
+            {/* min-h-0 lets MapCanvas's main shrink below its content height
+                so ActionBar (its sibling below) gets its full natural size.
+                Without this, MapCanvas's intrinsic content (map + strip +
+                elevation) was pushing ActionBar partially off the bottom of
+                the screen on mobile, clipping the right-side buttons. */}
+            <div className="flex-1 min-h-0 flex flex-col">
+              <MapCanvas />
+            </div>
           </Suspense>
         </ErrorBoundary>
-        <ActionBar />
+        <div className="flex-shrink-0">
+          <ActionBar />
+        </div>
       </div>
 
       <div className={`
