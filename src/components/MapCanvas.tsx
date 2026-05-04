@@ -643,14 +643,24 @@ export function MapCanvas() {
           Elevation
         </div>
 
-        {/* Collapse toggle */}
+        {/* Collapse toggle. Bigger + clearly labelled when expanded so users
+            can find the "close" action easily on mobile. */}
         {showElevation && (
           <button
             onClick={() => setElevationCollapsed(v => !v)}
             aria-label={elevationCollapsed ? 'Expand elevation profile' : 'Collapse elevation profile'}
-            className="absolute top-1.5 right-3 z-20 w-7 h-7 flex items-center justify-center rounded-md bg-surface border border-[var(--color-border)] shadow-sm text-text-muted hover:text-text-primary hover:bg-surfaceHighlight transition-colors"
+            className={`absolute top-1.5 right-3 z-20 flex items-center justify-center gap-1 rounded-md bg-surface border border-[var(--color-border)] shadow-sm text-text-muted hover:text-text-primary hover:bg-surfaceHighlight transition-colors ${
+              elevationCollapsed ? 'w-7 h-7' : 'h-7 px-2.5'
+            }`}
           >
-            {elevationCollapsed ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            {elevationCollapsed ? (
+              <ChevronUp className="w-3.5 h-3.5" />
+            ) : (
+              <>
+                <ChevronDown className="w-3.5 h-3.5" />
+                <span className="text-[10px] font-display font-bold uppercase tracking-wider">Close</span>
+              </>
+            )}
           </button>
         )}
 

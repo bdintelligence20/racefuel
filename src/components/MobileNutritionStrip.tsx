@@ -167,7 +167,7 @@ export function MobileNutritionStrip() {
 
   return (
     <>
-      <div className="lg:hidden bg-surfaceHighlight border-t border-[var(--color-border)] flex-shrink-0 w-full min-w-0 overflow-hidden">
+      <div className="lg:hidden bg-surfaceHighlight border-t border-[var(--color-border)] flex-shrink-0 w-full min-w-0">
         <div className="flex items-center gap-2 px-3 pt-2 pb-1">
           <span className="text-[9px] font-display font-semibold text-text-muted uppercase tracking-wider">
             Fuel · hold &amp; drag onto route
