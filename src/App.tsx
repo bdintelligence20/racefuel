@@ -88,7 +88,7 @@ function MobileNav({
 
 // Build marker — set per-build via the comment below for easy bump on every push.
 // Bump this on every commit while we're chasing the cache saga.
-const BUILD_MARKER = 'BUILD-V4-GRID-COLS-6';
+const BUILD_MARKER = 'BUILD-V5-FIXED-BAR';
 
 function AppContent() {
   const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan } = useApp();
@@ -130,27 +130,36 @@ function AppContent() {
         />
       )}
 
-      <div className={`flex-1 flex flex-col relative pt-mobile-nav lg:pt-0 ${mobileTab === 'map' ? 'flex' : 'hidden lg:flex'}`}>
+      {/* Mobile-only floating ActionBar — anchored to the bottom of the
+          viewport via `position: fixed`. This deliberately takes it OUT of
+          both column layouts so nothing inside MapCanvas (chips, strip,
+          elevation) and nothing inside NutritionPanel can affect its
+          width / visibility. Single render across both tabs. Desktop
+          (lg+) has its own ActionBar copy inside the Map column. */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 safe-bottom-zero pointer-events-auto">
+        <ActionBar />
+      </div>
+
+      {/* Map column. pb-mobile-action-bar leaves room for the fixed
+          ActionBar above so the elevation panel + strip aren't covered. */}
+      <div className={`flex-1 flex flex-col relative pt-mobile-nav lg:pt-0 pb-mobile-action-bar lg:pb-0 ${mobileTab === 'map' ? 'flex' : 'hidden lg:flex'}`}>
         <ErrorBoundary>
           <Suspense fallback={<MapLoadingFallback />}>
-            {/* min-h-0 lets MapCanvas's main shrink below its content height
-                so ActionBar (its sibling below) gets its full natural size.
-                Without this, MapCanvas's intrinsic content (map + strip +
-                elevation) was pushing ActionBar partially off the bottom of
-                the screen on mobile, clipping the right-side buttons. */}
             <div className="flex-1 min-h-0 flex flex-col">
               <MapCanvas />
             </div>
           </Suspense>
         </ErrorBoundary>
-        <div className="flex-shrink-0">
+        {/* Desktop-only ActionBar inside the column. */}
+        <div className="hidden lg:block flex-shrink-0">
           <ActionBar />
         </div>
       </div>
 
+      {/* Fuel column. pb-mobile-action-bar same reason as map column. */}
       <div className={`
         fixed lg:relative left-0 right-0 lg:left-auto top-mobile-nav lg:top-0 bottom-0 z-30
-        flex flex-col
+        flex flex-col pb-mobile-action-bar lg:pb-0
         ${mobileTab === 'nutrition' ? 'flex' : 'hidden lg:flex'}
       `}>
         <ErrorBoundary>
@@ -158,14 +167,6 @@ function AppContent() {
             <NutritionPanel />
           </div>
         </ErrorBoundary>
-        {/* Mobile-only ActionBar inside the Fuel tab so Share + Export are
-            always reachable regardless of which tab the user is on. The
-            primary copy still lives at the bottom of the Map tab; this is
-            a duplicate render that the browser only ever shows for one
-            tab at a time. */}
-        <div className="lg:hidden flex-shrink-0">
-          <ActionBar />
-        </div>
       </div>
 
       {!onboardingComplete && <OnboardingModal />}

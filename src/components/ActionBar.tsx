@@ -90,69 +90,73 @@ export function ActionBar() {
         </div>
 
         {/* Actions row.
-            Mobile: 6-column CSS grid so every button is exactly 1/6 of the
-            width — guaranteed to fit on every viewport, no risk of a flex
-            spacer pushing items off-screen.
-            Desktop (sm+): horizontal flex with the original two-group
-            layout (left: undo/redo, right: share/export). */}
-        <div className="grid grid-cols-6 gap-1 sm:flex sm:items-stretch sm:gap-2 sm:justify-between">
-          {/* Left group */}
-          <ActionButton
-            mobileLabel="Undo"
-            desktopLabel="Undo"
-            icon={<Undo2 className="w-[18px] h-[18px]" />}
-            onClick={undo}
-            disabled={!canUndo}
-            tone="neutral"
-            title="Undo"
-          />
-          <ActionButton
-            mobileLabel="Redo"
-            desktopLabel="Redo"
-            icon={<Redo2 className="w-[18px] h-[18px]" />}
-            onClick={redo}
-            disabled={!canRedo}
-            tone="neutral"
-            title="Redo"
-          />
-          <ActionButton
-            mobileLabel="Clear"
-            desktopLabel="Clear"
-            icon={<Trash2 className="w-[18px] h-[18px]" />}
-            onClick={resetRoute}
-            tone="danger"
-            mobileOnly
-            title="Clear route"
-          />
+            Mobile (< sm): 6-column CSS grid via the outer container; each
+            button is exactly 1/6 of the width. The two group divs use
+            `display: contents` so they're transparent — the grid sees the
+            buttons directly as its 6 cells.
+            Desktop (sm+): outer is flex with `justify-between`; the two
+            group divs become flex sub-containers grouping their 3 buttons
+            on each side. Same visual layout we had before the grid change. */}
+        <div className="grid grid-cols-6 gap-1 sm:flex sm:items-stretch sm:justify-between sm:gap-0">
+          <div className="contents sm:flex sm:gap-2">
+            <ActionButton
+              mobileLabel="Undo"
+              desktopLabel="Undo"
+              icon={<Undo2 className="w-[18px] h-[18px]" />}
+              onClick={undo}
+              disabled={!canUndo}
+              tone="neutral"
+              title="Undo"
+            />
+            <ActionButton
+              mobileLabel="Redo"
+              desktopLabel="Redo"
+              icon={<Redo2 className="w-[18px] h-[18px]" />}
+              onClick={redo}
+              disabled={!canRedo}
+              tone="neutral"
+              title="Redo"
+            />
+            <ActionButton
+              mobileLabel="Clear"
+              desktopLabel="Clear"
+              icon={<Trash2 className="w-[18px] h-[18px]" />}
+              onClick={resetRoute}
+              tone="danger"
+              mobileOnly
+              title="Clear route"
+            />
+          </div>
 
-          {/* Right group */}
-          <ActionButton
-            mobileLabel="Auto"
-            desktopLabel="Auto"
-            icon={<Zap className="w-[18px] h-[18px] fill-current" />}
-            onClick={autoGeneratePlan}
-            tone="warm-filled"
-            mobileOnly
-            title="Auto-generate a science-backed nutrition plan for this route"
-          />
-          <ActionButton
-            mobileLabel="Share"
-            desktopLabel="Share"
-            icon={<Share2 className="w-[18px] h-[18px]" />}
-            onClick={() => setShareOpen(true)}
-            disabled={routeData.nutritionPoints.length === 0}
-            tone="warm-outline"
-            title="Make a shareable cinematic flyover video of your route + fuel points"
-          />
-          <ActionButton
-            mobileLabel="Export"
-            desktopLabel="Export"
-            icon={<Download className="w-[18px] h-[18px]" />}
-            onClick={() => setExportOpen(true)}
-            disabled={routeData.nutritionPoints.length === 0}
-            tone="primary"
-            title="Export this plan as GPX, PDF, CSV, image…"
-          />
+          <div className="contents sm:flex sm:gap-2">
+            <ActionButton
+              mobileLabel="Auto"
+              desktopLabel="Auto"
+              icon={<Zap className="w-[18px] h-[18px] fill-current" />}
+              onClick={autoGeneratePlan}
+              tone="warm-filled"
+              mobileOnly
+              title="Auto-generate a science-backed nutrition plan for this route"
+            />
+            <ActionButton
+              mobileLabel="Share"
+              desktopLabel="Share"
+              icon={<Share2 className="w-[18px] h-[18px]" />}
+              onClick={() => setShareOpen(true)}
+              disabled={routeData.nutritionPoints.length === 0}
+              tone="warm-outline"
+              title="Make a shareable cinematic flyover video of your route + fuel points"
+            />
+            <ActionButton
+              mobileLabel="Export"
+              desktopLabel="Export"
+              icon={<Download className="w-[18px] h-[18px]" />}
+              onClick={() => setExportOpen(true)}
+              disabled={routeData.nutritionPoints.length === 0}
+              tone="primary"
+              title="Export this plan as GPX, PDF, CSV, image…"
+            />
+          </div>
         </div>
       </div>
 

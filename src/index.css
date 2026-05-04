@@ -122,6 +122,13 @@
     top: calc(var(--mobile-nav-height) + env(safe-area-inset-top, 0px));
   }
 
+  /* Reserve space at the bottom of mobile columns for the fixed
+     ActionBar so its content doesn't sit on top of the elevation panel
+     / nutrition panel. Bar height ≈ 130px on tall iPhones, less on Android. */
+  .pb-mobile-action-bar {
+    padding-bottom: calc(8.25rem + env(safe-area-inset-bottom, 0px));
+  }
+
   /* Prevent scroll chaining into the body when the user scrolls inside a modal. */
   .overscroll-contain {
     overscroll-behavior: contain;
