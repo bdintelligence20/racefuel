@@ -643,24 +643,28 @@ export function MapCanvas() {
           Elevation
         </div>
 
-        {/* Collapse toggle. Bigger touch-target on mobile + visible label
-            when expanded so users can actually find it. */}
-        {showElevation && (
+        {/* Collapsed: small chevron-up to expand. Expanded: large unmissable
+            X close pill at top-right that's bigger than any other UI on the
+            elevation panel. Plus on mobile (lg:hidden) we ALSO put a full-
+            width Close strip right under the chart for redundancy — users
+            were missing the corner button. */}
+        {showElevation && elevationCollapsed && (
           <button
-            onClick={() => setElevationCollapsed(v => !v)}
-            aria-label={elevationCollapsed ? 'Expand elevation profile' : 'Collapse elevation profile'}
-            className={`absolute top-2 right-3 z-20 flex items-center justify-center gap-1.5 rounded-lg bg-surface border border-[var(--color-border)] shadow-md text-text-primary hover:bg-surfaceHighlight active:scale-95 transition-all ${
-              elevationCollapsed ? 'w-9 h-9' : 'h-9 px-3'
-            }`}
+            onClick={() => setElevationCollapsed(false)}
+            aria-label="Expand elevation profile"
+            className="absolute top-2 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-lg bg-surface border border-[var(--color-border)] shadow-md text-text-primary hover:bg-surfaceHighlight active:scale-95 transition-all"
           >
-            {elevationCollapsed ? (
-              <ChevronUp className="w-4 h-4" />
-            ) : (
-              <>
-                <X className="w-4 h-4" strokeWidth={2.5} />
-                <span className="text-[11px] font-display font-bold uppercase tracking-wider">Close</span>
-              </>
-            )}
+            <ChevronUp className="w-4 h-4" />
+          </button>
+        )}
+        {showElevation && !elevationCollapsed && (
+          <button
+            onClick={() => setElevationCollapsed(true)}
+            aria-label="Close elevation profile"
+            className="absolute top-2 right-3 z-30 flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl bg-[#3D2152] text-white shadow-lg hover:bg-[#5C2D6E] active:scale-95 transition-all"
+          >
+            <X className="w-4 h-4" strokeWidth={3} />
+            <span className="text-[11px] font-display font-black uppercase tracking-wider">Close</span>
           </button>
         )}
 

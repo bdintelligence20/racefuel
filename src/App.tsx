@@ -86,10 +86,6 @@ function MobileNav({
   );
 }
 
-// Build marker — set per-build via the comment below for easy bump on every push.
-// Bump this on every commit while we're chasing the cache saga.
-const BUILD_MARKER = 'BUILD-V10-EMBLA';
-
 function AppContent() {
   const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan } = useApp();
   const [mobileTab, setMobileTabState] = useState<MobileTab>(() => {
@@ -103,12 +99,6 @@ function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <div className="flex w-full h-[100dvh] bg-background overflow-hidden font-sans">
-      {/* DIAGNOSTIC BANNER — visible only on mobile so we can tell at a
-          glance whether the device is loading the latest build. Will
-          remove once the cache saga is over. */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-[200] bg-red-500 text-white text-center text-[11px] font-mono font-bold px-2 py-1 pointer-events-none">
-        {BUILD_MARKER}
-      </div>
       <MobileNav
         activeTab={mobileTab}
         setActiveTab={setMobileTab}
