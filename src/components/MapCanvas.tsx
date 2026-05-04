@@ -406,19 +406,19 @@ export function MapCanvas() {
         {/* Map UI Overlays — only show when route is loaded */}
         {routeData.loaded && (
           <>
-            <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-2 pointer-events-auto max-w-[calc(100%-5.5rem)]">
+            <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10 flex flex-wrap gap-1.5 sm:gap-2 pointer-events-auto max-w-[calc(100%-4.5rem)] sm:max-w-[calc(100%-5.5rem)]">
               <button
                 onClick={() => setColorMode('distance')}
                 aria-pressed={routeColorMode === 'distance'}
                 title="Color route by distance"
-                className={`bg-surface rounded-xl px-3 py-2 shadow-md border text-left transition-colors ${
+                className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border text-left transition-colors ${
                   routeColorMode === 'distance'
                     ? 'border-warm ring-1 ring-warm/30'
                     : 'border-[var(--color-border)] hover:border-warm/40'
                 }`}
               >
                 <div className="text-[9px] text-text-muted uppercase tracking-widest font-display">Distance</div>
-                <div className="text-lg font-display font-bold text-text-primary leading-tight">
+                <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight">
                   {routeData.distanceKm.toFixed(1)}<span className="text-xs text-text-muted ml-0.5">km</span>
                 </div>
               </button>
@@ -426,14 +426,14 @@ export function MapCanvas() {
                 onClick={() => setColorMode('elevation')}
                 aria-pressed={routeColorMode === 'elevation'}
                 title="Color route by elevation"
-                className={`bg-surface rounded-xl px-3 py-2 shadow-md border text-left transition-colors ${
+                className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border text-left transition-colors ${
                   routeColorMode === 'elevation'
                     ? 'border-warm ring-1 ring-warm/30'
                     : 'border-[var(--color-border)] hover:border-warm/40'
                 }`}
               >
                 <div className="text-[9px] text-text-muted uppercase tracking-widest font-display">Elevation</div>
-                <div className="text-lg font-display font-bold text-text-primary leading-tight">
+                <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight">
                   {routeData.elevationGain}<span className="text-xs text-text-muted ml-0.5">m</span>
                 </div>
               </button>
@@ -443,7 +443,7 @@ export function MapCanvas() {
                 <button
                   onClick={() => setTimeEditorOpen((v) => !v)}
                   title="Set your expected finish time"
-                  className={`bg-surface rounded-xl px-3 py-2 shadow-md border text-left transition-colors ${
+                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border text-left transition-colors ${
                     routeData.userEstimatedTime
                       ? 'border-warm/60 ring-1 ring-warm/30'
                       : 'border-[var(--color-border)] hover:border-warm/40'
@@ -453,7 +453,7 @@ export function MapCanvas() {
                     <Clock className="w-2.5 h-2.5" />
                     Time {routeData.userEstimatedTime ? '· yours' : '· auto'}
                   </div>
-                  <div className="text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
+                  <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
                     {(() => {
                       const t = routeData.userEstimatedTime || routeData.estimatedTime || '0:00';
                       const parts = t.split(':');
@@ -481,7 +481,7 @@ export function MapCanvas() {
                   type="button"
                   onClick={() => setDateEditorOpen((v) => !v)}
                   title="Set the date you'll do this route — used to pull the right weather forecast"
-                  className={`bg-surface rounded-xl px-3 py-2 shadow-md border text-left transition-colors ${
+                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border text-left transition-colors ${
                     routeData.plannedDate
                       ? 'border-warm/60 ring-1 ring-warm/30'
                       : 'border-[var(--color-border)] hover:border-warm/40'
@@ -491,7 +491,7 @@ export function MapCanvas() {
                     <Calendar className="w-2.5 h-2.5" />
                     Date
                   </div>
-                  <div className="text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
+                  <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
                     {routeData.plannedDate
                       ? new Date(routeData.plannedDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
                       : 'Pick'}
@@ -514,7 +514,7 @@ export function MapCanvas() {
                 <button
                   type="button"
                   onClick={() => setEffortEditorOpen((o) => !o)}
-                  className={`bg-surface rounded-xl px-3 py-2 shadow-md border transition-colors ${
+                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border transition-colors ${
                     routeData.effortLevel != null
                       ? 'border-warm/60 ring-1 ring-warm/30'
                       : 'border-[var(--color-border)] hover:border-warm/40'
@@ -525,7 +525,7 @@ export function MapCanvas() {
                     <Gauge className="w-2.5 h-2.5" />
                     Effort
                   </div>
-                  <div className="text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
+                  <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
                     {routeData.effortLevel != null ? `${routeData.effortLevel}/10` : 'Auto'}
                   </div>
                 </button>
@@ -548,7 +548,7 @@ export function MapCanvas() {
                 <button
                   type="button"
                   onClick={() => setSportEditorOpen((o) => !o)}
-                  className={`bg-surface rounded-xl px-3 py-2 shadow-md border transition-colors ${
+                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border transition-colors ${
                     routeData.routeSport || routeData.routeSurface
                       ? 'border-warm/60 ring-1 ring-warm/30'
                       : 'border-[var(--color-border)] hover:border-warm/40'
@@ -559,7 +559,7 @@ export function MapCanvas() {
                     <Activity className="w-2.5 h-2.5" />
                     Sport
                   </div>
-                  <div className="text-lg font-display font-bold text-text-primary leading-tight">
+                  <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight">
                     {routeData.routeSport
                       ? routeData.routeSport.charAt(0).toUpperCase() + routeData.routeSport.slice(1)
                       : 'Auto'}
@@ -613,14 +613,10 @@ export function MapCanvas() {
       </div>
 
       {/* Mobile-only nutrition strip — sits directly above the elevation
-          profile so dragging onto the chart is a short downward gesture.
-          Hidden on lg+ where the existing NutritionPanel sidebar is visible. */}
-      {showElevation && (
-        <MobileNutritionStrip
-          elevationRef={elevationRef}
-          routeKm={routeData.distanceKm}
-        />
-      )}
+          profile. Drag a card down onto the map to drop a fuel point at the
+          closest position on the route. Hidden on lg+ where the existing
+          NutritionPanel sidebar handles this. */}
+      {showElevation && <MobileNutritionStrip />}
 
       {/* Elevation Profile Panel — only show when route loaded + not drawing */}
       <div
@@ -646,13 +642,20 @@ export function MapCanvas() {
           </button>
         )}
 
-        {/* When collapsed on mobile, show just the label + a compact stat */}
+        {/* When collapsed on mobile, the entire row expands the chart on tap.
+            (Previously only the chevron button toggled, which was a tiny
+            target — easy to miss on a phone.) */}
         {showElevation && elevationCollapsed && (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <button
+            type="button"
+            onClick={() => setElevationCollapsed(false)}
+            aria-label="Expand elevation profile"
+            className="absolute inset-0 flex items-center justify-center hover:bg-surfaceHighlight/40 active:bg-surfaceHighlight/60 transition-colors"
+          >
             <span className="text-[11px] font-display text-text-muted tabular-nums">
               {routeData.distanceKm.toFixed(1)}km · {routeData.elevationGain}m gain · {routeData.estimatedTime}
             </span>
-          </div>
+          </button>
         )}
 
         {/* Expanded elevation content — hidden when collapsed */}
