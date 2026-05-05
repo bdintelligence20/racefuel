@@ -89,9 +89,10 @@
   }
 
   /* Height of the fixed mobile nav — used by offset utilities below.
-     Matches the py-2 + content height from App.tsx MobileNav. */
+     Matches the py-2 (16px) + 44px tap-target content height from
+     App.tsx MobileNav, with a bit of breathing room. */
   :root {
-    --mobile-nav-height: 3.5rem; /* 56px */
+    --mobile-nav-height: 4rem; /* 64px */
   }
 }
 

@@ -423,7 +423,7 @@ export function MapCanvas() {
                     : 'border-[var(--color-border)] hover:border-warm/40'
                 }`}
               >
-                <div className="hidden sm:block text-[9px] text-text-muted uppercase tracking-widest font-display">Distance</div>
+                <div className="text-[8px] sm:text-[9px] text-text-muted uppercase tracking-widest font-display">Distance</div>
                 <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight">
                   {routeData.distanceKm.toFixed(1)}<span className="text-xs text-text-muted ml-0.5">km</span>
                 </div>
@@ -438,7 +438,7 @@ export function MapCanvas() {
                     : 'border-[var(--color-border)] hover:border-warm/40'
                 }`}
               >
-                <div className="hidden sm:block text-[9px] text-text-muted uppercase tracking-widest font-display">Elevation</div>
+                <div className="text-[8px] sm:text-[9px] text-text-muted uppercase tracking-widest font-display">Elevation</div>
                 <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight">
                   {routeData.elevationGain}<span className="text-xs text-text-muted ml-0.5">m</span>
                 </div>
@@ -455,7 +455,7 @@ export function MapCanvas() {
                       : 'border-[var(--color-border)] hover:border-warm/40'
                   }`}
                 >
-                  <div className="hidden sm:flex text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
+                  <div className="flex text-[8px] sm:text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
                     <Clock className="w-2.5 h-2.5" />
                     Time {routeData.userEstimatedTime ? '· yours' : '· auto'}
                   </div>
@@ -493,7 +493,7 @@ export function MapCanvas() {
                       : 'border-[var(--color-border)] hover:border-warm/40'
                   }`}
                 >
-                  <div className="hidden sm:flex text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
+                  <div className="flex text-[8px] sm:text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
                     <Calendar className="w-2.5 h-2.5" />
                     Date
                   </div>
@@ -527,7 +527,7 @@ export function MapCanvas() {
                   }`}
                   title="Set perceived effort for this run — 5/10 for training, 8/10 for race"
                 >
-                  <div className="hidden sm:flex text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
+                  <div className="flex text-[8px] sm:text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
                     <Gauge className="w-2.5 h-2.5" />
                     Effort
                   </div>
@@ -561,7 +561,7 @@ export function MapCanvas() {
                   }`}
                   title="Sport and surface for this route — drives the time estimate"
                 >
-                  <div className="hidden sm:flex text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
+                  <div className="flex text-[8px] sm:text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
                     <Activity className="w-2.5 h-2.5" />
                     Sport
                   </div>
@@ -630,10 +630,15 @@ export function MapCanvas() {
           NutritionPanel sidebar handles this. */}
       {showElevation && <MobileNutritionStrip />}
 
-      {/* Elevation Profile Panel — only show when route loaded + not drawing */}
+      {/* Elevation Profile Panel — only show when route loaded + not drawing.
+          overflow-hidden + max-w-full on the panel itself: the chart SVG
+          uses preserveAspectRatio="none" and absolute-positioned hover
+          labels/markers that can render past the viewBox bounds; without
+          clipping at the panel level they push the panel laterally past
+          the viewport edge, taking the Close button off-screen with them. */}
       <div
         ref={elevationRef}
-        className={`bg-surface relative group border-t border-[var(--color-border)] transition-[height] duration-200 ${
+        className={`bg-surface relative group border-t border-[var(--color-border)] transition-[height] duration-200 max-w-full overflow-x-hidden ${
           showElevation
             ? (elevationCollapsed ? 'h-9' : 'h-32 sm:h-40 lg:h-48')
             : 'h-0 overflow-hidden border-t-0'

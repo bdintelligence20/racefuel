@@ -131,17 +131,19 @@ function AppContent() {
           both column layouts so nothing inside MapCanvas (chips, strip,
           elevation) and nothing inside NutritionPanel can affect its
           width / visibility. Single render across both tabs. Desktop
-          (lg+) has its own ActionBar copy inside the Map column. */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 safe-bottom-zero pointer-events-auto">
+          (lg+) has its own ActionBar copy inside the Map column. Hidden
+          while the sidebar drawer is open so its z-40 doesn't cover the
+          sidebar's footer (sign-out / theme / reset). */}
+      <div className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 safe-bottom-zero pointer-events-auto ${sidebarOpen ? 'hidden' : ''}`}>
         <ActionBar />
       </div>
 
       {/* Map column. pb-mobile-action-bar leaves room for the fixed
           ActionBar above so the elevation panel + strip aren't covered. */}
-      <div className={`flex-1 flex flex-col relative pt-mobile-nav lg:pt-0 pb-mobile-action-bar lg:pb-0 ${mobileTab === 'map' ? 'flex' : 'hidden lg:flex'}`}>
+      <div className={`flex-1 min-w-0 flex flex-col relative overflow-x-hidden pt-mobile-nav lg:pt-0 pb-mobile-action-bar lg:pb-0 ${mobileTab === 'map' ? 'flex' : 'hidden lg:flex'}`}>
         <ErrorBoundary>
           <Suspense fallback={<MapLoadingFallback />}>
-            <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
               <MapCanvas />
             </div>
           </Suspense>
