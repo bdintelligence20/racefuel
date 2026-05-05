@@ -327,6 +327,12 @@ export function materialisePlacements(
   raw: AgentOutput,
   catalog: ProductProps[],
   distanceKm: number,
+  /** Hard ceiling on total carbs. Placements that would push us above it
+   *  are skipped (the model occasionally overshoots, e.g. recommending
+   *  60 g/h but placing enough product for 100+ g/h — without this the
+   *  PlanStrategyModal "Plan: X g/h" sub-line drifts way past the
+   *  headline target). Optional for backward compat with tests. */
+  maxTotalCarbsG?: number,
 ): { points: NutritionPoint[]; totals: { carbs: number; sodium: number; caffeine: number; calories: number } } {
   const byId = new Map(catalog.map((p) => [p.id, p]));
   const points: NutritionPoint[] = [];
@@ -336,6 +342,10 @@ export function materialisePlacements(
     const product = byId.get(p.productId);
     if (!product) continue;
     if (p.distanceKm < 0 || p.distanceKm > distanceKm) continue;
+    // Allow a small overshoot (single-product granularity) but cap there.
+    if (maxTotalCarbsG != null && totals.carbs + product.carbs > maxTotalCarbsG + 5) {
+      continue;
+    }
     points.push({
       id: nanoid(),
       distanceKm: Math.round(p.distanceKm * 10) / 10,
@@ -487,7 +497,10 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
     return null;
   }
 
-  const { points, totals } = materialisePlacements(parsed, sourceCatalog, distanceKm);
+  // Cap the LLM's total carbs at the gut-tier max — placements past that
+  // get dropped rather than blowing the headline target.
+  const maxTotalCarbsG = Math.round(carbTarget.max * durationHours);
+  const { points, totals } = materialisePlacements(parsed, sourceCatalog, distanceKm, maxTotalCarbsG);
   if (points.length === 0) {
     console.warn('[FuelCue planner] zero valid placements, falling back');
     return null;
