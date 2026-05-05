@@ -1,6 +1,7 @@
 import type * as mapboxgl from 'mapbox-gl';
 import { RouteData } from '../../context/AppContext';
 import { buildCumDist, sampleAt } from '../flyover/geometry';
+import { downloadFile } from './downloadFile';
 
 export type ImageDimension = 'square' | 'landscape' | 'portrait';
 
@@ -210,14 +211,8 @@ export async function exportMapImage(
   const blob = await new Promise<Blob>((resolve, reject) => {
     outputCanvas.toBlob(b => b ? resolve(b) : reject(new Error('Failed to export image')), 'image/png', 1.0);
   });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${(routeData.name || 'fuelcue').replace(/\s+/g, '_')}_map_${dimension}.png`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const filename = `${(routeData.name || 'fuelcue').replace(/\s+/g, '_')}_map_${dimension}.png`;
+  await downloadFile(blob, filename, 'image/png');
 }
 
 export { dimensionMap, drawAspectCover, transformPoint, drawWaypointMarkers };

@@ -1,4 +1,5 @@
 import { RouteData, GpsPoint } from '../../context/AppContext';
+import { downloadFile } from './downloadFile';
 
 function escapeXml(str: string): string {
   return str
@@ -91,12 +92,6 @@ export function generateGpx(routeData: RouteData): string {
 export function downloadGpx(routeData: RouteData): void {
   const gpxContent = generateGpx(routeData);
   const blob = new Blob([gpxContent], { type: 'application/gpx+xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${(routeData.name || 'racefuel-plan').replace(/\s+/g, '_')}_nutrition.gpx`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const filename = `${(routeData.name || 'racefuel-plan').replace(/\s+/g, '_')}_nutrition.gpx`;
+  void downloadFile(blob, filename, 'application/gpx+xml');
 }

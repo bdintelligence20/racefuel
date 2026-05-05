@@ -5,6 +5,7 @@ import { X, Video, Play, Square, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { useModalBehavior } from '../../hooks/useModalBehavior';
 import { useApp } from '../../context/AppContext';
+import { downloadFile } from '../../services/export/downloadFile';
 import {
   setupFlyover,
   teardownFlyover,
@@ -469,14 +470,8 @@ export function FlyoverExportModal({ isOpen, onClose }: FlyoverExportModalProps)
       return;
     }
 
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${(routeData.name || 'flyover').replace(/\s+/g, '_')}_${aspect}.${ext}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const filename = `${(routeData.name || 'flyover').replace(/\s+/g, '_')}_${aspect}.${ext}`;
+    await downloadFile(blob, filename, mimeType);
 
     toast.success(`Video downloaded (${ext.toUpperCase()} · ${hdW}×${hdH})`);
   }, [aspect, meta, routeData.name, routeData.distanceKm, routeData.elevationGain, routeData.nutritionPoints.length]);

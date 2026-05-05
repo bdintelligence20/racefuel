@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { RouteData } from '../../context/AppContext';
+import { downloadFile } from './downloadFile';
 
 export function downloadPdf(routeData: RouteData): void {
   const { name, distanceKm, elevationGain, estimatedTime, nutritionPoints } = routeData;
@@ -193,6 +194,10 @@ export function downloadPdf(routeData: RouteData): void {
     );
   }
 
-  // Download
-  doc.save(`${(name || 'racefuel-plan').replace(/\s+/g, '_')}_raceday.pdf`);
+  // Download — use our cross-platform helper instead of doc.save() so the
+  // mobile share-sheet path kicks in (jsPDF.save uses the anchor pattern
+  // which iOS Safari ignores for Blob URLs).
+  const blob = doc.output('blob');
+  const filename = `${(name || 'racefuel-plan').replace(/\s+/g, '_')}_raceday.pdf`;
+  void downloadFile(blob, filename, 'application/pdf');
 }

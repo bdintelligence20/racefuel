@@ -1,4 +1,5 @@
 import { RouteData } from '../../context/AppContext';
+import { downloadFile } from './downloadFile';
 
 function escapeCsv(val: string): string {
   if (val.includes(',') || val.includes('"') || val.includes('\n')) {
@@ -83,12 +84,6 @@ export function generateCsv(routeData: RouteData): string {
 export function downloadCsv(routeData: RouteData): void {
   const csvContent = generateCsv(routeData);
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `${(routeData.name || 'racefuel-plan').replace(/\s+/g, '_')}_nutrition.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  const filename = `${(routeData.name || 'racefuel-plan').replace(/\s+/g, '_')}_nutrition.csv`;
+  void downloadFile(blob, filename, 'text/csv');
 }
