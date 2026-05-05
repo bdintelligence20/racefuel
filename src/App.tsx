@@ -16,6 +16,7 @@ import { PlanStrategyModal } from './components/PlanStrategyModal';
 import { CheckoutTest } from './components/CheckoutTest';
 import { PaymentCallback } from './components/PaymentCallback';
 import { AdminOrders } from './components/AdminOrders';
+import { MobilePreview } from './dev/MobilePreview';
 import { Menu, X, Map, Package } from 'lucide-react';
 
 const MapCanvas = lazy(() =>
@@ -89,6 +90,11 @@ function MobileNav({
 function AppContent() {
   const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan } = useApp();
   const [mobileTab, setMobileTabState] = useState<MobileTab>(() => {
+    // Allow dev preview to deep-link to a specific tab via ?mobileTab=...
+    if (import.meta.env.DEV) {
+      const fromQuery = new URLSearchParams(window.location.search).get('mobileTab');
+      if (fromQuery === 'map' || fromQuery === 'nutrition') return fromQuery;
+    }
     const stored = localStorage.getItem('fuelcue_mobile_tab');
     return stored === 'nutrition' ? 'nutrition' : 'map';
   });
@@ -230,7 +236,7 @@ function AuthGate() {
   }, [pathname]);
 
   // Redirect unknown paths to landing
-  const KNOWN_PATHS = ['/', '/app', '/checkout-test', '/payment-callback', '/admin/orders', ''];
+  const KNOWN_PATHS = ['/', '/app', '/checkout-test', '/payment-callback', '/admin/orders', '/dev/preview', ''];
   useEffect(() => {
     if (!KNOWN_PATHS.includes(pathname)) {
       window.history.replaceState({}, '', '/');
@@ -238,6 +244,13 @@ function AuthGate() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+
+  // Dev-only mobile preview harness — renders the SPA inside a phone-sized
+  // iframe with a device frame so we can iterate on mobile UX without
+  // deploy/reload cycles. See src/dev/MobilePreview.tsx.
+  if (import.meta.env.DEV && pathname === '/dev/preview') {
+    return <MobilePreview />;
+  }
 
   // Landing page is public — /
   if (pathname === '/' || pathname === '') {

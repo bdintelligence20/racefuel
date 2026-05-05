@@ -55,6 +55,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Dev-only auth bypass for local mobile testing. Adding `?devbypass=1`
+    // to any URL in dev mode (or on localhost) mocks a signed-in user so
+    // we can iterate on /app and the mobile UX without going through
+    // Google sign-in. Persists in localStorage so subsequent reloads /
+    // navigations keep the bypass active. Toggle off by visiting
+    // `?devbypass=0`.
+    if (import.meta.env.DEV) {
+      const params = new URLSearchParams(window.location.search);
+      const explicit = params.get('devbypass');
+      if (explicit === '0') {
+        localStorage.removeItem('fuelcue_dev_bypass');
+      } else if (explicit === '1') {
+        localStorage.setItem('fuelcue_dev_bypass', '1');
+      }
+      const bypass = localStorage.getItem('fuelcue_dev_bypass') === '1';
+      if (bypass) {
+        setUser({
+          uid: 'dev-user',
+          email: 'dev@fuelcue.local',
+          emailVerified: true,
+          displayName: 'Dev Tester',
+          isAnonymous: false,
+          providerData: [],
+          metadata: {} as any,
+          phoneNumber: null,
+          photoURL: null,
+          providerId: 'firebase',
+          tenantId: null,
+          refreshToken: '',
+          delete: async () => {},
+          getIdToken: async () => 'dev-token',
+          getIdTokenResult: async () => ({} as any),
+          reload: async () => {},
+          toJSON: () => ({}),
+        } as unknown as User);
+        setLoading(false);
+        return;
+      }
+    }
+
     const unsubscribe = onAuthChange((u) => {
       setUser(u);
       setLoading(false);

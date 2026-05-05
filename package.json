@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "npx vite",
+    "dev:mobile": "npx vite --host --port 5173",
+    "preview:mobile": "echo '\\n→ open http://localhost:5173/dev/preview to view the desktop iframe phone-emulator\\n→ on a real phone on the same network: open the LAN URL printed by Vite, then add ?devbypass=1\\n' && npx vite --host --port 5173",
     "build": "node scripts/generate-xml-feed.mjs && npx vite build",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "preview": "npx vite preview",
