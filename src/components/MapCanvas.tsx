@@ -2,7 +2,7 @@ import { useRef, useMemo, useState, useCallback } from 'react';
 import { GpxDropZone } from './GpxDropZone';
 import { AutoGenerateButton } from './AutoGenerateButton';
 import { MapView } from './MapView';
-import { Navigation, Trash2, ChevronUp, Clock, Calendar, Gauge, Activity, X } from 'lucide-react';
+import { Navigation, Trash2, ChevronUp, ChevronDown, Clock, Calendar, Gauge, Activity, X, Settings2, Ruler, Mountain } from 'lucide-react';
 import { EstimatedTimeEditor } from './EstimatedTimeEditor';
 import { EffortEditor } from './EffortEditor';
 import { DateEditor } from './DateEditor';
@@ -22,6 +22,28 @@ function elevationToY(elev: number, minElev: number, maxElev: number): number {
   const range = maxElev - minElev || 1;
   return 10 + 120 - ((elev - minElev) / range) * 120;
 }
+
+/** Stat chip styling — shared across the 6 chips so mobile rows / desktop
+ *  cards stay in sync. Mobile: tight full-width row, label on left, value
+ *  on right (kept short so all 6 + an inline editor fit between the map
+ *  top and the fuel strip). Desktop (lg+): compact card, label above
+ *  value. */
+function chipClass(active: boolean): string {
+  return [
+    'bg-surface shadow-sm border transition-colors text-left',
+    // Mobile row layout — compact
+    'w-full flex items-center justify-between gap-2 px-2.5 py-1 rounded-md',
+    // Desktop card layout — overrides mobile
+    'lg:shadow-md lg:w-auto lg:flex-shrink-0 lg:block lg:gap-0 lg:px-3 lg:py-2 lg:rounded-xl',
+    active
+      ? 'border-warm ring-1 ring-warm/30'
+      : 'border-[var(--color-border)] hover:border-warm/40',
+  ].join(' ');
+}
+const chipLabelClass =
+  'flex items-center gap-1 text-[10px] lg:text-[9px] text-text-muted uppercase tracking-wider lg:tracking-widest font-display font-semibold lg:font-normal';
+const chipValueClass =
+  'text-[13px] lg:text-lg font-display font-bold text-text-primary leading-tight';
 
 function ElevationProfile() {
   const { routeData, routeAnalysis, addNutritionPoint, moveNutritionPoint, removeNutritionPoint } = useApp();
@@ -318,8 +340,10 @@ function ElevationProfile() {
           </div>
         </div>
 
-        {/* Gain/Loss totals (top-right) */}
-        <div className="absolute top-2 right-3 flex items-center gap-2 z-10">
+        {/* Gain/Loss totals (top-right). Pushed left to clear the panel's
+            Close button (w-9 mobile, w-auto labelled pill desktop) which
+            also sits at top-2 right-3 with z-30 above us. */}
+        <div className="absolute top-2 right-14 lg:right-32 flex items-center gap-2 z-10">
           <div className="flex items-center gap-1 bg-surface border border-warm/20 rounded-md px-2 py-1 shadow-sm">
             <span className="text-[9px] font-display text-text-muted uppercase tracking-wider">Gain</span>
             <span className="text-[11px] font-display font-bold text-warm tabular-nums">+{totalGain}m</span>
@@ -377,6 +401,17 @@ export function MapCanvas() {
   const [effortEditorOpen, setEffortEditorOpen] = useState(false);
   const [dateEditorOpen, setDateEditorOpen] = useState(false);
   const [sportEditorOpen, setSportEditorOpen] = useState(false);
+  // Mobile-only — controls the Config accordion that wraps the 6 stat chips.
+  // Desktop ignores this and renders the chips inline. Closed by default so
+  // the map isn't covered on first load. Auto-closes the per-chip popovers
+  // when the accordion collapses so they don't linger off-screen.
+  const [configOpen, setConfigOpen] = useState(false);
+  const closeAllChipPopovers = () => {
+    setTimeEditorOpen(false);
+    setEffortEditorOpen(false);
+    setDateEditorOpen(false);
+    setSportEditorOpen(false);
+  };
   const [elevationCollapsed, setElevationCollapsed] = useState<boolean>(() => {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(max-width: 767px)').matches;
@@ -406,66 +441,100 @@ export function MapCanvas() {
         {/* Map UI Overlays — only show when route is loaded */}
         {routeData.loaded && (
           <>
-            {/* Stat chips: single horizontal scrollable strip on mobile so
-                all six (Distance, Elevation, Time, Date, Effort, Sport) are
-                always reachable; flex-wrap on desktop where there's room. */}
-            <div
-              className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10 flex flex-nowrap sm:flex-wrap gap-1.5 sm:gap-2 pointer-events-auto max-w-[calc(100%-4.5rem)] sm:max-w-[calc(100%-5.5rem)] overflow-x-auto sm:overflow-visible no-scrollbar"
-              style={{ touchAction: 'pan-x', WebkitOverflowScrolling: 'touch' }}
-            >
+            {/* Stat chips. Two layouts:
+                - Mobile: a single Config button that toggles a vertical
+                  accordion of all 6 chips. Replaces the old horizontal
+                  scroll strip (users were missing chips off-screen).
+                - Desktop (lg+): inline flex-wrap strip — there's room. */}
+            <div className="absolute top-2 left-2 sm:top-3 sm:left-3 z-10 pointer-events-auto max-w-[calc(100%-4.5rem)] sm:max-w-[calc(100%-5.5rem)]">
+              {/* Mobile-only Config toggle. Tapping opens the accordion. */}
+              <button
+                type="button"
+                onClick={() => {
+                  setConfigOpen((o) => {
+                    if (o) closeAllChipPopovers();
+                    return !o;
+                  });
+                }}
+                aria-expanded={configOpen}
+                aria-controls="route-config-panel"
+                className={`lg:hidden flex items-center gap-1.5 bg-surface rounded-md px-2 py-1 shadow-sm border transition-colors ${
+                  configOpen ? 'border-warm ring-1 ring-warm/30' : 'border-[var(--color-border)]'
+                }`}
+              >
+                <Settings2 className="w-3.5 h-3.5 text-warm" />
+                <span className="text-[11px] font-display font-semibold uppercase tracking-wider text-text-primary">Config</span>
+                <span className="text-[10px] font-display tabular-nums text-text-muted ml-0.5">
+                  {routeData.distanceKm.toFixed(1)}km · {routeData.elevationGain}m
+                </span>
+                {configOpen
+                  ? <ChevronUp className="w-3.5 h-3.5 text-text-muted" />
+                  : <ChevronDown className="w-3.5 h-3.5 text-text-muted" />}
+              </button>
+
+              {/* Chip container. Two layouts driven entirely by responsive
+                  classes on each chip:
+                  - Mobile: vertical stack, full-width rows (icon+label left,
+                    value right). Each chip's editor is rendered inline (the
+                    editor's root flips from `absolute` to `relative` at <lg)
+                    so opening one pushes the rest of the accordion down
+                    instead of overlaying it.
+                  - Desktop (lg+): horizontal flex-wrap strip; chips are
+                    compact cards (label above value); editors pop out
+                    absolutely below their chip. */}
+              <div
+                id="route-config-panel"
+                className={`mt-1 lg:mt-0 flex-col gap-1 lg:flex lg:flex-row lg:flex-wrap lg:gap-2 w-[calc(100vw-1rem)] sm:w-72 lg:w-auto ${
+                  configOpen ? 'flex' : 'hidden lg:flex'
+                }`}
+              >
               <button
                 onClick={() => setColorMode('distance')}
                 aria-pressed={routeColorMode === 'distance'}
                 title="Color route by distance"
-                className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border flex-shrink-0 text-left transition-colors ${
-                  routeColorMode === 'distance'
-                    ? 'border-warm ring-1 ring-warm/30'
-                    : 'border-[var(--color-border)] hover:border-warm/40'
-                }`}
+                className={`${chipClass(routeColorMode === 'distance')}`}
               >
-                <div className="text-[8px] sm:text-[9px] text-text-muted uppercase tracking-widest font-display">Distance</div>
-                <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight">
+                <span className={chipLabelClass}>
+                  <Ruler className="w-3 h-3 lg:w-2.5 lg:h-2.5" />
+                  Distance
+                </span>
+                <span className={chipValueClass}>
                   {routeData.distanceKm.toFixed(1)}<span className="text-xs text-text-muted ml-0.5">km</span>
-                </div>
+                </span>
               </button>
               <button
                 onClick={() => setColorMode('elevation')}
                 aria-pressed={routeColorMode === 'elevation'}
                 title="Color route by elevation"
-                className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border flex-shrink-0 text-left transition-colors ${
-                  routeColorMode === 'elevation'
-                    ? 'border-warm ring-1 ring-warm/30'
-                    : 'border-[var(--color-border)] hover:border-warm/40'
-                }`}
+                className={`${chipClass(routeColorMode === 'elevation')}`}
               >
-                <div className="text-[8px] sm:text-[9px] text-text-muted uppercase tracking-widest font-display">Elevation</div>
-                <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight">
+                <span className={chipLabelClass}>
+                  <Mountain className="w-3 h-3 lg:w-2.5 lg:h-2.5" />
+                  Elevation
+                </span>
+                <span className={chipValueClass}>
                   {routeData.elevationGain}<span className="text-xs text-text-muted ml-0.5">m</span>
-                </div>
+                </span>
               </button>
 
               {/* Expected time — tap to edit */}
-              <div className="relative">
+              <div className="relative w-full lg:w-auto">
                 <button
                   onClick={() => setTimeEditorOpen((v) => !v)}
                   title="Set your expected finish time"
-                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border flex-shrink-0 text-left transition-colors ${
-                    routeData.userEstimatedTime
-                      ? 'border-warm/60 ring-1 ring-warm/30'
-                      : 'border-[var(--color-border)] hover:border-warm/40'
-                  }`}
+                  className={`${chipClass(Boolean(routeData.userEstimatedTime))}`}
                 >
-                  <div className="flex text-[8px] sm:text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
-                    <Clock className="w-2.5 h-2.5" />
+                  <span className={chipLabelClass}>
+                    <Clock className="w-3 h-3 lg:w-2.5 lg:h-2.5" />
                     Time {routeData.userEstimatedTime ? '· yours' : '· auto'}
-                  </div>
-                  <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
+                  </span>
+                  <span className={`${chipValueClass} tabular-nums`}>
                     {(() => {
                       const t = routeData.userEstimatedTime || routeData.estimatedTime || '0:00';
                       const parts = t.split(':');
                       return `${parseInt(parts[0] || '0', 10)}:${(parts[1] || '00').padStart(2, '0')}`;
                     })()}
-                  </div>
+                  </span>
                 </button>
                 {timeEditorOpen && (
                   <EstimatedTimeEditor
@@ -482,26 +551,22 @@ export function MapCanvas() {
                   and Effort chips. Native <input type="date"> proved too
                   unreliable across Safari/iOS; a controlled popover we render
                   ourselves works everywhere. */}
-              <div className="relative">
+              <div className="relative w-full lg:w-auto">
                 <button
                   type="button"
                   onClick={() => setDateEditorOpen((v) => !v)}
                   title="Set the date you'll do this route — used to pull the right weather forecast"
-                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border flex-shrink-0 text-left transition-colors ${
-                    routeData.plannedDate
-                      ? 'border-warm/60 ring-1 ring-warm/30'
-                      : 'border-[var(--color-border)] hover:border-warm/40'
-                  }`}
+                  className={`${chipClass(Boolean(routeData.plannedDate))}`}
                 >
-                  <div className="flex text-[8px] sm:text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
-                    <Calendar className="w-2.5 h-2.5" />
+                  <span className={chipLabelClass}>
+                    <Calendar className="w-3 h-3 lg:w-2.5 lg:h-2.5" />
                     Date
-                  </div>
-                  <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
+                  </span>
+                  <span className={`${chipValueClass} tabular-nums`}>
                     {routeData.plannedDate
                       ? new Date(routeData.plannedDate + 'T00:00:00').toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
                       : 'Pick'}
-                  </div>
+                  </span>
                 </button>
                 {dateEditorOpen && (
                   <DateEditor
@@ -516,24 +581,20 @@ export function MapCanvas() {
               </div>
 
               {/* Effort level — 1–10 perceived effort, overrides inferred intensity */}
-              <div className="relative">
+              <div className="relative w-full lg:w-auto">
                 <button
                   type="button"
                   onClick={() => setEffortEditorOpen((o) => !o)}
-                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border flex-shrink-0 transition-colors ${
-                    routeData.effortLevel != null
-                      ? 'border-warm/60 ring-1 ring-warm/30'
-                      : 'border-[var(--color-border)] hover:border-warm/40'
-                  }`}
+                  className={`${chipClass(routeData.effortLevel != null)}`}
                   title="Set perceived effort for this run — 5/10 for training, 8/10 for race"
                 >
-                  <div className="flex text-[8px] sm:text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
-                    <Gauge className="w-2.5 h-2.5" />
+                  <span className={chipLabelClass}>
+                    <Gauge className="w-3 h-3 lg:w-2.5 lg:h-2.5" />
                     Effort
-                  </div>
-                  <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight tabular-nums">
+                  </span>
+                  <span className={`${chipValueClass} tabular-nums`}>
                     {routeData.effortLevel != null ? `${routeData.effortLevel}/10` : 'Auto'}
-                  </div>
+                  </span>
                 </button>
                 {effortEditorOpen && (
                   <EffortEditor
@@ -550,29 +611,25 @@ export function MapCanvas() {
               {/* Route sport / surface — drives the unified time estimator.
                   Mountain/hike routes look very different in pace from a road
                   run; this chip is what makes a 176km UTMB import sensible. */}
-              <div className="relative">
+              <div className="relative w-full lg:w-auto">
                 <button
                   type="button"
                   onClick={() => setSportEditorOpen((o) => !o)}
-                  className={`bg-surface rounded-lg sm:rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 shadow-md border flex-shrink-0 transition-colors ${
-                    routeData.routeSport || routeData.routeSurface
-                      ? 'border-warm/60 ring-1 ring-warm/30'
-                      : 'border-[var(--color-border)] hover:border-warm/40'
-                  }`}
+                  className={`${chipClass(Boolean(routeData.routeSport || routeData.routeSurface))}`}
                   title="Sport and surface for this route — drives the time estimate"
                 >
-                  <div className="flex text-[8px] sm:text-[9px] text-text-muted uppercase tracking-widest font-display items-center gap-1">
-                    <Activity className="w-2.5 h-2.5" />
+                  <span className={chipLabelClass}>
+                    <Activity className="w-3 h-3 lg:w-2.5 lg:h-2.5" />
                     Sport
-                  </div>
-                  <div className="text-sm sm:text-lg font-display font-bold text-text-primary leading-tight">
+                  </span>
+                  <span className={chipValueClass}>
                     {routeData.routeSport
                       ? routeData.routeSport.charAt(0).toUpperCase() + routeData.routeSport.slice(1)
                       : 'Auto'}
                     {routeData.routeSurface && (
                       <span className="text-xs text-text-muted ml-1">/ {routeData.routeSurface}</span>
                     )}
-                  </div>
+                  </span>
                 </button>
                 {sportEditorOpen && (
                   <RouteSportEditor
@@ -583,6 +640,7 @@ export function MapCanvas() {
                     onClose={() => setSportEditorOpen(false)}
                   />
                 )}
+              </div>
               </div>
             </div>
 
@@ -648,44 +706,33 @@ export function MapCanvas() {
           Elevation
         </div>
 
-        {/* Collapsed: small chevron-up to expand. Expanded: large unmissable
-            X close pill at top-right that's bigger than any other UI on the
-            elevation panel. Plus on mobile (lg:hidden) we ALSO put a full-
-            width Close strip right under the chart for redundancy — users
-            were missing the corner button. */}
-        {showElevation && elevationCollapsed && (
-          <button
-            onClick={() => setElevationCollapsed(false)}
-            aria-label="Expand elevation profile"
-            className="absolute top-2 right-3 z-20 w-9 h-9 flex items-center justify-center rounded-lg bg-surface border border-[var(--color-border)] shadow-md text-text-primary hover:bg-surfaceHighlight active:scale-95 transition-all"
-          >
-            <ChevronUp className="w-4 h-4" />
-          </button>
-        )}
+        {/* Collapsed state: the entire h-9 strip is one tap target. The
+            chevron-up sits *inside* the row at the right edge, so it can't
+            overflow the strip's bounds (the old standalone w-9 h-9 button
+            at top-2 hung 8px past the strip and overlapped whatever was
+            below). Expanded state: X close pill stays at top-right. */}
         {showElevation && !elevationCollapsed && (
           <button
             onClick={() => setElevationCollapsed(true)}
             aria-label="Close elevation profile"
-            className="absolute top-2 right-3 z-30 flex items-center justify-center gap-1.5 h-10 px-4 rounded-xl bg-[#3D2152] text-white shadow-lg hover:bg-[#5C2D6E] active:scale-95 transition-all"
+            className="absolute top-2 right-3 z-30 flex items-center justify-center rounded-lg lg:rounded-xl bg-[#3D2152] text-white shadow-lg hover:bg-[#5C2D6E] active:scale-95 transition-all w-9 h-9 lg:w-auto lg:h-10 lg:px-4 lg:gap-1.5"
           >
             <X className="w-4 h-4" strokeWidth={3} />
-            <span className="text-[11px] font-display font-black uppercase tracking-wider">Close</span>
+            <span className="hidden lg:inline text-[11px] font-display font-black uppercase tracking-wider">Close</span>
           </button>
         )}
 
-        {/* When collapsed on mobile, the entire row expands the chart on tap.
-            (Previously only the chevron button toggled, which was a tiny
-            target — easy to miss on a phone.) */}
         {showElevation && elevationCollapsed && (
           <button
             type="button"
             onClick={() => setElevationCollapsed(false)}
             aria-label="Expand elevation profile"
-            className="absolute inset-0 flex items-center justify-center hover:bg-surfaceHighlight/40 active:bg-surfaceHighlight/60 transition-colors"
+            className="absolute inset-0 flex items-center justify-center pl-24 pr-3 gap-2 hover:bg-surfaceHighlight/40 active:bg-surfaceHighlight/60 transition-colors"
           >
-            <span className="text-[11px] font-display text-text-muted tabular-nums">
+            <span className="text-[11px] font-display text-text-muted tabular-nums truncate">
               {routeData.distanceKm.toFixed(1)}km · {routeData.elevationGain}m gain · {routeData.estimatedTime}
             </span>
+            <ChevronUp className="w-3.5 h-3.5 text-text-muted flex-shrink-0" aria-hidden="true" />
           </button>
         )}
 

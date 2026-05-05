@@ -87,6 +87,31 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
       map.current.on('load', () => {
         setMapReady(true);
         if (map.current) registerMap(map.current);
+
+        // If no route is loaded yet, try the browser's geolocation API
+        // and recenter on the user. The Cape Town fallback above kicks
+        // in immediately so the map paints something while we wait for
+        // permission. We only auto-recenter when there's no route — once
+        // a GPS path is loaded, fitBounds takes over below.
+        if (!gpsPath || gpsPath.length === 0) {
+          if ('geolocation' in navigator) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                if (!map.current) return;
+                // Skip if a route has been loaded in the meantime — the
+                // route effect's fitBounds is the source of truth then.
+                if (map.current.getSource('route')) return;
+                map.current.flyTo({
+                  center: [pos.coords.longitude, pos.coords.latitude],
+                  zoom: 12,
+                  essential: true,
+                });
+              },
+              () => { /* permission denied / unavailable — keep fallback center */ },
+              { enableHighAccuracy: false, timeout: 5000, maximumAge: 5 * 60 * 1000 }
+            );
+          }
+        }
       });
 
       map.current.on('error', (e) => {

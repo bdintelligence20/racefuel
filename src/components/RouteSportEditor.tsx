@@ -47,20 +47,20 @@ export function RouteSportEditor({ sport, surface, onSaveSport, onSaveSurface, o
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 w-60 max-w-[calc(100vw-1.5rem)]"
+      className="relative lg:absolute lg:top-full lg:left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-lg lg:rounded-xl shadow-md lg:shadow-xl p-2 lg:p-3 w-full lg:w-60 lg:max-w-[calc(100vw-1.5rem)]"
     >
-      <div className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider mb-2">
+      <div className="hidden lg:block text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider mb-2">
         Route sport &amp; surface
       </div>
 
-      <div className="text-[9px] text-text-muted font-display uppercase tracking-wider mb-1">Sport</div>
-      <div className="grid grid-cols-3 gap-1 mb-3">
+      <div className="text-[9px] text-text-muted font-display uppercase tracking-wider mb-0.5 lg:mb-1">Sport</div>
+      <div className="grid grid-cols-3 gap-1 mb-2 lg:mb-3">
         {SPORTS.map((s) => (
           <button
             key={s.value}
             type="button"
             onClick={() => onSaveSport(s.value)}
-            className={`py-1.5 rounded-md text-xs font-display font-semibold transition-colors ${
+            className={`py-1 lg:py-1.5 rounded-md text-[11px] lg:text-xs font-display font-semibold transition-colors ${
               sport === s.value
                 ? 'bg-warm text-white'
                 : 'bg-surfaceHighlight text-text-secondary hover:bg-warm/[0.08]'
@@ -71,14 +71,14 @@ export function RouteSportEditor({ sport, surface, onSaveSport, onSaveSurface, o
         ))}
       </div>
 
-      <div className="text-[9px] text-text-muted font-display uppercase tracking-wider mb-1">Surface</div>
+      <div className="text-[9px] text-text-muted font-display uppercase tracking-wider mb-0.5 lg:mb-1">Surface</div>
       <div className="grid grid-cols-3 gap-1">
         {SURFACES.map((s) => (
           <button
             key={s.value}
             type="button"
             onClick={() => onSaveSurface(s.value)}
-            className={`py-1.5 rounded-md text-xs font-display font-semibold transition-colors ${
+            className={`py-1 lg:py-1.5 rounded-md text-[11px] lg:text-xs font-display font-semibold transition-colors ${
               (surface ?? 'road') === s.value
                 ? 'bg-accent text-white'
                 : 'bg-surfaceHighlight text-text-secondary hover:bg-accent/[0.08]'
@@ -89,21 +89,21 @@ export function RouteSportEditor({ sport, surface, onSaveSport, onSaveSurface, o
         ))}
       </div>
 
-      <div className="mt-3 flex gap-2">
+      <div className="mt-2 lg:mt-3 flex gap-1.5 lg:gap-2">
         <button
           type="button"
           onClick={() => {
             onSaveSport(undefined);
             onSaveSurface(undefined);
           }}
-          className="flex-1 py-1.5 rounded-md text-[10px] font-display font-semibold uppercase tracking-wider text-text-muted hover:text-text-primary border border-[var(--color-border)] hover:bg-surfaceHighlight transition-colors"
+          className="flex-1 py-1 lg:py-1.5 rounded-md text-[10px] font-display font-semibold uppercase tracking-wider text-text-muted hover:text-text-primary border border-[var(--color-border)] hover:bg-surfaceHighlight transition-colors"
         >
           Auto
         </button>
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 py-1.5 rounded-md text-[10px] font-display font-semibold uppercase tracking-wider bg-warm text-white hover:bg-warm-light transition-colors"
+          className="flex-1 py-1 lg:py-1.5 rounded-md text-[10px] font-display font-semibold uppercase tracking-wider bg-warm text-white hover:bg-warm-light transition-colors"
         >
           Done
         </button>

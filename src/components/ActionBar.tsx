@@ -1,9 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Download, Undo2, Redo2, Info, Share2, Zap, Trash2 } from 'lucide-react';
+import { Download, Undo2, Redo2, Info, Share2, Zap, Trash2, ShoppingCart } from 'lucide-react';
 import { ExportModal } from './export/ExportModal';
 import { FlyoverExportModal } from './export/FlyoverExportModal';
 import { ScorePopover } from './ScorePopover';
+import { CartModal } from './CartModal';
 import { calculatePlanCost } from '../services/nutrition/costCalculator';
 import { getActiveDurationHours } from '../services/route/timeFormat';
 
@@ -12,6 +13,7 @@ export function ActionBar() {
   const [exportOpen, setExportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
 
   const cost = useMemo(() => calculatePlanCost(routeData.nutritionPoints), [routeData.nutritionPoints]);
 
@@ -39,8 +41,12 @@ export function ActionBar() {
             the Score popover and ate scarce mobile vertical real estate. The
             Score (i) popover is now the single home for plan warnings. */}
 
-        {/* Stats row. Each stat has a hint explaining what it means. */}
-        <div className="flex items-center gap-3 overflow-x-auto no-scrollbar">
+        {/* Stats row. items-start so cells anchor at the top — the Run Cost
+            cell can grow a third subValue line ("+R… buy") and we don't
+            want that to push the other cells' label/value pair off-center.
+            justify-between spreads the 5 cells evenly across the row so
+            they don't bunch on the left when the row is wide. */}
+        <div className="flex items-start justify-between gap-3 overflow-x-auto no-scrollbar">
           {[
             { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-text-primary', hint: 'Route distance · number of fuel points placed' },
             { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : carbsPerHour > 90 ? 'text-terrain-rust' : 'text-warm', hint: 'Grams of carbohydrate per hour. Evidence target: 60–90 g/h for efforts over 2 hours.' },
@@ -90,78 +96,87 @@ export function ActionBar() {
         </div>
 
         {/* Actions row.
-            Mobile (< sm): 6-column CSS grid via the outer container; each
-            button is exactly 1/6 of the width. The two group divs use
-            `display: contents` so they're transparent — the grid sees the
-            buttons directly as its 6 cells.
-            Desktop (sm+): outer is flex with `justify-between`; the two
-            group divs become flex sub-containers grouping their 3 buttons
-            on each side. Same visual layout we had before the grid change. */}
-        <div className="grid grid-cols-6 gap-1 sm:flex sm:items-stretch sm:justify-between sm:gap-0">
-          <div className="contents sm:flex sm:gap-2">
-            <ActionButton
-              mobileLabel="Undo"
-              desktopLabel="Undo"
-              icon={<Undo2 className="w-[18px] h-[18px]" />}
-              onClick={undo}
-              disabled={!canUndo}
-              tone="neutral"
-              title="Undo"
-            />
-            <ActionButton
-              mobileLabel="Redo"
-              desktopLabel="Redo"
-              icon={<Redo2 className="w-[18px] h-[18px]" />}
-              onClick={redo}
-              disabled={!canRedo}
-              tone="neutral"
-              title="Redo"
-            />
-            <ActionButton
-              mobileLabel="Clear"
-              desktopLabel="Clear"
-              icon={<Trash2 className="w-[18px] h-[18px]" />}
-              onClick={resetRoute}
-              tone="danger"
-              mobileOnly
-              title="Clear route"
-            />
-          </div>
-
-          <div className="contents sm:flex sm:gap-2">
-            <ActionButton
-              mobileLabel="Auto"
-              desktopLabel="Auto"
-              icon={<Zap className="w-[18px] h-[18px] fill-current" />}
-              onClick={autoGeneratePlan}
-              tone="warm-filled"
-              mobileOnly
-              title="Auto-generate a science-backed nutrition plan for this route"
-            />
-            <ActionButton
-              mobileLabel="Share"
-              desktopLabel="Share"
-              icon={<Share2 className="w-[18px] h-[18px]" />}
-              onClick={() => setShareOpen(true)}
-              disabled={routeData.nutritionPoints.length === 0}
-              tone="warm-outline"
-              title="Make a shareable cinematic flyover video of your route + fuel points"
-            />
-            <ActionButton
-              mobileLabel="Export"
-              desktopLabel="Export"
-              icon={<Download className="w-[18px] h-[18px]" />}
-              onClick={() => setExportOpen(true)}
-              disabled={routeData.nutritionPoints.length === 0}
-              tone="primary"
-              title="Export this plan as GPX, PDF, CSV, image…"
-            />
-          </div>
+            Mobile (< sm): all 7 buttons live directly in one flex container
+            so they form a single connected strip — outer rounded border,
+            divide-x between cells, each button takes 1/7 via `flex-1`.
+            (Earlier we used `display:contents` group divs but Tailwind's
+            divide selector is DOM-based, so dividers wouldn't render
+            between groups — flattening fixes that.)
+            Desktop (sm+): same row, but borders/dividers/flex-1 are
+            disabled and the second group is pushed right via `sm:ml-auto`
+            on the first View Kit button — preserving the old left/right
+            split layout without needing wrapper divs. */}
+        <div className="flex w-full rounded-xl overflow-hidden border border-[var(--color-border)] divide-x divide-[var(--color-border)] sm:w-auto sm:rounded-none sm:border-0 sm:divide-x-0 sm:items-stretch sm:gap-2 [&>button]:flex-1 sm:[&>button]:flex-none">
+          <ActionButton
+            mobileLabel="Undo"
+            desktopLabel="Undo"
+            icon={<Undo2 className="w-[18px] h-[18px]" />}
+            onClick={undo}
+            disabled={!canUndo}
+            tone="neutral"
+            title="Undo"
+          />
+          <ActionButton
+            mobileLabel="Redo"
+            desktopLabel="Redo"
+            icon={<Redo2 className="w-[18px] h-[18px]" />}
+            onClick={redo}
+            disabled={!canRedo}
+            tone="neutral"
+            title="Redo"
+          />
+          <ActionButton
+            mobileLabel="Clear"
+            desktopLabel="Clear"
+            icon={<Trash2 className="w-[18px] h-[18px]" />}
+            onClick={resetRoute}
+            tone="danger"
+            mobileOnly
+            title="Clear route"
+          />
+          <ActionButton
+            mobileLabel="Auto"
+            desktopLabel="Auto"
+            icon={<Zap className="w-[18px] h-[18px] fill-current" />}
+            onClick={autoGeneratePlan}
+            tone="warm-filled"
+            mobileOnly
+            title="Auto-generate a science-backed nutrition plan for this route"
+          />
+          <ActionButton
+            mobileLabel="Kit"
+            desktopLabel="View Kit"
+            icon={<ShoppingCart className="w-[18px] h-[18px]" />}
+            onClick={() => setCartOpen(true)}
+            disabled={routeData.nutritionPoints.length === 0}
+            tone="warm-outline"
+            title="View the shopping kit needed for this plan"
+            extraClassName="sm:ml-auto"
+          />
+          <ActionButton
+            mobileLabel="Share"
+            desktopLabel="Share"
+            icon={<Share2 className="w-[18px] h-[18px]" />}
+            onClick={() => setShareOpen(true)}
+            disabled={routeData.nutritionPoints.length === 0}
+            tone="warm-outline"
+            title="Make a shareable cinematic flyover video of your route + fuel points"
+          />
+          <ActionButton
+            mobileLabel="Export"
+            desktopLabel="Export"
+            icon={<Download className="w-[18px] h-[18px]" />}
+            onClick={() => setExportOpen(true)}
+            disabled={routeData.nutritionPoints.length === 0}
+            tone="primary"
+            title="Export this plan as GPX, PDF, CSV, image…"
+          />
         </div>
       </div>
 
       <ExportModal isOpen={exportOpen} onClose={() => setExportOpen(false)} />
       <FlyoverExportModal isOpen={shareOpen} onClose={() => setShareOpen(false)} />
+      <CartModal isOpen={cartOpen} onClose={() => setCartOpen(false)} />
     </>
   );
 }
@@ -178,14 +193,17 @@ export function ActionBar() {
    which have desktop equivalents elsewhere on the map). */
 type ButtonTone = 'neutral' | 'danger' | 'primary' | 'warm-filled' | 'warm-outline';
 
+// On mobile the buttons live inside a single bordered strip, so we suppress
+// their per-button border (border-0). On sm+ they're individual chips again
+// and re-acquire their colored borders.
 const TONE_CLASSES: Record<ButtonTone, { bg: string; mobileText: string; desktopText: string }> = {
   neutral: {
-    bg: 'bg-surfaceHighlight border border-[var(--color-border)] hover:bg-accent/[0.08]',
+    bg: 'bg-surfaceHighlight border-0 sm:border sm:border-[var(--color-border)] hover:bg-accent/[0.08]',
     mobileText: 'text-text-primary',
     desktopText: 'text-text-primary',
   },
   danger: {
-    bg: 'bg-surfaceHighlight border border-red-500/20 hover:bg-red-500/10 hover:border-red-500/40',
+    bg: 'bg-surfaceHighlight border-0 sm:border sm:border-red-500/20 hover:bg-red-500/10 sm:hover:border-red-500/40',
     mobileText: 'text-red-400',
     desktopText: 'text-red-400/80 hover:text-red-400',
   },
@@ -195,12 +213,12 @@ const TONE_CLASSES: Record<ButtonTone, { bg: string; mobileText: string; desktop
     desktopText: 'text-white',
   },
   'warm-filled': {
-    bg: 'bg-warm hover:bg-warm-light shadow-[0_0_12px_rgba(245,160,32,0.25)]',
+    bg: 'bg-warm hover:bg-warm-light sm:shadow-[0_0_12px_rgba(245,160,32,0.25)]',
     mobileText: 'text-white',
     desktopText: 'text-white',
   },
   'warm-outline': {
-    bg: 'bg-surfaceHighlight border border-warm/30 hover:border-warm hover:bg-warm/[0.08]',
+    bg: 'bg-surfaceHighlight border-0 sm:border sm:border-warm/30 sm:hover:border-warm hover:bg-warm/[0.08]',
     mobileText: 'text-warm',
     desktopText: 'text-warm',
   },
@@ -215,6 +233,7 @@ function ActionButton({
   tone,
   mobileOnly,
   title,
+  extraClassName,
 }: {
   mobileLabel: string;
   desktopLabel: string;
@@ -224,6 +243,7 @@ function ActionButton({
   tone: ButtonTone;
   mobileOnly?: boolean;
   title?: string;
+  extraClassName?: string;
 }) {
   const t = TONE_CLASSES[tone];
   return (
@@ -233,11 +253,12 @@ function ActionButton({
       title={title}
       className={`
         ${mobileOnly ? 'lg:hidden' : ''}
+        ${extraClassName ?? ''}
         flex flex-col sm:flex-row items-center justify-center
         gap-0.5 sm:gap-2
         w-full sm:w-auto h-12 sm:h-10
         sm:px-4
-        rounded-xl
+        rounded-none sm:rounded-xl
         ${t.bg}
         ${t.desktopText}
         font-display font-bold uppercase

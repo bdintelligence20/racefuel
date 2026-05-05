@@ -17,7 +17,7 @@ import { CheckoutTest } from './components/CheckoutTest';
 import { PaymentCallback } from './components/PaymentCallback';
 import { AdminOrders } from './components/AdminOrders';
 import { MobilePreview } from './dev/MobilePreview';
-import { Menu, X, Map, Package } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 
 const MapCanvas = lazy(() =>
   import('./components/MapCanvas').then((m) => ({ default: m.MapCanvas }))
@@ -31,16 +31,10 @@ function MapLoadingFallback() {
   );
 }
 
-type MobileTab = 'map' | 'nutrition';
-
 function MobileNav({
-  activeTab,
-  setActiveTab,
   sidebarOpen,
   setSidebarOpen,
 }: {
-  activeTab: MobileTab;
-  setActiveTab: (t: MobileTab) => void;
   sidebarOpen: boolean;
   setSidebarOpen: (o: boolean) => void;
 }) {
@@ -56,32 +50,13 @@ function MobileNav({
           {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
 
-        {/* Logo */}
+        {/* Logo — pushed to the right by `ml-auto` now that the Map/Fuel
+            tab switcher is gone, and bumped to h-9 since there's room. */}
         <img
           src="/logo.png"
           alt="fuelcue"
-          className="h-7 w-auto object-contain flex-shrink-0"
+          className="h-9 w-auto object-contain flex-shrink-0 ml-auto"
         />
-
-        {/* Tab switcher — right-aligned */}
-        <div className="flex-1 flex justify-end">
-          <div className="flex bg-surfaceHighlight rounded-xl p-1 border border-[var(--color-border)]">
-            <button
-              onClick={() => setActiveTab('map')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-sm font-display font-semibold ${activeTab === 'map' ? 'bg-surface text-warm shadow-sm' : 'text-text-muted'}`}
-            >
-              <Map className="w-4 h-4" />
-              Map
-            </button>
-            <button
-              onClick={() => setActiveTab('nutrition')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-sm font-display font-semibold ${activeTab === 'nutrition' ? 'bg-surface text-warm shadow-sm' : 'text-text-muted'}`}
-            >
-              <Package className="w-4 h-4" />
-              Fuel
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
@@ -89,25 +64,10 @@ function MobileNav({
 
 function AppContent() {
   const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan } = useApp();
-  const [mobileTab, setMobileTabState] = useState<MobileTab>(() => {
-    // Allow dev preview to deep-link to a specific tab via ?mobileTab=...
-    if (import.meta.env.DEV) {
-      const fromQuery = new URLSearchParams(window.location.search).get('mobileTab');
-      if (fromQuery === 'map' || fromQuery === 'nutrition') return fromQuery;
-    }
-    const stored = localStorage.getItem('fuelcue_mobile_tab');
-    return stored === 'nutrition' ? 'nutrition' : 'map';
-  });
-  const setMobileTab = (t: MobileTab) => {
-    setMobileTabState(t);
-    localStorage.setItem('fuelcue_mobile_tab', t);
-  };
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
     <div className="flex w-full h-[100dvh] bg-background overflow-hidden font-sans">
       <MobileNav
-        activeTab={mobileTab}
-        setActiveTab={setMobileTab}
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
       />
@@ -139,8 +99,12 @@ function AppContent() {
       </div>
 
       {/* Map column. pb-mobile-action-bar leaves room for the fixed
-          ActionBar above so the elevation panel + strip aren't covered. */}
-      <div className={`flex-1 min-w-0 flex flex-col relative overflow-x-hidden pt-mobile-nav lg:pt-0 pb-mobile-action-bar lg:pb-0 ${mobileTab === 'map' ? 'flex' : 'hidden lg:flex'}`}>
+          ActionBar above so the elevation panel + strip aren't covered.
+          On mobile this is the *only* column — the Fuel tab and its tab
+          switcher were removed once the map view absorbed product browsing
+          (fuel strip), product details (tap markers / strip cards), and
+          kit access (View Kit in ActionBar). */}
+      <div className="flex-1 min-w-0 flex flex-col relative overflow-x-hidden pt-mobile-nav lg:pt-0 pb-mobile-action-bar lg:pb-0">
         <ErrorBoundary>
           <Suspense fallback={<MapLoadingFallback />}>
             <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
@@ -154,12 +118,9 @@ function AppContent() {
         </div>
       </div>
 
-      {/* Fuel column. pb-mobile-action-bar same reason as map column. */}
-      <div className={`
-        fixed lg:relative left-0 right-0 lg:left-auto top-mobile-nav lg:top-0 bottom-0 z-30
-        flex flex-col pb-mobile-action-bar lg:pb-0
-        ${mobileTab === 'nutrition' ? 'flex' : 'hidden lg:flex'}
-      `}>
+      {/* Fuel column — desktop only. Mobile gets all the same affordances
+          via the on-map fuel strip + ActionBar's View Kit button. */}
+      <div className="hidden lg:flex lg:relative lg:top-0 lg:left-auto bottom-0 z-30 flex-col">
         <ErrorBoundary>
           <div className="flex-1 min-h-0 overflow-hidden">
             <NutritionPanel />

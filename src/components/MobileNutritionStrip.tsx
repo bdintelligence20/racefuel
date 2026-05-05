@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext';
 import { useMap } from '../context/MapContext';
 import { useProducts } from '../data/products';
 import { loadCustomProducts } from './CustomProductModal';
+import { ProductDetailModal } from './ProductDetailModal';
 import useEmblaCarousel from 'embla-carousel-react';
 
 /**
@@ -42,6 +43,7 @@ export function MobileNutritionStrip() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<CategoryFilter>('all');
+  const [detailProduct, setDetailProduct] = useState<ProductProps | null>(null);
 
   const [drag, setDrag] = useState<{ product: ProductProps; x: number; y: number } | null>(null);
   const dragRef = useRef(drag);
@@ -55,13 +57,23 @@ export function MobileNutritionStrip() {
     timer: ReturnType<typeof setTimeout> | null;
   } | null>(null);
 
+  // When the long-press timer fires (drag mode begins) we set this so the
+  // synthetic click that follows pointerup doesn't also open the detail
+  // modal. Using a ref instead of `pressRef.firedLongPress` because Embla
+  // can capture the pointer mid-gesture, and the card's pointerup handler
+  // may not run before its onClick fires.
+  const suppressNextClickRef = useRef(false);
+
   // Embla in free-scroll mode. `watchDrag: !drag` disables Embla's drag
   // handler the moment we enter long-press drag mode, so the carousel
   // doesn't keep scrolling under the floating ghost.
+  // `containScroll: 'keepSnaps'` ensures every slide is reachable — the
+  // previous `trimSnaps` value combined with viewport padding meant the
+  // last few products couldn't be scrolled fully into view.
   const [emblaRef, emblaApi] = useEmblaCarousel({
     axis: 'x',
     dragFree: true,
-    containScroll: 'trimSnaps',
+    containScroll: 'keepSnaps',
     watchDrag: drag === null,
   });
 
@@ -98,23 +110,26 @@ export function MobileNutritionStrip() {
   }
 
   function onCardPointerDown(e: React.PointerEvent, product: ProductProps) {
-    if (e.pointerType === 'mouse') {
-      // Mouse: enter drag immediately on mousedown.
-      setDrag({ product, x: e.clientX, y: e.clientY });
-      return;
-    }
     cancelPress();
     pressRef.current = {
       product,
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
-      timer: setTimeout(() => {
-        const p = pressRef.current;
-        if (!p) return;
-        setDrag({ product: p.product, x: p.startX, y: p.startY });
-        try { (navigator as any).vibrate?.(15); } catch {}
-      }, LONG_PRESS_MS),
+      // Touch: long-press triggers drag-to-map. Mouse: no long-press —
+      // drag is triggered by mouse *movement* (see pointermove below).
+      // This way, a quick mousedown+mouseup with no movement stays a
+      // plain click, so the detail modal opens on desktop too.
+      timer:
+        e.pointerType === 'mouse'
+          ? null
+          : setTimeout(() => {
+              const p = pressRef.current;
+              if (!p) return;
+              suppressNextClickRef.current = true;
+              setDrag({ product: p.product, x: p.startX, y: p.startY });
+              try { (navigator as any).vibrate?.(15); } catch {}
+            }, LONG_PRESS_MS),
     };
   }
 
@@ -125,8 +140,31 @@ export function MobileNutritionStrip() {
       Math.abs(e.clientX - p.startX) > PRESS_CANCEL_PX ||
       Math.abs(e.clientY - p.startY) > PRESS_CANCEL_PX
     ) {
-      cancelPress();
+      if (e.pointerType === 'mouse') {
+        // Mouse moved past the slop — user is dragging, not clicking.
+        // Enter drag mode now and suppress the click that follows mouseup.
+        suppressNextClickRef.current = true;
+        setDrag({ product: p.product, x: e.clientX, y: e.clientY });
+        pressRef.current = null;
+      } else {
+        // Touch: assume the user is swiping the carousel. Cancel the
+        // long-press AND suppress the synthetic click so a swipe can't
+        // accidentally open the modal mid-scroll.
+        cancelPress();
+        suppressNextClickRef.current = true;
+      }
     }
+  }
+
+  // Tap-to-open uses native onClick. Browsers already debounce click on
+  // touch (no click fires for swipes), and the suppression ref above
+  // handles the long-press→drag case.
+  function onCardClick(product: ProductProps) {
+    if (suppressNextClickRef.current) {
+      suppressNextClickRef.current = false;
+      return;
+    }
+    setDetailProduct(product);
   }
 
   /* ──────────────── window-level drag handlers (only when active) ──────────────── */
@@ -240,9 +278,12 @@ export function MobileNutritionStrip() {
         </div>
 
         {/* Embla viewport — drag is disabled in real-time when our long-press
-            kicks in, so the carousel won't keep moving under the ghost. */}
-        <div className="overflow-hidden px-3 pb-2" ref={emblaRef}>
-          <div className="flex gap-2">
+            kicks in, so the carousel won't keep moving under the ghost.
+            Padding lives on the inner flex container (px-3) — when it was
+            on the viewport, Embla's scroll calc included the padding and
+            the last few cards couldn't scroll fully into view. */}
+        <div className="overflow-hidden pb-2" ref={emblaRef}>
+          <div className="flex gap-2 px-3">
             {visibleProducts.length === 0 ? (
               <div className="text-[11px] text-text-muted py-3 font-display">
                 No products match.
@@ -257,28 +298,50 @@ export function MobileNutritionStrip() {
                     onPointerMove={onCardPointerMove}
                     onPointerCancel={cancelPress}
                     onPointerUp={cancelPress}
+                    onClick={() => onCardClick(p)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setDetailProduct(p);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${p.brand} ${p.name} — tap for details, hold and drag onto route to add`}
                     style={{
-                      background: `${p.color}15`,
+                      // Solid surface bg + colored top-bar (below) for brand
+                      // identity. Previous approach (translucent brand-color
+                      // tint + brand-color text) was illegible whenever the
+                      // brand color was pale (yellow / mint).
                       borderColor: `${p.color}40`,
-                      flex: '0 0 110px',
+                      flex: '0 0 124px',
                       WebkitTapHighlightColor: 'transparent',
                       WebkitTouchCallout: 'none',
                     }}
-                    className={`flex flex-col items-start text-left rounded-lg border px-2 py-1.5 cursor-grab active:cursor-grabbing select-none transition-opacity ${
+                    className={`relative flex flex-col items-start text-left rounded-lg border bg-surface overflow-hidden px-2.5 pt-2.5 pb-2 cursor-grab active:cursor-grabbing select-none transition-opacity ${
                       isDragging ? 'opacity-30' : 'opacity-100'
                     }`}
                   >
-                    <div
-                      className="text-[8.5px] font-display font-bold uppercase tracking-wider truncate w-full"
-                      style={{ color: p.color }}
-                    >
+                    {/* Brand-color accent bar across the top — gives every
+                        card a visible brand identity without compromising
+                        text contrast. */}
+                    <span
+                      aria-hidden
+                      className="absolute top-0 left-0 right-0 h-1"
+                      style={{ background: p.color }}
+                    />
+                    <div className="text-[8.5px] font-display font-bold uppercase tracking-wider truncate w-full text-text-muted">
                       {p.brand}
                     </div>
-                    <div className="text-[11px] font-display font-semibold text-text-primary truncate w-full leading-tight mt-0.5">
+                    <div className="text-[11.5px] font-display font-semibold text-text-primary leading-tight mt-0.5 line-clamp-2 min-h-[28px] w-full">
                       {p.name}
                     </div>
-                    <div className="text-[9.5px] text-text-muted font-display tabular-nums mt-1">
-                      {p.carbs}g · {p.calories}kcal
+                    <div className="mt-1 flex items-baseline gap-1 w-full">
+                      <span className="text-[13px] font-display font-bold text-text-primary tabular-nums">{p.carbs}</span>
+                      <span className="text-[9px] text-text-muted font-display uppercase tracking-wider">g carbs</span>
+                    </div>
+                    <div className="text-[9px] text-text-muted font-display tabular-nums">
+                      {p.calories} kcal · R{p.priceZAR.toFixed(0)}
                     </div>
                   </div>
                 );
@@ -287,6 +350,20 @@ export function MobileNutritionStrip() {
           </div>
         </div>
       </div>
+
+      {/* Product detail modal — opened by a quick tap on a card. The
+          onAddToRoute callback drops the product at the route midpoint as
+          a starter; users can drag the marker afterwards. */}
+      <ProductDetailModal
+        product={detailProduct}
+        isOpen={detailProduct !== null}
+        onClose={() => setDetailProduct(null)}
+        onAddToRoute={(product) => {
+          if (routeData.loaded) {
+            addNutritionPoint(product, routeData.distanceKm / 2);
+          }
+        }}
+      />
 
       {/* Floating drag ghost */}
       {drag &&
@@ -297,13 +374,15 @@ export function MobileNutritionStrip() {
             style={{ left: drag.x - 60, top: drag.y - 30, willChange: 'transform' }}
           >
             <div
-              style={{ background: `${drag.product.color}30`, borderColor: drag.product.color }}
-              className="rounded-lg border-2 px-2.5 py-1.5 shadow-xl bg-surface/95"
+              style={{ borderColor: drag.product.color }}
+              className="relative rounded-lg border-2 px-2.5 py-1.5 shadow-xl bg-surface overflow-hidden"
             >
-              <div
-                className="text-[8.5px] font-display font-bold uppercase tracking-wider"
-                style={{ color: drag.product.color }}
-              >
+              <span
+                aria-hidden
+                className="absolute top-0 left-0 right-0 h-1"
+                style={{ background: drag.product.color }}
+              />
+              <div className="text-[8.5px] font-display font-bold uppercase tracking-wider text-text-muted mt-0.5">
                 {drag.product.brand}
               </div>
               <div className="text-[11px] font-display font-semibold text-text-primary leading-tight max-w-[120px] truncate">

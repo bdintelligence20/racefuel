@@ -144,6 +144,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    // Dev-bypass mode never had a real Firebase session — signOut is a
+    // no-op. Tear down the bypass flag + mock user manually so the
+    // sign-in screen actually shows. Visit `?devbypass=1` (or use the
+    // dev preview harness) to re-enable.
+    if (import.meta.env.DEV && localStorage.getItem('fuelcue_dev_bypass') === '1') {
+      localStorage.removeItem('fuelcue_dev_bypass');
+      setUser(null);
+      return;
+    }
     await signOut();
   }, []);
 

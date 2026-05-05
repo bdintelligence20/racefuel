@@ -26,8 +26,7 @@ const DEVICES: Record<string, { w: number; h: number; ua?: string }> = {
 
 const PATHS = [
   { label: '/ (landing)', path: '/' },
-  { label: '/app — Map tab', path: '/app' },
-  { label: '/app — Fuel tab', path: '/app', mobileTab: 'nutrition' as const },
+  { label: '/app', path: '/app' },
   { label: '/checkout-test', path: '/checkout-test' },
   { label: '/admin/orders', path: '/admin/orders' },
 ];
@@ -39,14 +38,9 @@ export function MobilePreview() {
 
   const { w, h } = DEVICES[device];
 
-  // Set the preferred mobile tab in the iframe's localStorage before nav,
-  // so the tab opens correctly inside the embedded SPA.
   function buildSrc() {
     const url = new URL(path.path, window.location.origin);
     url.searchParams.set('devbypass', '1');
-    if (path.mobileTab) {
-      url.searchParams.set('mobileTab', path.mobileTab);
-    }
     url.searchParams.set('_r', String(reloadKey));
     return url.toString();
   }
@@ -126,6 +120,7 @@ export function MobilePreview() {
             key={`${device}-${path.label}-${reloadKey}`}
             src={buildSrc()}
             title="fuelcue mobile preview"
+            allow="geolocation; clipboard-write"
             style={{ width: '100%', height: '100%', border: 0, background: '#fff' }}
           />
         </div>

@@ -49,9 +49,9 @@ export function EstimatedTimeEditor({ value, isUserSet, onSave, onClear, onClose
   return (
     <div
       ref={rootRef}
-      className="absolute top-full left-0 mt-2 z-30 w-[240px] max-w-[calc(100vw-1.5rem)] bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150"
+      className="relative lg:absolute lg:top-full lg:left-0 mt-1 lg:mt-2 z-30 w-full lg:w-[240px] lg:max-w-[calc(100vw-1.5rem)] bg-surface border border-[var(--color-border)] rounded-lg lg:rounded-xl shadow-md lg:shadow-xl p-2 lg:p-3 space-y-2 lg:space-y-3 animate-in fade-in slide-in-from-top-1 duration-150"
     >
-      <div className="flex items-center justify-between">
+      <div className="hidden lg:flex items-center justify-between">
         <span className="text-[10px] font-display text-text-muted uppercase tracking-wider font-semibold">
           Expected time
         </span>
@@ -66,7 +66,7 @@ export function EstimatedTimeEditor({ value, isUserSet, onSave, onClear, onClose
 
       <div className="flex items-end gap-2">
         <label className="flex-1">
-          <div className="text-[9px] font-display text-text-muted uppercase tracking-wider mb-1">Hours</div>
+          <div className="text-[9px] font-display text-text-muted uppercase tracking-wider mb-0.5 lg:mb-1">Hours</div>
           <input
             type="number"
             inputMode="numeric"
@@ -74,13 +74,13 @@ export function EstimatedTimeEditor({ value, isUserSet, onSave, onClear, onClose
             max={99}
             value={hours}
             onChange={(e) => setHours(e.target.value)}
-            className="w-full h-10 px-2 rounded-lg bg-surfaceHighlight border border-[var(--color-border)] text-text-primary text-lg font-display font-bold text-center focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm/20"
+            className="w-full h-8 lg:h-10 px-2 rounded-md lg:rounded-lg bg-surfaceHighlight border border-[var(--color-border)] text-text-primary text-base lg:text-lg font-display font-bold text-center focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm/20"
             autoFocus
           />
         </label>
-        <span className="text-xl font-display font-bold text-text-muted pb-2">:</span>
+        <span className="text-base lg:text-xl font-display font-bold text-text-muted pb-1 lg:pb-2">:</span>
         <label className="flex-1">
-          <div className="text-[9px] font-display text-text-muted uppercase tracking-wider mb-1">Minutes</div>
+          <div className="text-[9px] font-display text-text-muted uppercase tracking-wider mb-0.5 lg:mb-1">Minutes</div>
           <input
             type="number"
             inputMode="numeric"
@@ -88,19 +88,19 @@ export function EstimatedTimeEditor({ value, isUserSet, onSave, onClear, onClose
             max={59}
             value={minutes}
             onChange={(e) => setMinutes(e.target.value)}
-            className="w-full h-10 px-2 rounded-lg bg-surfaceHighlight border border-[var(--color-border)] text-text-primary text-lg font-display font-bold text-center focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm/20"
+            className="w-full h-8 lg:h-10 px-2 rounded-md lg:rounded-lg bg-surfaceHighlight border border-[var(--color-border)] text-text-primary text-base lg:text-lg font-display font-bold text-center focus:outline-none focus:border-warm focus:ring-1 focus:ring-warm/20"
           />
         </label>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 lg:gap-2">
         {isUserSet && (
           <button
             onClick={() => {
               onClear();
               onClose();
             }}
-            className="flex items-center gap-1 px-2 py-2 rounded-lg text-[11px] font-display font-medium text-text-muted hover:text-text-primary hover:bg-surfaceHighlight transition-colors"
+            className="flex items-center gap-1 px-2 py-1 lg:py-2 rounded-md lg:rounded-lg text-[11px] font-display font-medium text-text-muted hover:text-text-primary hover:bg-surfaceHighlight transition-colors"
             title="Reset to auto-estimated time"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -109,7 +109,7 @@ export function EstimatedTimeEditor({ value, isUserSet, onSave, onClear, onClose
         )}
         <button
           onClick={handleSave}
-          className="flex-1 h-9 flex items-center justify-center gap-1.5 rounded-lg bg-warm text-white text-xs font-display font-bold uppercase tracking-wider hover:bg-warm-light active:scale-[0.98] transition-all"
+          className="flex-1 h-7 lg:h-9 flex items-center justify-center gap-1.5 rounded-md lg:rounded-lg bg-warm text-white text-[11px] lg:text-xs font-display font-bold uppercase tracking-wider hover:bg-warm-light active:scale-[0.98] transition-all"
         >
           <Check className="w-3.5 h-3.5" />
           Save

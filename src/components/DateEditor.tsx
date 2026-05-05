@@ -78,22 +78,22 @@ export function DateEditor({ value, onSave, onClose }: Props) {
   return (
     <div
       ref={rootRef}
-      className="absolute top-full left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 w-72 max-w-[calc(100vw-1.5rem)]"
+      className="relative lg:absolute lg:top-full lg:left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-lg lg:rounded-xl shadow-md lg:shadow-xl p-2 lg:p-3 w-full lg:w-72 lg:max-w-[calc(100vw-1.5rem)]"
     >
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1.5 lg:mb-2">
         <button
           type="button"
           onClick={() => stepMonth(-1)}
-          className="w-8 h-8 rounded-md hover:bg-surfaceHighlight text-text-muted hover:text-text-primary flex items-center justify-center transition-colors"
+          className="w-7 h-7 lg:w-8 lg:h-8 rounded-md hover:bg-surfaceHighlight text-text-muted hover:text-text-primary flex items-center justify-center transition-colors"
           aria-label="Previous month"
         >
           <ChevronLeft className="w-4 h-4" />
         </button>
-        <div className="text-sm font-display font-bold text-text-primary tabular-nums">{monthName}</div>
+        <div className="text-[12px] lg:text-sm font-display font-bold text-text-primary tabular-nums">{monthName}</div>
         <button
           type="button"
           onClick={() => stepMonth(1)}
-          className="w-8 h-8 rounded-md hover:bg-surfaceHighlight text-text-muted hover:text-text-primary flex items-center justify-center transition-colors"
+          className="w-7 h-7 lg:w-8 lg:h-8 rounded-md hover:bg-surfaceHighlight text-text-muted hover:text-text-primary flex items-center justify-center transition-colors"
           aria-label="Next month"
         >
           <ChevronRight className="w-4 h-4" />
@@ -104,7 +104,7 @@ export function DateEditor({ value, onSave, onClose }: Props) {
         {weekdayLabels.map((w, i) => (
           <div
             key={`wd-${i}`}
-            className="h-6 flex items-center justify-center text-[9px] font-display font-semibold text-text-muted uppercase"
+            className="h-5 lg:h-6 flex items-center justify-center text-[9px] font-display font-semibold text-text-muted uppercase"
           >
             {w}
           </div>
@@ -113,7 +113,7 @@ export function DateEditor({ value, onSave, onClose }: Props) {
 
       <div className="grid grid-cols-7 gap-0.5">
         {cells.map((day, idx) => {
-          if (day === null) return <div key={`blank-${idx}`} className="h-8" />;
+          if (day === null) return <div key={`blank-${idx}`} className="h-7 lg:h-8" />;
           const iso = toIso(viewYear, viewMonth, day);
           const isPast = iso < todayIso;
           const isToday = iso === todayIso;
@@ -124,7 +124,7 @@ export function DateEditor({ value, onSave, onClose }: Props) {
               type="button"
               onClick={() => pick(day)}
               disabled={isPast}
-              className={`h-8 rounded-md text-xs font-display tabular-nums transition-colors ${
+              className={`h-7 lg:h-8 rounded-md text-[11px] lg:text-xs font-display tabular-nums transition-colors ${
                 isSelected
                   ? 'bg-warm text-white font-bold'
                   : isPast
@@ -142,7 +142,7 @@ export function DateEditor({ value, onSave, onClose }: Props) {
         })}
       </div>
 
-      <div className="flex items-center justify-between mt-3 pt-3 border-t border-[var(--color-border)]">
+      <div className="flex items-center justify-between mt-2 lg:mt-3 pt-2 lg:pt-3 border-t border-[var(--color-border)]">
         <button
           type="button"
           onClick={handleToday}

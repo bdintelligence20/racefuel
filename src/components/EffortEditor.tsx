@@ -41,12 +41,12 @@ export function EffortEditor({ value, onSave, onClose }: Props) {
   return (
     <div
       ref={ref}
-      className="absolute top-full left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-4 w-64 max-w-[calc(100vw-1.5rem)]"
+      className="relative lg:absolute lg:top-full lg:left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-lg lg:rounded-xl shadow-md lg:shadow-xl p-2.5 lg:p-4 w-full lg:w-64 lg:max-w-[calc(100vw-1.5rem)]"
     >
-      <div className="flex items-baseline justify-between mb-2">
+      <div className="flex items-baseline justify-between mb-1.5 lg:mb-2">
         <div>
-          <div className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">Perceived Effort</div>
-          <div className="text-lg font-display font-bold text-text-primary">
+          <div className="hidden lg:block text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">Perceived Effort</div>
+          <div className="text-sm lg:text-lg font-display font-bold text-text-primary">
             {effort}/10 · <span className="text-warm">{label}</span>
           </div>
         </div>
@@ -54,7 +54,7 @@ export function EffortEditor({ value, onSave, onClose }: Props) {
           <button
             type="button"
             onClick={() => onSave(undefined)}
-            className="text-[10px] font-display font-semibold uppercase tracking-wider text-text-muted hover:text-text-primary px-2 py-1 rounded-md hover:bg-surfaceHighlight transition-colors"
+            className="text-[10px] font-display font-semibold uppercase tracking-wider text-text-muted hover:text-text-primary px-2 py-0.5 rounded-md hover:bg-surfaceHighlight transition-colors"
           >
             Auto
           </button>
@@ -77,20 +77,20 @@ export function EffortEditor({ value, onSave, onClose }: Props) {
         <span>10</span>
       </div>
 
-      <p className="text-[11px] text-text-secondary mt-2 leading-snug">{description}</p>
+      <p className="hidden lg:block text-[11px] text-text-secondary mt-2 leading-snug">{description}</p>
 
-      <div className="flex gap-2 mt-3">
+      <div className="flex gap-1.5 lg:gap-2 mt-2 lg:mt-3">
         <button
           type="button"
           onClick={onClose}
-          className="flex-1 py-2 rounded-lg bg-surfaceHighlight border border-[var(--color-border)] text-text-primary text-xs font-display font-bold uppercase tracking-wider hover:bg-accent/[0.08] transition-colors"
+          className="flex-1 py-1.5 lg:py-2 rounded-md lg:rounded-lg bg-surfaceHighlight border border-[var(--color-border)] text-text-primary text-[11px] lg:text-xs font-display font-bold uppercase tracking-wider hover:bg-accent/[0.08] transition-colors"
         >
           Cancel
         </button>
         <button
           type="button"
           onClick={() => onSave(effort)}
-          className="flex-1 py-2 rounded-lg bg-warm text-white text-xs font-display font-bold uppercase tracking-wider hover:bg-warm-light transition-colors"
+          className="flex-1 py-1.5 lg:py-2 rounded-md lg:rounded-lg bg-warm text-white text-[11px] lg:text-xs font-display font-bold uppercase tracking-wider hover:bg-warm-light transition-colors"
         >
           Save
         </button>
