@@ -138,12 +138,17 @@ export async function createOrder(
       // direct customers without us having to do anything else.
       inventory_behaviour: 'decrement_obeying_policy',
 
-      note: input.note ?? `Placed via fuelcue.com — external ref ${input.externalOrderId}`,
+      // Make it obvious in the Shopify admin that this came through Fuel Cue
+      // — "Fuel Cue" appears in the order note (visible at the top of the
+      // order page), the note_attributes (key/value rows below the timeline),
+      // AND the tags (filterable from the orders list). Fuel Lab can scan
+      // the orders list and pick out Fuel Cue orders at a glance.
+      note: input.note ?? `Fuel Cue order — placed via fuelcue.com — ref ${input.externalOrderId}`,
       note_attributes: [
-        { name: 'fuelcue_order_id', value: input.externalOrderId },
-        { name: 'placed_via', value: 'fuelcue.com' },
+        { name: 'Fuel Cue order ID', value: input.externalOrderId },
+        { name: 'Placed via', value: 'Fuel Cue (fuelcue.com)' },
       ],
-      tags: ['fuelcue', ...(input.tags ?? [])].join(', '),
+      tags: ['Fuel Cue', ...(input.tags ?? [])].join(', '),
 
       // Send the customer a Shopify order confirmation directly. Fuel Lab's
       // Shopify settings already have nice transactional emails set up; no

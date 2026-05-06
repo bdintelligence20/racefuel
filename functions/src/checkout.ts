@@ -37,8 +37,12 @@ import {
  *    │ ◀── subscribe to /orders/:id Firestore doc for the final 'placed' state
  */
 
-const STITCH_CLIENT_ID = defineSecret('STITCH_CLIENT_ID_TEST');
-const STITCH_CLIENT_SECRET = defineSecret('STITCH_CLIENT_SECRET_TEST');
+// Live Stitch creds — switched from STITCH_CLIENT_ID_TEST after the test
+// secret's signing key drifted out of sync with what Stitch was actually
+// signing webhooks with (every webhook returned 401 'Bad webhook
+// signature', leaving paid orders stuck at 'pending' in Firestore).
+const STITCH_CLIENT_ID = defineSecret('STITCH_CLIENT_ID');
+const STITCH_CLIENT_SECRET = defineSecret('STITCH_CLIENT_SECRET');
 const STITCH_WEBHOOK_SECRET = defineSecret('STITCH_WEBHOOK_SECRET');
 
 const SHOPIFY_ADMIN_TOKEN = defineSecret('SHOPIFY_ADMIN_TOKEN');

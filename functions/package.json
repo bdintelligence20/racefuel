@@ -10,7 +10,8 @@
     "build:watch": "tsc --watch",
     "lint": "tsc --noEmit",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "gcp-build": "tsc"
   },
   "dependencies": {
     "@google-cloud/secret-manager": "^6.1.2",
