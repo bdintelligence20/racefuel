@@ -30,11 +30,19 @@ RUN cp public/products-feed.xml dist/products-feed.xml
 FROM nginx:alpine
 RUN apk add --no-cache nodejs
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY --from=build /app/scripts/generate-xml-feed.mjs /opt/feed/generate-xml-feed.mjs
+COPY --from=build /app/scripts/generate-xml-feed.mjs /opt/feed/scripts/generate-xml-feed.mjs
+# Ship the override + cache files alongside the script so the runtime cron
+# resolves nutrition through the same priority chain the build does
+# (overrides > regex > cache). Without these the cron was wiping the
+# build-time feed with a broken one (override=0, ai=0, missing=102).
+COPY --from=build /app/data /opt/feed/data
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Hourly cron to refresh the XML feed (stock levels, pricing, availability)
-RUN echo '0 * * * * FEED_OUTPUT_PATH=/usr/share/nginx/html/products-feed.xml node /opt/feed/generate-xml-feed.mjs >> /var/log/feed.log 2>&1' | crontab -
+# Hourly cron to refresh stock levels + pricing from Shopify. Re-running the
+# script with the bundled overrides/cache preserves nutrition data even
+# without a Gemini API key (we just lose the AI fallback for newly-added
+# products, which is acceptable until the next deploy).
+RUN echo '0 * * * * FEED_OUTPUT_PATH=/usr/share/nginx/html/products-feed.xml node /opt/feed/scripts/generate-xml-feed.mjs >> /var/log/feed.log 2>&1' | crontab -
 
 EXPOSE 8080
 CMD crond && nginx -g 'daemon off;'

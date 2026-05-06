@@ -1,7 +1,9 @@
 {
   "226ers-high-fructose-gel:370cb4e25ee29b97": {
     "carbs": 55,
-    "sodium": 250
+    "sodium": 250,
+    "calories": 220,
+    "caffeine": 0
   },
   "226ers-high-energy-gel:4b340215b078ed96": {
     "carbs": 50,
@@ -10,17 +12,24 @@
   },
   "32gi-sport-gel:2d637dabfeee70c0": {
     "carbs": 21,
-    "sodium": 59
+    "sodium": 59,
+    "calories": 84,
+    "caffeine": 0
   },
   "226ers-high-fructose-gel-xs:1038164249f6af61": {
-    "carbs": 30
+    "carbs": 30,
+    "calories": 120,
+    "sodium": 160,
+    "caffeine": 0
   },
   "high-five-energy-gel-aqua:4e14dd276740c00d": {
     "carbs": 23
   },
   "226ers-high-fructose-energy-drink:b3ee8e7f4d93dd94": {
     "carbs": 87,
-    "sodium": 500
+    "sodium": 500,
+    "calories": 348,
+    "caffeine": 0
   },
   "high-five-energy-gel-with-caffeine:83540de14af59fe0": {
     "carbs": 23,
@@ -28,10 +37,15 @@
   },
   "named-sport-race-fuel-bar:700229e2de809fb2": {
     "carbs": 30,
-    "caffeine": 80
+    "caffeine": 80,
+    "calories": 140,
+    "sodium": 50
   },
   "32gi-cramp-assalt:d924a65ce70e840b": {
-    "sodium": 184
+    "sodium": 184,
+    "carbs": 3,
+    "calories": 12,
+    "caffeine": 0
   },
   "named-sport-energy-bar:e407f8fb727ab026": {
     "carbs": 30
@@ -87,10 +101,16 @@
     "carbs": 22
   },
   "styrkr-slt:783995f425c25518": {
-    "sodium": 1080
+    "sodium": 1080,
+    "carbs": 0,
+    "calories": 5,
+    "caffeine": 0
   },
   "styrkr-salt-07:95bb47cb9085a7c1": {
-    "sodium": 500
+    "sodium": 500,
+    "carbs": 0,
+    "calories": 5,
+    "caffeine": 0
   },
   "styrkr-mix-60:db7887a5673153a1": {
     "carbs": 60
@@ -99,7 +119,10 @@
     "carbs": 45
   },
   "pvm-octane-gel:3fff40dc7bd84246": {
-    "caffeine": 100
+    "caffeine": 100,
+    "carbs": 22,
+    "calories": 100,
+    "sodium": 120
   },
   "neversecond-c90-high-carb-drink-mix-94g:737c3106f36bc6de": {
     "carbs": 90,
@@ -132,7 +155,10 @@
     "calories": 100
   },
   "sport-rx-clear-protein-water:cb5356ebea71749a": {
-    "calories": 50
+    "calories": 50,
+    "carbs": 3,
+    "sodium": 20,
+    "caffeine": 0
   },
   "science-in-sport-go-energy-caffeine-gel:0e060f0cdf508845": {
     "carbs": 22,
@@ -146,7 +172,9 @@
   },
   "sport-rx-whey-protein-drink:656f3819b8714dac": {
     "carbs": 20,
-    "calories": 100
+    "calories": 100,
+    "sodium": 30,
+    "caffeine": 0
   },
   "neversecond-c30-sports-drink-6ct-variety-pack:a75ddddd47a40305": {
     "carbs": 30,
@@ -154,5 +182,491 @@
   },
   "neversecond-c30-fuel-bar-45g:12d7cb7bddd62e47": {
     "carbs": 30
+  },
+  "pace-power-endurapower:909d31bbf7af35c2": {
+    "carbs": 60,
+    "calories": 240,
+    "sodium": 400,
+    "caffeine": 0
+  },
+  "226ers-energy-drink-sub-9:0bb7ed2dd48c83d4": {
+    "carbs": 64,
+    "calories": 280,
+    "sodium": 250,
+    "caffeine": 0
+  },
+  "32gi-hydrate-tabs:dd09795ed34a5edd": {
+    "carbs": 0,
+    "calories": 0,
+    "sodium": 250,
+    "caffeine": 0
+  },
+  "enduren-energy-bar:c4b29986ba2a76ae": {
+    "carbs": 30,
+    "calories": 160,
+    "sodium": 40,
+    "caffeine": 0
+  },
+  "high-five-energy-gel:b9e055051db08182": {
+    "carbs": 23,
+    "calories": 92,
+    "sodium": 10,
+    "caffeine": 0
+  },
+  "natroceutics-creatine-bioactive:fbe45efeed0f66fb": {
+    "carbs": 0,
+    "calories": 0,
+    "sodium": 0,
+    "caffeine": 0
+  },
+  "high-five-zero-hydration:1d722899bbfbfd3f": {
+    "carbs": 0,
+    "calories": 0,
+    "sodium": 250,
+    "caffeine": 0
+  },
+  "styrkr-bar-50:5f746b200beed3eb": {
+    "carbs": 50,
+    "calories": 260,
+    "sodium": 100,
+    "caffeine": 0
+  },
+  "pace-power-endurashake:5581e7b82d1b7cf0": {
+    "carbs": 50,
+    "calories": 350,
+    "sodium": 200,
+    "caffeine": 0
+  },
+  "pace-power-joobies:12209b31e3ca05a2": {
+    "carbs": 20,
+    "calories": 85,
+    "sodium": 150,
+    "caffeine": 0
+  },
+  "enduren-protein-bar:8234f1fb4c17aedb": {
+    "carbs": 18,
+    "calories": 180,
+    "sodium": 30,
+    "caffeine": 0
+  },
+  "high-five-energy-drink:11645b5aecc8bb0d": {
+    "carbs": 47,
+    "calories": 188,
+    "sodium": 280,
+    "caffeine": 0
+  },
+  "enduren-endurance-energy-gel:8b57a34b28b3e26b": {
+    "carbs": 22,
+    "calories": 90,
+    "sodium": 50,
+    "caffeine": 0
+  },
+  "32gi-recover:54c71ac3d15c17b5": {
+    "carbs": 25,
+    "calories": 160,
+    "sodium": 100,
+    "caffeine": 0
+  },
+  "named-sport-total-energy-fruit-bar:b95faf6f8e4e72f2": {
+    "carbs": 25,
+    "calories": 115,
+    "sodium": 30,
+    "caffeine": 0
+  },
+  "named-sport-sport-gel:34e4bf93e227a299": {
+    "carbs": 25,
+    "calories": 100,
+    "sodium": 20,
+    "caffeine": 0
+  },
+  "pace-power-gt-gel:7aee21dcde4b084b": {
+    "carbs": 25,
+    "calories": 100,
+    "sodium": 200,
+    "caffeine": 0
+  },
+  "named-sport-race-fuel-gel:6187f09bfd944499": {
+    "carbs": 30,
+    "calories": 120,
+    "sodium": 60,
+    "caffeine": 0
+  },
+  "32gi-endure-drink:0358156c21b6aa2b": {
+    "carbs": 36,
+    "calories": 144,
+    "sodium": 180,
+    "caffeine": 0
+  },
+  "226ers-creatine:220d23150d3e62be": {
+    "carbs": 0,
+    "calories": 0,
+    "sodium": 0,
+    "caffeine": 0
+  },
+  "226ers-recovery-drink:ed32240777a07507": {
+    "carbs": 30,
+    "calories": 200,
+    "sodium": 0,
+    "caffeine": 0
+  },
+  "13nutrition-daily-hydrate-electrolytes-sachets:a7bff74fde91d60f": {
+    "carbs": 1,
+    "calories": 5,
+    "sodium": 300,
+    "caffeine": 0
+  },
+  "alive-creatine:09d5c9b711a0d106": {
+    "carbs": 1,
+    "calories": 5,
+    "sodium": 0,
+    "caffeine": 0
+  },
+  "226ers-energy-drink:614c663f219fde65": {
+    "carbs": 45,
+    "calories": 183,
+    "sodium": 200,
+    "caffeine": 0
+  },
+  "nutritech-nuke-pump-pre-workout:f66084d7e61283e0": {
+    "carbs": 3,
+    "calories": 15,
+    "sodium": 20,
+    "caffeine": 0
+  },
+  "32gi-race-bar:8174741c451da085": {
+    "carbs": 40,
+    "calories": 210,
+    "sodium": 80,
+    "caffeine": 0
+  },
+  "enduren-endurance-energy-drink-mix:3fc4d1bdc50f0ef1": {
+    "carbs": 40,
+    "calories": 160,
+    "sodium": 200,
+    "caffeine": 0
+  },
+  "32gi-race-drink:e7427588e15979c0": {
+    "carbs": 60,
+    "calories": 240,
+    "sodium": 250,
+    "caffeine": 0
+  },
+  "named-sport-hydrafit-zero:e50deb288e96d270": {
+    "carbs": 0,
+    "calories": 0,
+    "sodium": 250,
+    "caffeine": 0
+  },
+  "pvm-energy-bar:a860a993d1821a47": {
+    "carbs": 26,
+    "calories": 170,
+    "sodium": 50,
+    "caffeine": 0
+  },
+  "pvm-protein-xtr:c92c5c1ce4954b8c": {
+    "carbs": 5,
+    "calories": 180,
+    "sodium": 50,
+    "caffeine": 0
+  },
+  "nutritech-prosport-amino-energy:8f454ea3a0a52dfc": {
+    "carbs": 3,
+    "calories": 15,
+    "sodium": 20,
+    "caffeine": 100
+  },
+  "nutritech-prosport-creatine-monohydrate:eda6587f1c6fd5f0": {
+    "carbs": 0,
+    "calories": 0,
+    "sodium": 0,
+    "caffeine": 0
+  },
+  "enduren-endurance-energy-gel-with-caffeine:3ccb0970447582f1": {
+    "carbs": 22,
+    "calories": 90,
+    "sodium": 50,
+    "caffeine": 50
+  },
+  "32gi-chews:c6c420ba6a534abf": {
+    "carbs": 36,
+    "calories": 150,
+    "sodium": 60,
+    "caffeine": 0
+  },
+  "nutricon-nanotech-whey-protein:037ec635ac03eaae": {
+    "carbs": 5,
+    "calories": 130,
+    "sodium": 40,
+    "caffeine": 0
+  },
+  "pvm-energy-bar-cereal:401b32cb9766821a": {
+    "carbs": 35,
+    "calories": 190,
+    "sodium": 40,
+    "caffeine": 0
+  },
+  "32gi-hydrate-1000:f656b21793b9224b": {
+    "carbs": 3,
+    "calories": 12,
+    "sodium": 300,
+    "caffeine": 0
+  },
+  "skratch-labs-energy-chews:120912af3288f8d6": {
+    "carbs": 42,
+    "calories": 170,
+    "sodium": 80,
+    "caffeine": 0
+  },
+  "named-sport-race-fuel:f9f1bd68239b406d": {
+    "carbs": 45,
+    "calories": 180,
+    "sodium": 150,
+    "caffeine": 0
+  },
+  "named-sport-hydrafit:9a9228c2b98bfb85": {
+    "carbs": 12,
+    "calories": 48,
+    "sodium": 230,
+    "caffeine": 0
+  },
+  "metagenics-mitovive:077f54da3668d78d": {
+    "carbs": 5,
+    "calories": 25,
+    "sodium": 10,
+    "caffeine": 0
+  },
+  "blast-daily-focus:2ee7526e2743af17": {
+    "carbs": 2,
+    "calories": 10,
+    "sodium": 50,
+    "caffeine": 200
+  },
+  "pvm-reignite:3320394f45b6878b": {
+    "carbs": 50,
+    "calories": 240,
+    "sodium": 100,
+    "caffeine": 0
+  },
+  "pvm-octane-xtr:666bb69a3109a4f9": {
+    "carbs": 60,
+    "calories": 260,
+    "sodium": 200,
+    "caffeine": 0
+  },
+  "32gi-race-pro-drink:f66125014cacc839": {
+    "carbs": 80,
+    "calories": 340,
+    "sodium": 300,
+    "caffeine": 0
+  },
+  "pillar-performance-creatine-monohydrate-performance-capacity-pouch:a7cce0e27608281c": {
+    "carbs": 0,
+    "calories": 0,
+    "sodium": 0,
+    "caffeine": 0
+  },
+  "nutritech-prosport-premium-whey:dc89db9dc0862914": {
+    "carbs": 5,
+    "calories": 130,
+    "sodium": 50,
+    "caffeine": 0
+  },
+  "13nutrition-hydrating-electrolytes-bcaa-s-330g:08187603ffe0ddcc": {
+    "carbs": 2,
+    "calories": 10,
+    "sodium": 350,
+    "caffeine": 0
+  },
+  "226ers-hydrazero:a2dfbcc84bd155ba": {
+    "carbs": 0,
+    "calories": 5,
+    "sodium": 250,
+    "caffeine": 0
+  },
+  "nutricon-boost-energy-and-performance-enhancer-2:6064baa3960fb4c9": {
+    "carbs": 5,
+    "calories": 20,
+    "sodium": 0,
+    "caffeine": 0
+  },
+  "nutricon-absolute-amino-eaas:e031c7bd97fde177": {
+    "carbs": 1,
+    "calories": 10,
+    "sodium": 0,
+    "caffeine": 0
+  },
+  "nutricon-blown-non-stimulant-pre-workout:c4cd92591803a57c": {
+    "carbs": 2,
+    "calories": 10,
+    "sodium": 30,
+    "caffeine": 0
+  },
+  "nutricon-erupt-pre-workout-powder:93a0f1307ca75355": {
+    "carbs": 3,
+    "calories": 15,
+    "sodium": 30,
+    "caffeine": 300
+  },
+  "nutricon-whey-isolate-protein-powder:7a109fa6405761a4": {
+    "carbs": 4,
+    "calories": 130,
+    "sodium": 50,
+    "caffeine": 0
+  },
+  "32gi-g-shot:ef97f7432341db77": {
+    "carbs": 0,
+    "calories": 5,
+    "sodium": 0,
+    "caffeine": 60
+  },
+  "styrkrthon-recovery-bar:f4dd52558b901220": {
+    "carbs": 20,
+    "calories": 230,
+    "sodium": 80,
+    "caffeine": 0
+  },
+  "skratch-labs-recovery-sport-drink-mix-vegan:02841241e096a157": {
+    "carbs": 31,
+    "calories": 200,
+    "sodium": 390,
+    "caffeine": 0
+  },
+  "skratch-labs-recovery-sport-drink-mix:02841241e096a157": {
+    "carbs": 31,
+    "calories": 200,
+    "sodium": 390,
+    "caffeine": 0
+  },
+  "skratch-labs-sport-hydration:220bb47e1a69db8e": {
+    "carbs": 20,
+    "calories": 80,
+    "sodium": 380,
+    "caffeine": 0
+  },
+  "skratch-labs-every-day-hydration:4e1537014ae1fed8": {
+    "carbs": 0,
+    "calories": 10,
+    "sodium": 170,
+    "caffeine": 0
+  },
+  "racefood-farbar:0417b61a301d42a5": {
+    "carbs": 40,
+    "calories": 200,
+    "sodium": 50,
+    "caffeine": 0
+  },
+  "racefood-fastbar:bc1c5243265f1a1c": {
+    "carbs": 35,
+    "calories": 180,
+    "sodium": 40,
+    "caffeine": 0
+  },
+  "natures-nutrition-plant-protein:6ce64ef1bd903ff7": {
+    "carbs": 8,
+    "calories": 120,
+    "sodium": 30,
+    "caffeine": 0
+  },
+  "named-sport-isonam-energy:908b2c818d879762": {
+    "carbs": 30,
+    "calories": 130,
+    "sodium": 200,
+    "caffeine": 0
+  },
+  "32gi-race-pro-gel:00bf32bfd573b8de": {
+    "carbs": 45,
+    "calories": 200,
+    "sodium": 150,
+    "caffeine": 0
+  },
+  "blast-daily-hydrate:07260a0e0a1c5a30": {
+    "carbs": 2,
+    "calories": 10,
+    "sodium": 300,
+    "caffeine": 0
+  },
+  "blast-daily-protein-tub:6cbf7daa82ba1ce6": {
+    "carbs": 3,
+    "calories": 120,
+    "sodium": 50,
+    "caffeine": 0
+  },
+  "skratch-labs-energy-bar:e8ccbf2876062ab6": {
+    "carbs": 28,
+    "calories": 210,
+    "sodium": 190,
+    "caffeine": 0
+  },
+  "pvm-fusion-mass:70a258978997555e": {
+    "carbs": 45,
+    "calories": 350,
+    "sodium": 60,
+    "caffeine": 0
+  },
+  "pvm-fusion:291791fd244d15e0": {
+    "carbs": 40,
+    "calories": 220,
+    "sodium": 80,
+    "caffeine": 0
+  },
+  "pvm-reactor:afd8c27b37d6aa2f": {
+    "carbs": 30,
+    "calories": 200,
+    "sodium": 60,
+    "caffeine": 0
+  },
+  "enduren-zero-sports-drink-mix:a1fc119b30a5d2fc": {
+    "carbs": 0,
+    "calories": 0,
+    "sodium": 300,
+    "caffeine": 0
+  },
+  "enduren-recovery-drink:00f3176e238153b1": {
+    "carbs": 35,
+    "calories": 200,
+    "sodium": 80,
+    "caffeine": 0
+  },
+  "pvn-octane:0471552dd2ce1ada": {
+    "carbs": 45,
+    "calories": 190,
+    "sodium": 150,
+    "caffeine": 0
+  },
+  "13nutrition-clean-fuel:13b1e95283a2c5a9": {
+    "carbs": 50,
+    "calories": 200,
+    "sodium": 150,
+    "caffeine": 0
+  },
+  "nutritech-prosport-premium-mass:6e480735e786fb98": {
+    "carbs": 55,
+    "calories": 350,
+    "sodium": 40,
+    "caffeine": 0
+  },
+  "nutritech-prosport-vegan-protein:e284cd3b98bce765": {
+    "carbs": 4,
+    "calories": 120,
+    "sodium": 40,
+    "caffeine": 0
+  },
+  "enduren-just-pea-protein:15f8f2ae67d9b3df": {
+    "carbs": 2,
+    "calories": 120,
+    "sodium": 20,
+    "caffeine": 0
+  },
+  "32gi-protein:5f74f9c1b772bfd7": {
+    "carbs": 3,
+    "calories": 120,
+    "sodium": 50,
+    "caffeine": 0
+  },
+  "32gi-boom-pre-workout:4ba35ddb3805c73a": {
+    "carbs": 2,
+    "calories": 10,
+    "sodium": 50,
+    "caffeine": 200
   }
 }

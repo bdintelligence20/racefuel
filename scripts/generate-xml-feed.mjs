@@ -381,6 +381,42 @@ function saveCache(cache) {
   writeFileSync(CACHE_PATH, JSON.stringify(cache, null, 2), 'utf-8');
 }
 
+/**
+ * Last-known-good fallback. If the script runs in an environment that's
+ * missing both the cache file AND the Gemini API key (e.g., the runtime
+ * cron container if the Docker COPY ever drops out of sync), this lets us
+ * scrape nutrition values from the previously-emitted feed at OUTPUT_PATH
+ * so the cron run never destroys good data — it can only add to it.
+ */
+function loadExistingFeedNutrition() {
+  if (!existsSync(OUTPUT_PATH)) return {};
+  try {
+    const xml = readFileSync(OUTPUT_PATH, 'utf-8');
+    const out = {};
+    const productRe = /<product>([\s\S]*?)<\/product>/g;
+    let m;
+    while ((m = productRe.exec(xml)) !== null) {
+      const block = m[1];
+      const handle = (block.match(/<handle>([^<]*)<\/handle>/) || [])[1];
+      if (!handle) continue;
+      const carbs = (block.match(/<carbs_g>([^<]*)<\/carbs_g>/) || [])[1] || '';
+      const cal = (block.match(/<calories>([^<]*)<\/calories>/) || [])[1] || '';
+      const sodium = (block.match(/<sodium_mg>([^<]*)<\/sodium_mg>/) || [])[1] || '';
+      const caffeine = (block.match(/<caffeine_mg>([^<]*)<\/caffeine_mg>/) || [])[1] || '';
+      const num = (s) => (s === '' ? null : Number.isFinite(parseFloat(s)) ? parseFloat(s) : null);
+      out[handle] = {
+        carbs: num(carbs),
+        calories: num(cal),
+        sodium: num(sodium),
+        caffeine: num(caffeine),
+      };
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
 // ────────────────────────────────────────────────────────────────────────
 
 function detectCategory(product) {
@@ -408,18 +444,19 @@ function loadOverrides() {
 /**
  * Resolve nutrition for one product through the priority chain.
  * Returns { nutrition, source } where source is one of:
- *   'override' | 'parsed' | 'cache' | 'ai' | 'mixed' | 'missing'
+ *   'override' | 'parsed' | 'cache' | 'ai' | 'existing' | 'missing'
  */
-function resolveNutrition(product, plainDesc, overrides, cache, aiResults) {
+function resolveNutrition(product, plainDesc, overrides, cache, aiResults, existingFeed) {
   const ovr = overrides[product.handle] || overrides[String(product.id)] || {};
   const parsed = extractNutrition(plainDesc);
   const cacheKey = `${product.handle}:${hashDesc(plainDesc)}`;
   const cached = cache[cacheKey] || {};
   const ai = aiResults.get(product.handle) || {};
+  const existing = existingFeed[product.handle] || {};
 
-  // Per-field priority: override > parsed > cache > ai > null
+  // Per-field priority: override > parsed > cache > ai > existing-feed > null
   const pick = (field) =>
-    ovr[field] ?? parsed[field] ?? cached[field] ?? ai[field] ?? null;
+    ovr[field] ?? parsed[field] ?? cached[field] ?? ai[field] ?? existing[field] ?? null;
 
   const nutrition = {
     carbs: pick('carbs'),
@@ -434,6 +471,7 @@ function resolveNutrition(product, plainDesc, overrides, cache, aiResults) {
   else if (parsed.carbs != null) source = 'parsed';
   else if (cached.carbs != null) source = 'cache';
   else if (ai.carbs != null) source = 'ai';
+  else if (existing.carbs != null) source = 'existing';
 
   // Update cache with anything new we learned (AI or freshly-parsed values
   // that the cache didn't already have). Don't store overrides — those
@@ -443,7 +481,11 @@ function resolveNutrition(product, plainDesc, overrides, cache, aiResults) {
   for (const f of ['carbs', 'calories', 'sodium', 'caffeine']) {
     const fromAi = ai[f];
     const fromParsed = parsed[f];
-    const newVal = fromAi ?? fromParsed;
+    const fromExisting = existing[f];
+    // Promote existing-feed values into the cache too — they came from a
+    // previous successful resolution, so caching them stops us walking the
+    // existing-feed branch every run.
+    const newVal = fromAi ?? fromParsed ?? fromExisting;
     if (newVal != null && cacheUpdate[f] !== newVal) {
       cacheUpdate[f] = newVal;
       cacheChanged = true;
@@ -578,8 +620,13 @@ async function main() {
 
   const overrides = loadOverrides();
   const cache = loadCache();
+  // Last-known-good values from the previously-emitted feed at OUTPUT_PATH
+  // — non-destructive fallback so cron runs without overrides/cache/key
+  // can never produce a feed that's worse than the one already there.
+  const existingFeed = loadExistingFeedNutrition();
   console.log(`Loaded ${Object.keys(overrides).length} nutrition overrides`);
-  console.log(`Loaded ${Object.keys(cache).length} cached extractions\n`);
+  console.log(`Loaded ${Object.keys(cache).length} cached extractions`);
+  console.log(`Loaded ${Object.keys(existingFeed).length} entries from previous feed (non-destructive fallback)\n`);
 
   // First pass — figure out which products need AI extraction. A product
   // needs AI if no override covers its carbs AND regex+cache combined still
@@ -679,13 +726,13 @@ async function main() {
   xmlParts.push(`  </collections>`);
   xmlParts.push(`  <products>`);
 
-  const stats = { override: 0, parsed: 0, cache: 0, ai: 0, missing: 0 };
+  const stats = { override: 0, parsed: 0, cache: 0, ai: 0, existing: 0, missing: 0 };
   const missing = [];
 
   for (const [, entry] of allProductsMap) {
     const p = entry.product;
     const plainDesc = stripHtml(p.body_html);
-    const resolved = resolveNutrition(p, plainDesc, overrides, cache, aiResults);
+    const resolved = resolveNutrition(p, plainDesc, overrides, cache, aiResults, existingFeed);
     stats[resolved.source] = (stats[resolved.source] || 0) + 1;
     if (resolved.source === 'missing') {
       missing.push({ handle: p.handle, title: p.title, id: p.id });
@@ -716,6 +763,7 @@ async function main() {
   console.log(`  Regex parsed:     ${stats.parsed}`);
   console.log(`  Cache hit:        ${stats.cache}`);
   console.log(`  AI (Gemini):      ${stats.ai}`);
+  console.log(`  Existing feed:    ${stats.existing}`);
   console.log(`  Still missing:    ${stats.missing}`);
 
   if (missing.length > 0) {
