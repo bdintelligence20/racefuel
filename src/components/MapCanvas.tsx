@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState, useCallback } from 'react';
+import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { GpxDropZone } from './GpxDropZone';
 import { AutoGenerateButton } from './AutoGenerateButton';
 import { MapView } from './MapView';
@@ -185,7 +185,7 @@ function ElevationProfile() {
   // Segment colors for gradient
   const segments = routeAnalysis?.segments || [];
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+  const handlePointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (!svgRef.current || !elevations.length) return;
     const rect = svgRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -197,18 +197,30 @@ function ElevationProfile() {
 
     // Handle dragging a nutrition point
     if (draggingPointId) {
+      // Prevent the page from scrolling under the finger while dragging.
+      if (e.cancelable) e.preventDefault();
       moveNutritionPoint(draggingPointId, km);
     }
   }, [elevations.length, routeData.distanceKm, draggingPointId, moveNutritionPoint, elevAtKm]);
 
-  const handleMouseLeave = useCallback(() => {
+  const handlePointerLeave = useCallback(() => {
     setHover(null);
-    setDraggingPointId(null);
   }, []);
 
-  const handleMouseUp = useCallback(() => {
-    setDraggingPointId(null);
-  }, []);
+  // While a drag is active, listen on the window so the user can pan past
+  // the chart edges without dropping the marker. Touch devices in particular
+  // can wander out of the SVG mid-drag and we don't want that to abort.
+  useEffect(() => {
+    if (!draggingPointId) return;
+    const onUp = () => setDraggingPointId(null);
+    const onCancel = () => setDraggingPointId(null);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+    return () => {
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+    };
+  }, [draggingPointId]);
 
   const handleElevationDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -256,9 +268,9 @@ function ElevationProfile() {
           viewBox="0 0 1000 150"
           preserveAspectRatio="none"
           className={`w-full h-full ${draggingPointId ? 'cursor-grabbing' : 'cursor-crosshair'}`}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          onMouseUp={handleMouseUp}
+          onPointerMove={handlePointerMove}
+          onPointerLeave={handlePointerLeave}
+          style={{ touchAction: draggingPointId ? 'none' : undefined }}
         >
           <defs>
             {/* Terrain-inspired gradient for elevation fill */}
@@ -313,7 +325,9 @@ function ElevationProfile() {
             cumulative distance (matches the curve's X axis); Y is the curve
             elevation at that distance, mapped through the SVG's 0–150 unit
             space onto a percent of this container. NutritionMarker uses
-            -translate-y-full, so its bottom pin lands exactly on the curve. */}
+            -translate-y-full, so its bottom pin lands exactly on the curve.
+            onDragStart wires the marker's long-press into the parent's drag
+            state so pointermove on the SVG can move the point. */}
         {routeData.nutritionPoints.map((point) => {
           const safeTotal = routeData.distanceKm || 1;
           const leftPct = (Math.max(0, Math.min(safeTotal, point.distanceKm)) / safeTotal) * 100;
@@ -325,6 +339,7 @@ function ElevationProfile() {
               product={point.product}
               distanceKm={point.distanceKm}
               onRemove={() => removeNutritionPoint(point.id)}
+              onDragStart={() => setDraggingPointId(point.id)}
               style={{ left: `${leftPct}%`, top: `${topPct}%` }}
             />
           );

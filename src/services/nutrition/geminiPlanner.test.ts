@@ -405,4 +405,92 @@ describe('generatePlanWithGemini — end-to-end with stubbed SDK', () => {
     expect(typeof prompt).toBe('string');
     expect(prompt.length).toBeGreaterThan(200);
   });
+
+  // Feedback fix SM#3: when a user picks "gel" as their preferred category,
+  // the catalog handed to Gemini must be hard-filtered to gels — not just a
+  // soft prompt hint. Previous behaviour leaked drink mixes into the plan.
+  it('hard-filters the catalog to preferred categories', async () => {
+    agentState.responseText = JSON.stringify({
+      placements: [{ distanceKm: 5, productId: 'gel-30', rationale: '' }],
+      overallRationale: '',
+    });
+    await generatePlanWithGemini({
+      ...baseInput(21.6, 2.3, 300),
+      preferredCategories: ['gel'],
+    });
+    const [prompt] = agentState.calls[0] as [string];
+    // Drink and bar ids must not appear in the catalog Gemini sees.
+    expect(prompt).not.toContain('drink-25');
+    expect(prompt).not.toContain('drink-45');
+    expect(prompt).not.toContain('drink-60');
+    expect(prompt).not.toContain('bar-28');
+    expect(prompt).not.toContain('bar-40');
+    expect(prompt).not.toContain('chew-36');
+    // Gel ids should still appear.
+    expect(prompt).toContain('gel-30');
+  });
+
+  // Feedback fix SM#7: weather pill should be hidden when the user hasn't
+  // picked a date — and the prompt should tell the model conditions weren't
+  // grounded in a forecast so it doesn't hallucinate "hot day" reasoning.
+  it('flags neutral conditions in the prompt when weather is not from a forecast', async () => {
+    agentState.responseText = JSON.stringify({
+      placements: [{ distanceKm: 5, productId: 'gel-30', rationale: '' }],
+      overallRationale: '',
+    });
+    await generatePlanWithGemini({
+      ...baseInput(21.6, 2.3, 300),
+      weatherFromForecast: false,
+    });
+    const [prompt] = agentState.calls[0] as [string];
+    expect(prompt).toMatch(/no race-day forecast/);
+  });
+
+  // Feedback fix SM#1: prompt must include the per-event sodium target so
+  // Gemini biases toward sodium-dense products. Plan was delivering ~25%
+  // of target on hot routes.
+  it('includes the per-event sodium budget in HARD RULES', async () => {
+    agentState.responseText = JSON.stringify({
+      placements: [{ distanceKm: 5, productId: 'gel-30', rationale: '' }],
+      overallRationale: '',
+    });
+    await generatePlanWithGemini(baseInput(21.6, 2.3, 300));
+    const [prompt] = agentState.calls[0] as [string];
+    expect(prompt).toMatch(/Sodium target: aim for total sodium ≥ \d+mg/);
+  });
+
+  // Feedback fix SM#6: prompt must enforce "last placement ≥ 75% of distance"
+  // so Gemini doesn't front-load and leave the back half of the route
+  // unfueled (the original bug: 21km route, last fuel at 8km).
+  it('includes a back-half coverage rule in HARD RULES', async () => {
+    agentState.responseText = JSON.stringify({
+      placements: [{ distanceKm: 5, productId: 'gel-30', rationale: '' }],
+      overallRationale: '',
+    });
+    await generatePlanWithGemini(baseInput(21.6, 2.3, 300));
+    const [prompt] = agentState.calls[0] as [string];
+    expect(prompt).toMatch(/Last placement: ≥ 16\.\d+km/);
+  });
+
+  // Feedback fix SM#6 (continued): when the carb cap would normally drop a
+  // late placement, materialisePlacements should keep it if it closes a
+  // coverage gap > 25% of distance.
+  it('keeps late placements that close a back-half coverage gap even if over the cap', () => {
+    const raw = {
+      placements: [
+        // Front-loaded: three big drinks at km 2, 5, 8 — by km 8 we've eaten
+        // 165g of carbs and a hard cap of 170g would normally drop everything
+        // after this. The km-18 placement closes a >25% coverage gap (10km
+        // from the previous one on a 21km route) and must survive.
+        { distanceKm: 2, productId: 'drink-60', rationale: '' },
+        { distanceKm: 5, productId: 'drink-60', rationale: '' },
+        { distanceKm: 8, productId: 'drink-45', rationale: '' },
+        { distanceKm: 18, productId: 'gel-22', rationale: '' },
+      ],
+      overallRationale: '',
+    };
+    const { points } = materialisePlacements(raw, TEST_CATALOG, 21, 170);
+    const lastKm = points[points.length - 1].distanceKm;
+    expect(lastKm).toBe(18);
+  });
 });

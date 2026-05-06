@@ -64,12 +64,15 @@ export function EventSearchModal({ isOpen, onClose }: EventSearchModalProps) {
           <div>
             <div className="text-[10px] text-warm uppercase tracking-wider font-bold">16-Day Forecast</div>
             <h2 className="text-lg font-bold text-text-primary">Race Day Weather</h2>
-            {routeData.gpsPath && routeData.gpsPath.length > 0 && (
-              <div className="flex items-center gap-1 text-[10px] text-text-muted mt-0.5">
-                <MapPin className="w-2.5 h-2.5" />
-                Based on route start location
-              </div>
-            )}
+            <div className="flex items-center gap-1 text-[10px] text-text-muted mt-0.5">
+              <MapPin className="w-2.5 h-2.5" />
+              {routeData.gpsPath && routeData.gpsPath.length > 0
+                ? 'Based on your route start location'
+                : 'Pick a date below to use this forecast in your plan'}
+            </div>
+            <p className="text-[10px] text-text-muted/80 mt-1 max-w-[28ch] leading-snug">
+              Weather forecast for your loaded route. A pre-loaded race database is on the roadmap — for now, upload a GPX or draw a route, then check conditions here.
+            </p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-accent/[0.08] transition-colors text-text-muted hover:text-text-primary">
             <X className="w-5 h-5" />

@@ -1,5 +1,5 @@
 import { useModalBehavior } from '../hooks/useModalBehavior';
-import { Zap, Droplets, Coffee, X, Thermometer, Gauge, Clock, RefreshCw } from 'lucide-react';
+import { Zap, Droplets, Coffee, X, Thermometer, Gauge, Clock, RefreshCw, CalendarPlus } from 'lucide-react';
 import { GeneratedPlan } from '../services/nutrition/planGenerator';
 import { calculatePlanCost } from '../services/nutrition/costCalculator';
 
@@ -7,6 +7,9 @@ export interface PlanStrategyContext {
   durationHours: number;
   temperatureCelsius: number;
   humidity: number;
+  /** True when temp/humidity came from a forecast (user picked a date).
+   *  Drives whether the weather pill and lede sentence reference conditions. */
+  weatherFromForecast: boolean;
   intensityBucket: 'easy' | 'moderate' | 'hard';
   rationale?: string;
 }
@@ -76,9 +79,15 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
         <div className="p-4 space-y-4">
           <p className="text-sm text-text-secondary leading-relaxed">
             Based on <strong className="text-text-primary">{formatHours(context.durationHours)}</strong> at{' '}
-            <strong className="text-text-primary">{context.intensityBucket}</strong> intensity,{' '}
-            <strong className="text-text-primary">{context.temperatureCelsius}°C</strong> /{' '}
-            <strong className="text-text-primary">{context.humidity}%</strong> humidity, we suggest{' '}
+            <strong className="text-text-primary">{context.intensityBucket}</strong> intensity
+            {context.weatherFromForecast ? (
+              <>
+                ,{' '}
+                <strong className="text-text-primary">{context.temperatureCelsius}°C</strong> /{' '}
+                <strong className="text-text-primary">{context.humidity}%</strong> humidity
+              </>
+            ) : null}
+            , we suggest{' '}
             <strong className="text-warm">{carbsPerHour} g/h carbs</strong>{' '}
             and <strong className="text-accent">{sodiumPerHour} mg/h sodium</strong>.
           </p>
@@ -87,7 +96,11 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
           <div className="flex flex-wrap gap-1.5">
             <Pill icon={Clock}>{formatHours(context.durationHours)}</Pill>
             <Pill icon={Gauge}>{context.intensityBucket}</Pill>
-            <Pill icon={Thermometer}>{context.temperatureCelsius}°C / {context.humidity}%</Pill>
+            {context.weatherFromForecast ? (
+              <Pill icon={Thermometer}>{context.temperatureCelsius}°C / {context.humidity}%</Pill>
+            ) : (
+              <Pill icon={CalendarPlus}>add a date for weather-aware sodium</Pill>
+            )}
           </div>
 
           {/* Target grid — each card shows TARGET as the headline and what the

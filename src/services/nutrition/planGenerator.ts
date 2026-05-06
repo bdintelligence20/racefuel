@@ -17,6 +17,10 @@ export interface PlanGeneratorInput {
   isCompetition: boolean;
   temperatureCelsius: number;
   humidity: number;
+  /** True when temp/humidity came from a forecast for the planned date.
+   *  Unused by the legacy algorithm (it uses the values regardless), but
+   *  carried through so the same input shape works for both planners. */
+  weatherFromForecast?: boolean;
   preferredProductIds?: string[];
   preferredCategories?: Array<'gel' | 'drink' | 'bar' | 'chew'>;
   /** User's perceived effort on a 1–10 scale. When set, replaces the auto-inferred
@@ -148,6 +152,10 @@ function selectProduct(
   maxCarbsPerPoint: number,
   preferredCategories?: Array<'gel' | 'drink' | 'bar' | 'chew'>,
   preferredBrands?: string[],
+  /** 0–1: how aggressively to bias toward sodium-dense products. Set when the
+   *  plan is tracking below the sodium target so subsequent placements lean
+   *  on electrolyte drinks/tabs. 0 = carb-only scoring (legacy). */
+  sodiumPriority = 0,
 ): SelectProductResult | null {
   const rawPool = preferredProducts && preferredProducts.length > 0 ? preferredProducts : products;
   const fuelPool = rawPool.filter(isFuelCandidate);
@@ -176,8 +184,15 @@ function selectProduct(
   const bars = pool.filter((p) => p.category === 'bar');
   const chews = pool.filter((p) => p.category === 'chew');
 
-  const byProximity = (items: ProductProps[]) =>
-    [...items].sort((a, b) => Math.abs(a.carbs - targetCarbsPerPoint) - Math.abs(b.carbs - targetCarbsPerPoint));
+  // Score = carb-distance from target, minus a sodium credit when sodium is
+  // running behind. Without this an all-gel plan would deliver ~25% of a
+  // 600 mg/h sodium target on a hot day.
+  const score = (p: ProductProps) => {
+    const carbDist = Math.abs(p.carbs - targetCarbsPerPoint);
+    const sodiumCredit = sodiumPriority > 0 ? Math.min(12, p.sodium / 50) * sodiumPriority : 0;
+    return carbDist - sodiumCredit;
+  };
+  const byProximity = (items: ProductProps[]) => [...items].sort((a, b) => score(a) - score(b));
 
   const wrap = (p: ProductProps | null): SelectProductResult | null => (p ? { product: p, brandHonoured } : null);
 
@@ -312,12 +327,29 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
   // rationale so the user understands why a non-Gu product appeared.
   let brandFallbackTriggered = false;
 
+  // Sodium-aware product selection runs inside the loop using
+  // hydrationTarget.sodiumMgPerHour directly — the per-placement priority is
+  // computed from how far behind the running totalSodium is for the time
+  // already elapsed. Without this, an all-gel plan would deliver ~25% of a
+  // 600 mg/h sodium target on a hot day.
+
+  // Coverage rule: we won't stop placing until the last point covers ≥75%
+  // of the route, even if we've hit the carb cap by then. The user feedback
+  // showed a 21km route with the last fuel point at 8km — that happens when
+  // 50g gels eat the budget early, then the cap cuts off everything after.
+  // Below this threshold we keep placing using the smallest-carb candidate
+  // to stretch coverage without blowing the gut ceiling further.
+  const coverageMinKm = distanceKm * 0.75;
   let safety = 0;
   while (cursorKm < distanceKm - endBufferKm && safety++ < 200) {
-    if (totalCarbs >= maxTotalCarbs) break;
-    // Stop once we've met the target — no need to overshoot and risk the gut-tolerance
-    // ceiling. Small overshoot absorbed by rounding is fine.
-    if (totalCarbs >= targetTotalCarbs) break;
+    const lastPlacedKm = points.length > 0 ? points[points.length - 1].distanceKm : 0;
+    const haveCoverage = lastPlacedKm >= coverageMinKm;
+    // Carb cap stops placements only after coverage is reached. While the
+    // back half is still unfueled, keep going (the dynamicCap below will
+    // shrink the per-point dose to fit the remaining budget).
+    if (haveCoverage && totalCarbs >= maxTotalCarbs) break;
+    // Same for the soft target: only stop once coverage is satisfied.
+    if (haveCoverage && totalCarbs >= targetTotalCarbs) break;
 
     let placeKm = cursorKm;
     // Widen the pre-climb lookahead to 15 min so we can set up for big climbs
@@ -366,13 +398,31 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       20,
       Math.min(absoluteMaxPerPoint, Math.round(remainingCarbsToTarget / expectedRemainingPoints)),
     );
-    // Fall back to the initial target if remaining work is negligible — prevents tiny divisors
-    // from blowing the per-point target up to absurd heights on the last placement.
-    const perPointTarget = remainingCarbsToTarget > 15 ? dynamicTargetPerPoint : initialTargetPerPoint;
+    // Coverage mode — when we're past the carb target and only placing for
+    // back-half coverage, pick the smallest viable item so we don't blow the
+    // gut ceiling. 15g for a small gel/chew is plenty to stretch coverage.
+    const isCoverageMode = totalCarbs >= targetTotalCarbs;
+    const perPointTarget = isCoverageMode
+      ? 15
+      : remainingCarbsToTarget > 15
+      ? dynamicTargetPerPoint
+      : initialTargetPerPoint;
 
     const segForPlacement = segmentAt(segments, placeKm);
     const remainingCarbBudget = Math.max(0, maxTotalCarbs - totalCarbs);
-    const dynamicCap = Math.min(absoluteMaxPerPoint, remainingCarbBudget + 5);
+    // In coverage mode the cap is permissive — let the smallest viable
+    // product slip in (typically 23g chews) even if it goes a touch over.
+    const dynamicCap = isCoverageMode
+      ? Math.min(absoluteMaxPerPoint, 30)
+      : Math.min(absoluteMaxPerPoint, remainingCarbBudget + 5);
+    // Sodium priority — clamped to [0, 0.6]. Goes up as the plan tracks below
+    // its sodium-per-hour target and tapers off once we've caught up.
+    const hoursElapsed = Math.max(0.01, (placeKm - firstKm) / avgSpeed + firstMin / 60);
+    const expectedSodiumByNow = hydrationTarget.sodiumMgPerHour * hoursElapsed;
+    const sodiumGap = expectedSodiumByNow > 0
+      ? Math.max(0, (expectedSodiumByNow - totalSodium) / expectedSodiumByNow)
+      : 0;
+    const sodiumPriority = Math.min(0.6, sodiumGap);
     const selection = selectProduct(
       placeKm,
       distanceKm,
@@ -385,6 +435,7 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       dynamicCap,
       preferredCategories,
       profile.preferredBrands,
+      sodiumPriority,
     );
     if (!selection) break; // no usable fuel in catalog
     if (!selection.brandHonoured) brandFallbackTriggered = true;

@@ -127,6 +127,11 @@ interface AppContextType {
       durationHours: number;
       temperatureCelsius: number;
       humidity: number;
+      /** True when temp/humidity came from a forecast (user picked a date).
+       *  False when the planner used internal defaults — the strategy modal
+       *  hides the weather pill in that case so the user isn't shown a
+       *  prediction that wasn't grounded in their inputs. */
+      weatherFromForecast: boolean;
       intensityBucket: 'easy' | 'moderate' | 'hard';
     };
   } | null;
@@ -280,7 +285,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [autoGenStatus, setAutoGenStatus] = useState<{ phase: string; source: 'gemini' | 'algorithm' } | null>(null);
   const [pendingPlan, setPendingPlan] = useState<{
     plan: GeneratedPlan;
-    context: { durationHours: number; temperatureCelsius: number; humidity: number; intensityBucket: 'easy' | 'moderate' | 'hard' };
+    context: { durationHours: number; temperatureCelsius: number; humidity: number; weatherFromForecast: boolean; intensityBucket: 'easy' | 'moderate' | 'hard' };
   } | null>(null);
 
   // Persist lastGeneratedPlan across refreshes and devices. localStorage is the
@@ -831,16 +836,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
         durationHours = routeData.distanceKm / 25;
       }
 
-      // Short-effort guard — bail BEFORE calling the planner so we don't spin up
-      // Gemini or the algorithm for a route that doesn't need fueling. Mirrors the
-      // spec's "<30 min / 30-75 min easy → no fuel" tier plus a distance floor
-      // (10 km) since any run shorter than that is glycogen-covered regardless
-      // of pace. Covers three cases the old code let through to Gemini.
-      if (durationHours < 1 || routeData.distanceKm < 10) {
+      // Short-effort guard — bail BEFORE calling the planner so we don't spin
+      // up Gemini for an effort that doesn't need fueling. Spec: <30 min and
+      // 30–75 min easy/moderate are glycogen-covered. We use duration alone
+      // as the gate so a 9km trail run with 800m gain (1h45m) still gets a
+      // plan, and a fast 12km tempo (under 1h) still doesn't.
+      if (durationHours < 1) {
         const minutes = Math.round(durationHours * 60);
-        const label = durationHours < 1 ? `${minutes} min` : `${routeData.distanceKm.toFixed(1)}km`;
         toast.info(
-          `${label} is short enough that glycogen covers it — no mid-run fueling needed. Hydrate and go.`,
+          `${minutes} min is short enough that glycogen covers it — no mid-run fueling needed. Hydrate and go.`,
           { duration: 6000 }
         );
         return;
@@ -858,10 +862,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Weather-aware planning: if the user picked a race date, fetch the forecast for
-      // that day at the route start. Fall back to sensible defaults on any failure.
+      // Weather-aware planning: if the user picked a race date, fetch the
+      // forecast for that day at the route start. We always need numbers for
+      // the hydration/sodium math (defaulting to 22°C / 50% RH is the spec
+      // baseline), but we ALSO track whether those numbers came from a real
+      // forecast so the strategy modal can hide the weather pill when they
+      // didn't — showing "22°C / 50%" without a date prompted "is this using
+      // today's weather?" feedback.
       let temperatureCelsius = 22;
       let humidity = 50;
+      let weatherFromForecast = false;
       if (routeData.plannedDate && routeData.gpsPath && routeData.gpsPath.length > 0) {
         try {
           const start = routeData.gpsPath[0];
@@ -877,6 +887,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           if (match) {
             temperatureCelsius = Math.round((match.tempMax + match.tempMin) / 2);
             humidity = match.humidity;
+            weatherFromForecast = true;
           }
         } catch (err) {
           console.error('Weather fetch failed, using defaults:', err);
@@ -901,6 +912,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         isCompetition: false,
         temperatureCelsius,
         humidity,
+        weatherFromForecast,
         preferredCategories: userProfile.preferredCategories,
         preferredProductIds,
         effortLevel: routeData.effortLevel,
@@ -958,7 +970,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
       setPendingPlan({
         plan,
-        context: { durationHours, temperatureCelsius, humidity, intensityBucket },
+        context: { durationHours, temperatureCelsius, humidity, weatherFromForecast, intensityBucket },
       });
     } catch (err) {
       console.error('[AutoGenerate] Error:', err);

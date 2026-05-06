@@ -135,6 +135,19 @@ export function calculateCarbTarget(input: CarbTargetInput): CarbTarget {
   const gutCapped = targetInTier > gutCeiling || tier.max > gutCeiling;
 
   let rationale = tier.label;
+  // Surface why we chose where in the band — feedback flagged "carbs/hour
+  // seems inconsistent, is this based on route difficulty?". The intensity
+  // bucket is derived from pace + elevation gain, so a hilly route lands in
+  // the same tier as a flat one but climbs to the top of the band.
+  if (tier.max > 0 && tier.max !== tier.min) {
+    if (intensity === 'easy') {
+      rationale += ` Easy intensity → bottom of band (${tier.min} g/h).`;
+    } else if (intensity === 'hard') {
+      rationale += ` Hard intensity (pace + elevation) → top of band (${tier.max} g/h).`;
+    } else {
+      rationale += ` Moderate intensity → middle of band.`;
+    }
+  }
   if (gutCapped && tier.max > 0) {
     rationale += ` Capped at gut ceiling of ${gutCeiling} g/h (${gutTolerance} tolerance) — raise via gradual gut training.`;
   }

@@ -114,4 +114,52 @@ describe('generatePlan — spec-aligned behaviour', () => {
     expect(plan.metrics.carbsPerHour).toBeGreaterThanOrEqual(60);
     expect(plan.metrics.totalCarbs).toBeGreaterThanOrEqual(plan.carbTarget.min * 2.3);
   });
+
+  // Feedback fix SM#6: on a 21km route the last fuel point was landing at
+  // 8km because the carb cap dropped late placements. Coverage rule says
+  // last placement must be ≥ 75% of distance.
+  it('21.6km / 2:19 places at least one fuel point in the back half of the route', () => {
+    const plan = generatePlan({
+      ...baseInput(21.6, 2.317),
+      elevationGainM: 377.7,
+    });
+    const lastKm = plan.nutritionPoints[plan.nutritionPoints.length - 1].distanceKm;
+    // Back half = ≥ 50% of distance. Originally cropping at 8km on 21.6km
+    // means lastKm < 11. With the coverage rule lastKm should be ≥ ~11.
+    expect(lastKm).toBeGreaterThanOrEqual(11);
+  });
+
+  // Feedback fix SM#1: hot/humid routes with high sweat-Na need sodium-dense
+  // products. The screenshot showed a plan delivering 26% of target (all
+  // gels). The sodium-aware scorer should bias toward electrolyte drinks
+  // and pick AT LEAST one high-sodium product on a hot route.
+  it('hot 30°C 70% humidity route includes at least one electrolyte drink', () => {
+    const plan = generatePlan({
+      ...baseInput(21.6, 2.317),
+      elevationGainM: 200,
+      temperatureCelsius: 30,
+      humidity: 70,
+      profile: { ...profile, sweatRate: 'heavy', sweatSodiumBucket: 'high' },
+    });
+    // Drinks have 300+ mg sodium per serving; gels and bars are ≤ 80 mg.
+    // The fix should land at least one drink in the plan.
+    const drinks = plan.nutritionPoints.filter((p) => p.product.category === 'drink');
+    expect(drinks.length).toBeGreaterThanOrEqual(1);
+    // And sodium delivery should beat the 26%-of-target failure mode shown
+    // in the BS+SM testing screenshot.
+    const targetTotalSodium = plan.hydrationTarget.sodiumMgPerHour * 2.317;
+    expect(plan.metrics.totalSodium).toBeGreaterThan(targetTotalSodium * 0.3);
+  });
+
+  // Feedback fix BS#3: sub-10km routes that take longer than an hour (e.g.,
+  // a hilly 9km trail run) should still get a plan. Used to be blocked by a
+  // distance floor in AppContext, but the planner itself must produce a
+  // valid plan for these inputs (the only guard is the duration check).
+  it('9km trail run lasting 1h45 produces a non-empty plan', () => {
+    const plan = generatePlan({
+      ...baseInput(9, 1.75),
+      elevationGainM: 600,
+    });
+    expect(plan.nutritionPoints.length).toBeGreaterThan(0);
+  });
 });

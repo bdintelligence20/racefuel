@@ -159,28 +159,38 @@ function NumberEditor({
   allowAuto?: boolean;
   autoLabel?: string;
 }) {
-  const [value, setValue] = useState<number>(current);
+  // Keep the user's draft as a string so backspace doesn't snap to "0" and a
+  // re-typed digit appears as "07". Parse on commit only. The +/- buttons
+  // operate on the parsed number and write a clean string back.
+  const [draft, setDraft] = useState<string>(() => String(current));
+  const parsed = parseInt(draft, 10);
+  const value = Number.isFinite(parsed) ? parsed : current;
+  const commit = (v: number) => onCommit(Math.max(min, Math.min(max, v)));
   return (
     <div className="flex items-center gap-1.5">
       <button
         type="button"
-        onClick={() => setValue((v) => Math.max(min, v - 1))}
+        onClick={() => setDraft(String(Math.max(min, value - 1)))}
         className="w-7 h-7 rounded-md bg-surface border border-[var(--color-border)] text-text-primary hover:bg-accent/[0.06] flex items-center justify-center text-sm font-bold"
         aria-label="Decrease"
       >−</button>
       <input
         type="number"
         inputMode="numeric"
-        value={value}
+        value={draft}
         min={min}
         max={max}
-        onChange={(e) => setValue(parseInt(e.target.value || '0', 10))}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          if (draft === '' || !Number.isFinite(parsed)) setDraft(String(current));
+        }}
+        onKeyDown={(e) => { if (e.key === 'Enter') commit(value); }}
         className="flex-1 h-7 bg-surface border border-[var(--color-border)] rounded-md text-center text-sm font-display font-bold tabular-nums text-text-primary focus:outline-none focus:border-warm"
       />
       {unit && <span className="text-[10px] text-text-muted font-display w-6">{unit}</span>}
       <button
         type="button"
-        onClick={() => setValue((v) => Math.min(max, v + 1))}
+        onClick={() => setDraft(String(Math.min(max, value + 1)))}
         className="w-7 h-7 rounded-md bg-surface border border-[var(--color-border)] text-text-primary hover:bg-accent/[0.06] flex items-center justify-center text-sm font-bold"
         aria-label="Increase"
       >+</button>
@@ -195,7 +205,7 @@ function NumberEditor({
       )}
       <button
         type="button"
-        onClick={() => onCommit(Math.max(min, Math.min(max, value)))}
+        onClick={() => commit(value)}
         className="w-7 h-7 rounded-md bg-warm text-white hover:bg-warm-light flex items-center justify-center"
         aria-label="Save"
       >

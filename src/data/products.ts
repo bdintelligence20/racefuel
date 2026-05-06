@@ -161,11 +161,19 @@ function parseProductsFromXml(xml: string): ProductProps[] {
       ? Math.round(feedServings)
       : inferServingsPerPack(title, description, category, carbs, variantWeightGrams, variantTitle);
 
+    // Calories — when the feed has an empty <calories> tag we fall back to a
+    // carb-derived estimate (4 kcal/g) rather than displaying "0 cal". The
+    // High Five Energy Gel with Caffeine ships with calories blank in the
+    // feed and was rendering "23g · 0 cal" in the cart.
+    const feedCalories = num('nutrition > calories');
+    const estimatedCalories = carbs > 0 ? Math.round(carbs * 4) : 0;
+    const calories = feedCalories > 0 ? feedCalories : estimatedCalories;
+
     results.push({
       id: text('handle'),
       brand: vendor,
       name: name || title,
-      calories: num('nutrition > calories'),
+      calories,
       carbs,
       sodium: num('nutrition > sodium_mg'),
       caffeine: num('nutrition > caffeine_mg'),

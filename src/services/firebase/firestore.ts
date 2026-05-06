@@ -48,8 +48,15 @@ export interface FirestoreProfile {
 }
 
 export async function saveProfile(profile: Omit<FirestoreProfile, 'updatedAt'>): Promise<void> {
+  // Firestore rejects `undefined` field values. Strip them so optional
+  // profile fields (carbTargetGPerHour, preferredBrands, preferredCategories)
+  // don't crash the sync when the user hasn't set them.
+  const cleaned: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(profile)) {
+    if (v !== undefined) cleaned[k] = v;
+  }
   await setDoc(userDoc('profile/data'), {
-    ...profile,
+    ...cleaned,
     updatedAt: serverTimestamp(),
   }, { merge: true });
 }

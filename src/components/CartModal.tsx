@@ -254,7 +254,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                         <div className="flex-1 min-w-0">
                           <div className="text-[10px] text-text-muted uppercase">{product.brand}</div>
                           <div className="text-sm font-bold text-text-primary truncate">{product.name}</div>
-                          <div className="text-xs text-text-secondary">{product.carbs}g · {product.calories} cal</div>
+                          <div className="text-xs text-text-secondary">{product.carbs}g carbs &middot; {product.calories} cal</div>
                         </div>
                         <div className="flex flex-col items-end justify-between">
                           <div className="text-sm font-display font-bold text-accent-light">
