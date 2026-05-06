@@ -57,8 +57,18 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
       ? `~${caffeineTotal}mg caffeine — a single dose near the 40% mark.`
       : `~${caffeineTotal}mg caffeine distributed across the final 45%.`;
 
+  // Combine the carb-target rationale (tier + intensity band) with the
+  // agent's strategic narrative (terrain awareness, dual-transporter
+  // logic). Showing both addresses the "why this g/h?" question
+  // separately from "why these placements?" — feedback BS#4 ("carbs/hr
+  // seems inconsistent — is this based on route difficulty?") needs the
+  // tier/intensity line specifically, which the agent rationale doesn't
+  // mention.
   const agentRationale = (plan as GeneratedPlan & { rationale?: string; source?: string }).rationale;
-  const rationale = agentRationale && agentRationale.length > 0 ? agentRationale : carbTarget.rationale;
+  const rationale =
+    agentRationale && agentRationale.length > 0
+      ? `${carbTarget.rationale}\n\n${agentRationale}`
+      : carbTarget.rationale;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
