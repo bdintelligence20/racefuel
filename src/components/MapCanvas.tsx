@@ -434,17 +434,21 @@ export function MapCanvas() {
   });
 
   // Mapbox doesn't auto-redraw when its container resizes — it samples the
-  // size on init and on explicit resize() calls. When the user collapses
-  // the elevation panel, the map's flex parent grows but the map canvas
-  // stays at its old dimensions, leaving a blank gap below. Trigger a
-  // resize after the height transition completes (the panel uses
+  // size on init and on explicit resize() calls. The elevation panel
+  // changes height in three scenarios:
+  //   1. user collapses/expands it (`elevationCollapsed` flips)
+  //   2. user clicks Clear (routeData.loaded → false → showElevation off → h-0)
+  //   3. user clicks Draw Route (isDrawing → true → showElevation off → h-0)
+  // Without resize() the map canvas stays at its old size and leaves a
+  // blank gap. Re-resize after the height transition completes (220ms ≥
   // duration-200 on transition-[height]).
   const map = useMap();
+  const showElevation = routeData.loaded && !isDrawing;
   useEffect(() => {
     if (!map) return;
     const t = setTimeout(() => map.resize(), 220);
     return () => clearTimeout(t);
-  }, [elevationCollapsed, map]);
+  }, [elevationCollapsed, showElevation, map]);
   const [routeColorMode, setRouteColorMode] = useState<'distance' | 'elevation'>(() => {
     if (typeof window === 'undefined') return 'distance';
     return (localStorage.getItem('fuelcue_route_color_mode') as 'distance' | 'elevation') || 'distance';
@@ -453,7 +457,6 @@ export function MapCanvas() {
     setRouteColorMode(mode);
     localStorage.setItem('fuelcue_route_color_mode', mode);
   };
-  const showElevation = routeData.loaded && !isDrawing;
 
   return (
     <main className="flex-1 relative flex flex-col bg-background">
