@@ -150,6 +150,17 @@ function extractNutrition(text) {
 
 // ────────────────────────────────────────────────────────────────────────
 // Gemini extraction (filling the gap when regex misses)
+//
+// Two modes:
+//   1. Description-only (`aiExtractOne`): cheap, ~1-2s per call, no
+//      external lookups. Works when the product description states
+//      numbers (even in marketing prose like "100-calorie packets").
+//      Returns null when the description has no numbers.
+//   2. Web-grounded (`aiExtractGrounded`): uses google_search tool so
+//      Gemini can look up nutrition facts on the manufacturer's site.
+//      ~3-5s per call, ~10× the cost, but resolves the products whose
+//      Shopify descriptions are pure marketing copy (Hammer Gel, GU
+//      Energy Gel, etc.). Cached so we only pay once per build.
 // ────────────────────────────────────────────────────────────────────────
 
 const GEMINI_SCHEMA = {
@@ -222,6 +233,103 @@ async function aiExtractOne(product, plainDesc) {
     console.warn(`  AI extract error for ${product.handle}: ${err.message}`);
     return null;
   }
+}
+
+/**
+ * Web-grounded extraction. Asks Gemini to search for the product's
+ * nutrition facts and return per-serving values. Used for products whose
+ * Shopify description is pure marketing copy with no numeric data.
+ *
+ * Grounding mode disables structured-output schema (Gemini's API
+ * limitation), so we ask for a JSON code block in the response and parse
+ * it ourselves.
+ */
+async function aiExtractGrounded(product) {
+  if (!GEMINI_API_KEY) return null;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  const tags = Array.isArray(product.tags) ? product.tags.join(', ') : (product.tags || '');
+  const body = {
+    contents: [{
+      parts: [{
+        text: `Find the per-serving nutrition for this sports nutrition product by searching the web. Prefer the manufacturer's own product page or a reputable retailer that publishes the nutrition panel.
+
+Product: ${product.title}
+Vendor: ${product.vendor || 'unknown'}
+Type: ${product.product_type || 'unknown'}
+Tags: ${tags}
+
+Return ONLY a JSON code block with these fields. Use null for any field you can't confirm. ONE serving = one gel/bar/sachet/scoop. Do not return per-pack values.
+
+\`\`\`json
+{"carbs_g": <number|null>, "calories": <number|null>, "sodium_mg": <number|null>, "caffeine_mg": <number|null>}
+\`\`\``,
+      }],
+    }],
+    tools: [{ google_search: {} }],
+    generationConfig: {
+      temperature: 0.1,
+      // No thinkingBudget here — grounding benefits from the model
+      // actually reasoning over search results.
+    },
+  };
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn(`  Grounded extract failed for ${product.handle}: HTTP ${res.status} — ${errText.slice(0, 120)}`);
+      return null;
+    }
+    const data = await res.json();
+    const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).filter(Boolean).join('\n');
+    if (!text) return null;
+    // Extract JSON from code fence (```json ... ``` or just { ... }).
+    const match = text.match(/```json\s*(\{[\s\S]*?\})\s*```/i)
+      || text.match(/\{[^{}]*"carbs_g"[\s\S]*?\}/);
+    if (!match) return null;
+    const parsed = JSON.parse(match[1] || match[0]);
+    return {
+      carbs: typeof parsed.carbs_g === 'number' ? parsed.carbs_g : null,
+      calories: typeof parsed.calories === 'number' ? parsed.calories : null,
+      sodium: typeof parsed.sodium_mg === 'number' ? parsed.sodium_mg : null,
+      caffeine: typeof parsed.caffeine_mg === 'number' ? parsed.caffeine_mg : null,
+    };
+  } catch (err) {
+    console.warn(`  Grounded extract error for ${product.handle}: ${err.message}`);
+    return null;
+  }
+}
+
+async function aiGroundedMany(products) {
+  const results = new Map();
+  let usefulCount = 0;
+  // Lower concurrency for grounded calls — they're more expensive and
+  // quota-limited. 4 in parallel gives reasonable throughput without
+  // hammering the API.
+  const concurrency = 4;
+  for (let i = 0; i < products.length; i += concurrency) {
+    const batch = products.slice(i, i + concurrency);
+    const batchResults = await Promise.all(
+      batch.map(async (product) => ({
+        handle: product.handle,
+        nutrition: await aiExtractGrounded(product),
+      })),
+    );
+    for (const r of batchResults) {
+      if (r.nutrition) {
+        results.set(r.handle, r.nutrition);
+        const hasAny = r.nutrition.carbs != null
+          || r.nutrition.calories != null
+          || r.nutrition.sodium != null
+          || r.nutrition.caffeine != null;
+        if (hasAny) usefulCount++;
+      }
+    }
+  }
+  return { results, usefulCount };
 }
 
 // Run AI extractions in parallel batches so 16 products take ~3s, not 30s.
@@ -505,14 +613,44 @@ async function main() {
       console.log(`AI extraction skipped — no VITE_GEMINI_API_KEY set`);
       console.log(`  ${aiQueue.length} product(s) will be marked "missing"\n`);
     } else {
-      console.log(`AI extraction: calling Gemini for ${aiQueue.length} product(s)`);
+      console.log(`AI extraction (description-only): ${aiQueue.length} product(s)`);
       const t0 = Date.now();
       const { results, usefulCount } = await aiExtractMany(aiQueue);
       aiResults = results;
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
       console.log(`  Got useful values for ${usefulCount}/${aiQueue.length} in ${elapsed}s`);
-      if (usefulCount < aiQueue.length) {
-        console.log(`  ${aiQueue.length - usefulCount} product(s) had no numeric data in their descriptions — ` +
+
+      // Pass 2 — web-grounded lookup for any product still missing carbs.
+      // These are products whose Shopify description has no numeric data,
+      // so we ask Gemini to search the manufacturer's site for the
+      // nutrition panel. Gated on GEMINI_USE_GROUNDING (defaults on when
+      // the API key is present — it's cheap enough at ~$0.001/product
+      // and fills the long tail of "marketing-copy-only" products).
+      const useGrounding = process.env.GEMINI_USE_GROUNDING !== '0';
+      const stillMissing = aiQueue.filter(({ product }) => {
+        const ai = aiResults.get(product.handle) || {};
+        return ai.carbs == null;
+      });
+      if (useGrounding && stillMissing.length > 0) {
+        console.log(`AI extraction (web-grounded): ${stillMissing.length} product(s) had no description data, looking them up`);
+        const t1 = Date.now();
+        const { results: gResults, usefulCount: gUseful } =
+          await aiGroundedMany(stillMissing.map((q) => q.product));
+        for (const [handle, nutrition] of gResults) {
+          // Merge — if grounded found a field that description-pass missed,
+          // backfill it. Field-level merge so we keep whatever each pass got.
+          const existing = aiResults.get(handle) || {};
+          aiResults.set(handle, {
+            carbs: existing.carbs ?? nutrition.carbs,
+            calories: existing.calories ?? nutrition.calories,
+            sodium: existing.sodium ?? nutrition.sodium,
+            caffeine: existing.caffeine ?? nutrition.caffeine,
+          });
+        }
+        const elapsed2 = ((Date.now() - t1) / 1000).toFixed(1);
+        console.log(`  Web-grounded recovered ${gUseful}/${stillMissing.length} in ${elapsed2}s\n`);
+      } else if (stillMissing.length > 0) {
+        console.log(`  ${stillMissing.length} product(s) had no numeric data in their descriptions — ` +
                     `Gemini correctly returned null. Add overrides if you have the data.\n`);
       } else {
         console.log('');
