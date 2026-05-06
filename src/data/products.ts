@@ -140,6 +140,7 @@ function parseProductsFromXml(xml: string): ProductProps[] {
     // Shopify exports it per variant. Normalise to grams.
     let variantWeightGrams: number | undefined;
     let variantTitle: string | undefined;
+    let variantId: number | undefined;
     if (firstVariant) {
       const w = parseFloat(firstVariant.querySelector('weight')?.textContent || '0');
       const unit = (firstVariant.querySelector('weight_unit')?.textContent || 'g').trim().toLowerCase();
@@ -147,6 +148,9 @@ function parseProductsFromXml(xml: string): ProductProps[] {
         variantWeightGrams = unit === 'kg' ? Math.round(w * 1000) : Math.round(w);
       }
       variantTitle = firstVariant.querySelector('title')?.textContent?.trim() || undefined;
+      const idText = firstVariant.querySelector('id')?.textContent?.trim();
+      const idNum = idText ? parseInt(idText, 10) : NaN;
+      if (Number.isFinite(idNum) && idNum > 0) variantId = idNum;
     }
 
     let name = title;
@@ -182,6 +186,7 @@ function parseProductsFromXml(xml: string): ProductProps[] {
       image: firstImage,
       category,
       servingsPerPack,
+      variantId,
     });
   });
 

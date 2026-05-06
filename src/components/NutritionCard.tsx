@@ -20,6 +20,9 @@ export interface ProductProps {
    *  "total pack cost" split in summary displays. Defaults to 1 when the
    *  feed doesn't provide it. */
   servingsPerPack?: number;
+  /** Shopify variant ID of the first variant — used to build createCheckout
+   *  lineItems when the athlete buys this product through the cart. */
+  variantId?: number;
 }
 export function NutritionCard({
   name,

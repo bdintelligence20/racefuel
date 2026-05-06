@@ -5,6 +5,7 @@ import { useApp, NutritionPoint } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { calculatePlanCost } from '../services/nutrition/costCalculator';
 import { useProducts } from '../data/products';
+import { CheckoutModal } from './CheckoutModal';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
   const products = useProducts();
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [extrasQuery, setExtrasQuery] = useState('');
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   // Group nutrition points by product - must be before early return!
   const cartItems: CartItem[] = useMemo(() => {
@@ -442,10 +444,11 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
               )}
             </div>
 
-            {/* Checkout Button */}
+            {/* Checkout — opens the real Stitch-hosted Shopify checkout
+                via the createCheckout Cloud Function. */}
             <button
               className="w-full py-4 bg-accent text-white text-sm font-bold uppercase tracking-wider rounded-xl hover:bg-accent-light transition-colors flex items-center justify-center gap-2"
-              onClick={() => alert('Checkout coming soon!')}
+              onClick={() => setCheckoutOpen(true)}
             >
               <ShoppingCart className="w-4 h-4" />
               Checkout - R{totalCost.toFixed(2)}
@@ -453,6 +456,8 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
           </div>
         )}
       </div>
+
+      <CheckoutModal isOpen={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
     </div>
   );
 }
