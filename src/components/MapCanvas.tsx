@@ -756,7 +756,7 @@ export function MapCanvas() {
             type="button"
             onClick={() => setElevationCollapsed(false)}
             aria-label="Expand elevation profile"
-            className="absolute inset-0 flex items-center justify-center pl-24 pr-3 gap-2 hover:bg-surfaceHighlight/40 active:bg-surfaceHighlight/60 transition-colors"
+            className="absolute inset-0 flex items-center justify-end pl-24 pr-3 gap-2 hover:bg-surfaceHighlight/40 active:bg-surfaceHighlight/60 transition-colors"
           >
             <span className="text-[11px] font-display text-text-muted tabular-nums truncate">
               {routeData.distanceKm.toFixed(1)}km · {routeData.elevationGain}m gain · {routeData.estimatedTime}

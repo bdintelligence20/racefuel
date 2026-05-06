@@ -41,35 +41,37 @@ export function ActionBar() {
             the Score popover and ate scarce mobile vertical real estate. The
             Score (i) popover is now the single home for plan warnings. */}
 
-        {/* Stats row. Cells flow left-to-right with a consistent gap and
-            keep their natural width — no justify-between (huge gaps on wide
-            laptops) and no equal-width grid (still leaves "Score" stranded
-            on the right). Score is pushed to the end via ml-auto so it
-            still anchors at the row edge but the four stats stay packed.
-            items-start so the Run-Cost subValue doesn't shift neighbours. */}
-        <div className="flex items-start gap-x-6 sm:gap-x-8 overflow-x-auto no-scrollbar">
-          {[
-            { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-text-primary', hint: 'Route distance · number of fuel points placed' },
-            { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : carbsPerHour > 90 ? 'text-terrain-rust' : 'text-warm', hint: 'Grams of carbohydrate per hour. Evidence target: 60–90 g/h for efforts over 2 hours.' },
-            { label: 'Total', value: totalCarbs + 'g', color: 'text-warm', hint: 'Total grams of carbs across all placements.' },
-            {
-              label: 'Run cost',
-              value: 'R' + runCost.toFixed(0),
-              color: 'text-accent',
-              hint: hasPackInflation
-                ? `Cost of the servings used on this run. To buy in full packs: R${totalToBuy.toFixed(0)}.`
-                : 'Per-serving equivalent of what the plan consumes.',
-              subValue: hasPackInflation ? `+R${(totalToBuy - runCost).toFixed(0)} buy` : undefined,
-            },
-          ].map((stat) => (
-            <div key={stat.label} className="flex-shrink-0" title={stat.hint}>
-              <div className="text-[9px] text-text-muted uppercase tracking-wider font-display">{stat.label}</div>
-              <div className={`text-sm font-display font-bold tabular-nums ${stat.color}`}>{stat.value}</div>
-              {'subValue' in stat && stat.subValue && (
-                <div className="text-[9px] text-text-muted font-display tabular-nums">{stat.subValue}</div>
-              )}
-            </div>
-          ))}
+        {/* Stats row — explicit two-group layout so the four route stats
+            stay tight on the left and Score anchors on the right.
+            (`ml-auto` alone wasn't enough on wide laptops — without an
+            explicit left group, the stats inherited extra space from the
+            parent column and fanned out across the full row.)
+            Mobile keeps `overflow-x-auto` for narrow viewports. */}
+        <div className="flex items-start gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex items-start gap-x-5 sm:gap-x-6 lg:gap-x-8 flex-shrink-0">
+            {[
+              { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-text-primary', hint: 'Route distance · number of fuel points placed' },
+              { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : carbsPerHour > 90 ? 'text-terrain-rust' : 'text-warm', hint: 'Grams of carbohydrate per hour. Evidence target: 60–90 g/h for efforts over 2 hours.' },
+              { label: 'Total', value: totalCarbs + 'g', color: 'text-warm', hint: 'Total grams of carbs across all placements.' },
+              {
+                label: 'Run cost',
+                value: 'R' + runCost.toFixed(0),
+                color: 'text-accent',
+                hint: hasPackInflation
+                  ? `Cost of the servings used on this run. To buy in full packs: R${totalToBuy.toFixed(0)}.`
+                  : 'Per-serving equivalent of what the plan consumes.',
+                subValue: hasPackInflation ? `+R${(totalToBuy - runCost).toFixed(0)} buy` : undefined,
+              },
+            ].map((stat) => (
+              <div key={stat.label} className="flex-shrink-0" title={stat.hint}>
+                <div className="text-[9px] text-text-muted uppercase tracking-wider font-display">{stat.label}</div>
+                <div className={`text-sm font-display font-bold tabular-nums ${stat.color}`}>{stat.value}</div>
+                {'subValue' in stat && stat.subValue && (
+                  <div className="text-[9px] text-text-muted font-display tabular-nums">{stat.subValue}</div>
+                )}
+              </div>
+            ))}
+          </div>
 
           {planValidation && (
             <div className="relative flex-shrink-0 ml-auto">
