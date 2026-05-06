@@ -225,8 +225,13 @@ async function aiExtractOne(product, plainDesc) {
 }
 
 // Run AI extractions in parallel batches so 16 products take ~3s, not 30s.
+// Returns { results, usefulCount } — usefulCount is products where Gemini
+// returned at least one non-null field. Lots of products have descriptions
+// that are pure marketing prose with zero numbers; Gemini correctly returns
+// null for those, and we shouldn't claim a "recovery" we didn't make.
 async function aiExtractMany(items) {
   const results = new Map();
+  let usefulCount = 0;
   for (let i = 0; i < items.length; i += GEMINI_CONCURRENCY) {
     const batch = items.slice(i, i + GEMINI_CONCURRENCY);
     const batchResults = await Promise.all(
@@ -236,10 +241,17 @@ async function aiExtractMany(items) {
       })),
     );
     for (const r of batchResults) {
-      if (r.nutrition) results.set(r.handle, r.nutrition);
+      if (r.nutrition) {
+        results.set(r.handle, r.nutrition);
+        const hasAny = r.nutrition.carbs != null
+          || r.nutrition.calories != null
+          || r.nutrition.sodium != null
+          || r.nutrition.caffeine != null;
+        if (hasAny) usefulCount++;
+      }
     }
   }
-  return results;
+  return { results, usefulCount };
 }
 
 // ────────────────────────────────────────────────────────────────────────
@@ -493,11 +505,18 @@ async function main() {
       console.log(`AI extraction skipped — no VITE_GEMINI_API_KEY set`);
       console.log(`  ${aiQueue.length} product(s) will be marked "missing"\n`);
     } else {
-      console.log(`AI extraction: ${aiQueue.length} product(s) need filling`);
+      console.log(`AI extraction: calling Gemini for ${aiQueue.length} product(s)`);
       const t0 = Date.now();
-      aiResults = await aiExtractMany(aiQueue);
+      const { results, usefulCount } = await aiExtractMany(aiQueue);
+      aiResults = results;
       const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
-      console.log(`  Recovered ${aiResults.size}/${aiQueue.length} via Gemini in ${elapsed}s\n`);
+      console.log(`  Got useful values for ${usefulCount}/${aiQueue.length} in ${elapsed}s`);
+      if (usefulCount < aiQueue.length) {
+        console.log(`  ${aiQueue.length - usefulCount} product(s) had no numeric data in their descriptions — ` +
+                    `Gemini correctly returned null. Add overrides if you have the data.\n`);
+      } else {
+        console.log('');
+      }
     }
   }
 
