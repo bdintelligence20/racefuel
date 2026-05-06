@@ -3,7 +3,6 @@ import { NutritionCard, ProductProps, ProductCategory } from './NutritionCard';
 import { Search, ShoppingCart, Droplets, Coffee, Zap, ClipboardList, Plus, Package } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useProducts } from '../data/products';
-import { calculatePlanCost } from '../services/nutrition/costCalculator';
 import { getActiveDurationHours } from '../services/route/timeFormat';
 import { CartModal } from './CartModal';
 import { ProductDetailModal } from './ProductDetailModal';
@@ -56,13 +55,6 @@ export function NutritionPanel() {
     (sum, p) => sum + p.product.carbs,
     0
   );
-  // "Cost of this run" = per-serving equivalent of what's actually consumed.
-  // We surface "to buy" alongside whenever buying full packs costs noticeably
-  // more, so a R1357 tub doesn't masquerade as the price of a 23km run.
-  const planCost = useMemo(() => calculatePlanCost(routeData.nutritionPoints), [routeData.nutritionPoints]);
-  const runCost = planCost.runCostZAR;
-  const totalToBuy = planCost.totalCostZAR;
-  const hasPackInflation = totalToBuy > runCost + 1;
   const totalSodium = routeData.nutritionPoints.reduce(
     (sum, p) => sum + p.product.sodium,
     0
@@ -227,29 +219,13 @@ export function NutritionPanel() {
               </div>
             </div>
 
-            <div className="mt-3 pt-3 border-t border-[var(--color-border)] space-y-1">
-              <div className="flex justify-between items-center">
-                <span className="text-xs text-text-secondary font-display uppercase tracking-wider">
-                  Cost for this run ({routeData.nutritionPoints.length} items)
-                </span>
-                <span className="text-lg font-display font-bold text-warm">
-                  R{runCost.toFixed(2)}
-                </span>
-              </div>
-              {hasPackInflation && (
-                <div className="flex justify-between items-center text-[11px] text-text-muted font-display">
-                  <span className="uppercase tracking-wider">Total to buy (full packs)</span>
-                  <span className="font-bold tabular-nums">R{totalToBuy.toFixed(2)}</span>
-                </div>
-              )}
-            </div>
             <div className="flex gap-2 mt-3">
               <button
                 onClick={() => setCartOpen(true)}
                 className="flex-1 py-2.5 rounded-lg bg-accent text-white font-display font-bold uppercase tracking-wider hover:bg-accent-light transition-colors flex items-center justify-center gap-2 text-xs"
               >
                 <ShoppingCart className="w-4 h-4" />
-                View Kit
+                Buy Fuel
               </button>
               <button
                 onClick={() => setChecklistOpen(true)}

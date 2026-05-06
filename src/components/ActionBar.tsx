@@ -1,11 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Download, Undo2, Redo2, Info, Share2, Zap, Trash2, ShoppingCart } from 'lucide-react';
 import { ExportModal } from './export/ExportModal';
 import { FlyoverExportModal } from './export/FlyoverExportModal';
 import { ScorePopover } from './ScorePopover';
 import { CartModal } from './CartModal';
-import { calculatePlanCost } from '../services/nutrition/costCalculator';
 import { getActiveDurationHours } from '../services/route/timeFormat';
 
 export function ActionBar() {
@@ -15,17 +14,7 @@ export function ActionBar() {
   const [scoreOpen, setScoreOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
 
-  const cost = useMemo(() => calculatePlanCost(routeData.nutritionPoints), [routeData.nutritionPoints]);
-
   if (!routeData.loaded) return null;
-
-  // Footer shows per-serving "cost of this run" — matches the athlete's
-  // mental model of what they actually used. When buying full packs costs
-  // noticeably more (e.g. a 1kg drink tub for one scoop), show the "to buy"
-  // sub so the headline number isn't accused of being the full-tub price.
-  const runCost = cost.runCostZAR;
-  const totalToBuy = cost.totalCostZAR;
-  const hasPackInflation = totalToBuy > runCost + 1;
 
   const totalCarbs = routeData.nutritionPoints.reduce((sum, point) => {
     return sum + point.product.carbs;
@@ -53,22 +42,10 @@ export function ActionBar() {
               { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-text-primary', hint: 'Route distance · number of fuel points placed' },
               { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : carbsPerHour > 90 ? 'text-terrain-rust' : 'text-warm', hint: 'Grams of carbohydrate per hour. Evidence target: 60–90 g/h for efforts over 2 hours.' },
               { label: 'Total', value: totalCarbs + 'g', color: 'text-warm', hint: 'Total grams of carbs across all placements.' },
-              {
-                label: 'Run cost',
-                value: 'R' + runCost.toFixed(0),
-                color: 'text-accent',
-                hint: hasPackInflation
-                  ? `Cost of the servings used on this run. To buy in full packs: R${totalToBuy.toFixed(0)}.`
-                  : 'Per-serving equivalent of what the plan consumes.',
-                subValue: hasPackInflation ? `+R${(totalToBuy - runCost).toFixed(0)} buy` : undefined,
-              },
             ].map((stat) => (
               <div key={stat.label} className="flex-shrink-0" title={stat.hint}>
                 <div className="text-[9px] text-text-muted uppercase tracking-wider font-display">{stat.label}</div>
                 <div className={`text-sm font-display font-bold tabular-nums ${stat.color}`}>{stat.value}</div>
-                {'subValue' in stat && stat.subValue && (
-                  <div className="text-[9px] text-text-muted font-display tabular-nums">{stat.subValue}</div>
-                )}
               </div>
             ))}
           </div>
@@ -147,13 +124,13 @@ export function ActionBar() {
             title="Auto-generate a science-backed nutrition plan for this route"
           />
           <ActionButton
-            mobileLabel="Kit"
-            desktopLabel="View Kit"
+            mobileLabel="Buy Fuel"
+            desktopLabel="Buy Fuel"
             icon={<ShoppingCart className="w-[18px] h-[18px]" />}
             onClick={() => setCartOpen(true)}
             disabled={routeData.nutritionPoints.length === 0}
             tone="warm-outline"
-            title="View the shopping kit needed for this plan"
+            title="Buy the fuel for this plan"
             extraClassName="sm:ml-auto"
           />
           <ActionButton
