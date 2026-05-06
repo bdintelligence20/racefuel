@@ -114,16 +114,30 @@ describe('isGeminiEnabled', () => {
 });
 
 describe('toFuelCandidates', () => {
-  it('rejects zero-carb, recovery, and non-single-serve items', () => {
+  it('rejects zero-carb, recovery, drinks (default), and non-single-serve items', () => {
     const candidates = toFuelCandidates(TEST_CATALOG);
     const ids = candidates.map((p) => p.id);
     expect(ids).not.toContain('tabs-0');
     expect(ids).not.toContain('recov-30');
-    // All legit fuel products should survive.
+    // Drinks are excluded from auto-gen by default — they push run cost up
+    // and the sodium-aware scorer can hit sodium targets without them.
+    expect(ids).not.toContain('drink-25');
+    expect(ids).not.toContain('drink-45');
+    expect(ids).not.toContain('drink-60');
+    // Gels / bars / chews still survive.
     expect(ids).toContain('gel-30');
-    expect(ids).toContain('drink-45');
     expect(ids).toContain('bar-40');
     expect(ids).toContain('chew-36');
+  });
+
+  it('includes drinks when the athlete explicitly opts in', () => {
+    const candidates = toFuelCandidates(TEST_CATALOG, true);
+    const ids = candidates.map((p) => p.id);
+    expect(ids).toContain('drink-45');
+    expect(ids).toContain('drink-60');
+    // Recovery + zero-carb still excluded.
+    expect(ids).not.toContain('recov-30');
+    expect(ids).not.toContain('tabs-0');
   });
 });
 
@@ -144,7 +158,9 @@ describe('shortlistCatalog', () => {
     expect(out.length).toBe(30);
   });
 
-  it('keeps at least one option in each category when shortlisting', () => {
+  it('keeps at least one option in each surviving category when shortlisting', () => {
+    // toFuelCandidates excludes drinks by default; the shortlist should
+    // cover the categories that actually made it through (gel/bar/chew).
     const bloated = Array.from({ length: 80 }, (_, i) => ({
       ...fuel[i % fuel.length],
       id: `syn-${i}`,
@@ -152,8 +168,8 @@ describe('shortlistCatalog', () => {
     const out = shortlistCatalog(bloated, 40, 60, 20);
     const categories = new Set(out.map((p) => p.category));
     expect(categories.has('gel')).toBe(true);
-    expect(categories.has('drink')).toBe(true);
     expect(categories.has('bar')).toBe(true);
+    // 'drink' would only be present when the caller opts in to drinks.
   });
 
   it('always retains at least one caffeinated option if any exist', () => {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { GpxDropZone } from './GpxDropZone';
 import { AutoGenerateButton } from './AutoGenerateButton';
 import { MapView } from './MapView';
+import { useMap } from '../context/MapContext';
 import { Navigation, Trash2, ChevronUp, ChevronDown, Clock, Calendar, Gauge, Activity, X, Settings2, Ruler, Mountain } from 'lucide-react';
 import { EstimatedTimeEditor } from './EstimatedTimeEditor';
 import { EffortEditor } from './EffortEditor';
@@ -431,6 +432,19 @@ export function MapCanvas() {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(max-width: 767px)').matches;
   });
+
+  // Mapbox doesn't auto-redraw when its container resizes — it samples the
+  // size on init and on explicit resize() calls. When the user collapses
+  // the elevation panel, the map's flex parent grows but the map canvas
+  // stays at its old dimensions, leaving a blank gap below. Trigger a
+  // resize after the height transition completes (the panel uses
+  // duration-200 on transition-[height]).
+  const map = useMap();
+  useEffect(() => {
+    if (!map) return;
+    const t = setTimeout(() => map.resize(), 220);
+    return () => clearTimeout(t);
+  }, [elevationCollapsed, map]);
   const [routeColorMode, setRouteColorMode] = useState<'distance' | 'elevation'>(() => {
     if (typeof window === 'undefined') return 'distance';
     return (localStorage.getItem('fuelcue_route_color_mode') as 'distance' | 'elevation') || 'distance';

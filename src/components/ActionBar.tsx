@@ -41,13 +41,13 @@ export function ActionBar() {
             the Score popover and ate scarce mobile vertical real estate. The
             Score (i) popover is now the single home for plan warnings. */}
 
-        {/* Stats row. Equal-width grid columns so the 4 stats + Score lay out
-            in a clean rhythm regardless of viewport width. The previous
-            `justify-between` distributed leftover space between cells, which
-            on a wide laptop produced huge gaps between "85.4km / 7 pts" and
-            the other cells. items-start so the Run Cost cell's subValue
-            ("+R… buy") doesn't push neighbours off-center. */}
-        <div className={`grid items-start gap-3 sm:gap-4 ${planValidation ? 'grid-cols-5' : 'grid-cols-4'}`}>
+        {/* Stats row. Cells flow left-to-right with a consistent gap and
+            keep their natural width — no justify-between (huge gaps on wide
+            laptops) and no equal-width grid (still leaves "Score" stranded
+            on the right). Score is pushed to the end via ml-auto so it
+            still anchors at the row edge but the four stats stay packed.
+            items-start so the Run-Cost subValue doesn't shift neighbours. */}
+        <div className="flex items-start gap-x-6 sm:gap-x-8 overflow-x-auto no-scrollbar">
           {[
             { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-text-primary', hint: 'Route distance · number of fuel points placed' },
             { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : carbsPerHour > 90 ? 'text-terrain-rust' : 'text-warm', hint: 'Grams of carbohydrate per hour. Evidence target: 60–90 g/h for efforts over 2 hours.' },
@@ -62,8 +62,8 @@ export function ActionBar() {
               subValue: hasPackInflation ? `+R${(totalToBuy - runCost).toFixed(0)} buy` : undefined,
             },
           ].map((stat) => (
-            <div key={stat.label} className="min-w-0" title={stat.hint}>
-              <div className="text-[9px] text-text-muted uppercase tracking-wider font-display truncate">{stat.label}</div>
+            <div key={stat.label} className="flex-shrink-0" title={stat.hint}>
+              <div className="text-[9px] text-text-muted uppercase tracking-wider font-display">{stat.label}</div>
               <div className={`text-sm font-display font-bold tabular-nums ${stat.color}`}>{stat.value}</div>
               {'subValue' in stat && stat.subValue && (
                 <div className="text-[9px] text-text-muted font-display tabular-nums">{stat.subValue}</div>
@@ -72,7 +72,7 @@ export function ActionBar() {
           ))}
 
           {planValidation && (
-            <div className="relative min-w-0">
+            <div className="relative flex-shrink-0 ml-auto">
               <div className="text-[9px] text-text-muted uppercase tracking-wider font-display flex items-center gap-1">
                 Score
                 <button

@@ -122,10 +122,18 @@ export function isSingleServe(p: ProductProps): boolean {
  * A fuel candidate must provide meaningful carbs. Recovery formulas and products
  * we have no nutrition data for get excluded — otherwise the placement loop runs
  * without tripping the carb-target break and overfills short routes.
+ *
+ * Drink mixes are excluded by default from auto-gen — they push run cost up
+ * significantly (per-pack pricing inflates beyond what the athlete will
+ * actually drink) and the sodium-aware scorer can still hit sodium targets
+ * with gels/bars/chews. Drinks become candidates only when the athlete
+ * explicitly opts in via preferredCategories. They're surfaced as a checkout
+ * upsell in the Nutrition Kit otherwise.
  */
-function isFuelCandidate(p: ProductProps): boolean {
+function isFuelCandidate(p: ProductProps, allowDrinks = false): boolean {
   if (!isSingleServe(p)) return false;
   if (p.carbs <= 0) return false;
+  if (!allowDrinks && p.category === 'drink') return false;
   const name = `${p.brand} ${p.name}`.toLowerCase();
   if (/recover(y)?/.test(name)) return false;
   // Pure salt / protein / creatine supplements are filtered by the carbs check above.
@@ -156,9 +164,13 @@ function selectProduct(
    *  plan is tracking below the sodium target so subsequent placements lean
    *  on electrolyte drinks/tabs. 0 = carb-only scoring (legacy). */
   sodiumPriority = 0,
+  /** Allow drinks in the candidate pool. Off by default — drinks are
+   *  excluded from auto-gen because per-pack pricing makes plans expensive.
+   *  On only when the athlete explicitly picks "drink" as a category pref. */
+  allowDrinks = false,
 ): SelectProductResult | null {
   const rawPool = preferredProducts && preferredProducts.length > 0 ? preferredProducts : products;
-  const fuelPool = rawPool.filter(isFuelCandidate);
+  const fuelPool = rawPool.filter((p) => isFuelCandidate(p, allowDrinks));
   if (fuelPool.length === 0) return null;
 
   const budgeted = fuelPool.filter((p) => p.carbs <= maxCarbsPerPoint);
@@ -326,6 +338,9 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
   // because no in-brand product could satisfy the slot. Surfaced in the
   // rationale so the user understands why a non-Gu product appeared.
   let brandFallbackTriggered = false;
+  // Drinks are excluded from auto-gen by default (price). They become
+  // candidates only when the athlete explicitly opts in via category prefs.
+  const allowDrinks = !!preferredCategories?.includes('drink');
 
   // Sodium-aware product selection runs inside the loop using
   // hydrationTarget.sodiumMgPerHour directly — the per-placement priority is
@@ -436,6 +451,7 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
       preferredCategories,
       profile.preferredBrands,
       sodiumPriority,
+      allowDrinks,
     );
     if (!selection) break; // no usable fuel in catalog
     if (!selection.brandHonoured) brandFallbackTriggered = true;
@@ -481,6 +497,8 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
         companionCap,
         preferredCategories,
         profile.preferredBrands,
+        sodiumPriority,
+        allowDrinks,
       );
       if (companion && companion.product.id !== chosen.id) {
         if (!companion.brandHonoured) brandFallbackTriggered = true;

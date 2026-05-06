@@ -102,12 +102,21 @@ export function inferIntensityPercent(distanceKm: number, durationHours: number,
 /**
  * Candidate-only filter — strip out anything that can't be used on-course
  * for this event. Exported for testing.
+ *
+ * Drinks are excluded by default (per-pack pricing makes auto-gen plans
+ * expensive, and gels/bars/chews can satisfy the sodium target via the
+ * sodium-aware scorer). Pass `includeDrinks: true` only when the athlete
+ * has explicitly opted in via preferredCategories.
  */
-export function toFuelCandidates(catalog: ProductProps[]): ProductProps[] {
+export function toFuelCandidates(
+  catalog: ProductProps[],
+  includeDrinks = false,
+): ProductProps[] {
   return catalog.filter(
     (p) =>
       isSingleServe(p) &&
       p.carbs > 0 &&
+      (includeDrinks || p.category !== 'drink') &&
       !/recover(y)?/i.test(`${p.brand} ${p.name}`),
   );
 }
@@ -462,7 +471,9 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
   const sourceCatalog = input.preferredProductIds
     ? products.filter((p) => input.preferredProductIds!.includes(p.id))
     : products;
-  const candidates = toFuelCandidates(sourceCatalog);
+  // Include drinks only if the athlete explicitly opted in via category prefs.
+  const optedIntoDrinks = !!input.preferredCategories?.includes('drink');
+  const candidates = toFuelCandidates(sourceCatalog, optedIntoDrinks);
   if (candidates.length === 0) return null;
 
   // Brand preference is a HARD filter. If the user picks "Gu", the agent

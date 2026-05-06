@@ -130,10 +130,27 @@ describe('generatePlan — spec-aligned behaviour', () => {
   });
 
   // Feedback fix SM#1: hot/humid routes with high sweat-Na need sodium-dense
-  // products. The screenshot showed a plan delivering 26% of target (all
-  // gels). The sodium-aware scorer should bias toward electrolyte drinks
-  // and pick AT LEAST one high-sodium product on a hot route.
-  it('hot 30°C 70% humidity route includes at least one electrolyte drink', () => {
+  // products. When the athlete opts into drinks (preferredCategories
+  // includes 'drink'), the sodium-aware scorer should pick electrolyte
+  // drinks. Drinks are excluded from auto-gen by default (cost), so this
+  // test verifies the opt-in path.
+  it('hot 30°C 70% humidity route + drink opt-in includes ≥1 electrolyte drink', () => {
+    const plan = generatePlan({
+      ...baseInput(21.6, 2.317),
+      elevationGainM: 200,
+      temperatureCelsius: 30,
+      humidity: 70,
+      profile: { ...profile, sweatRate: 'heavy', sweatSodiumBucket: 'high' },
+      preferredCategories: ['gel', 'drink'],
+    });
+    const drinks = plan.nutritionPoints.filter((p) => p.product.category === 'drink');
+    expect(drinks.length).toBeGreaterThanOrEqual(1);
+    const targetTotalSodium = plan.hydrationTarget.sodiumMgPerHour * 2.317;
+    expect(plan.metrics.totalSodium).toBeGreaterThan(targetTotalSodium * 0.3);
+  });
+
+  // Default behaviour: no drinks in auto-gen plan to keep run cost down.
+  it('default auto-gen excludes drinks (cost optimisation)', () => {
     const plan = generatePlan({
       ...baseInput(21.6, 2.317),
       elevationGainM: 200,
@@ -141,14 +158,8 @@ describe('generatePlan — spec-aligned behaviour', () => {
       humidity: 70,
       profile: { ...profile, sweatRate: 'heavy', sweatSodiumBucket: 'high' },
     });
-    // Drinks have 300+ mg sodium per serving; gels and bars are ≤ 80 mg.
-    // The fix should land at least one drink in the plan.
     const drinks = plan.nutritionPoints.filter((p) => p.product.category === 'drink');
-    expect(drinks.length).toBeGreaterThanOrEqual(1);
-    // And sodium delivery should beat the 26%-of-target failure mode shown
-    // in the BS+SM testing screenshot.
-    const targetTotalSodium = plan.hydrationTarget.sodiumMgPerHour * 2.317;
-    expect(plan.metrics.totalSodium).toBeGreaterThan(targetTotalSodium * 0.3);
+    expect(drinks.length).toBe(0);
   });
 
   // Feedback fix BS#3: sub-10km routes that take longer than an hour (e.g.,

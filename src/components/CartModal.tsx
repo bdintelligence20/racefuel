@@ -92,6 +92,19 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
     return filtered.filter((p) => !onRoute.has(p.id) && !inExtras.has(p.id)).slice(0, 8);
   }, [extrasQuery, products, routeData.nutritionPoints, cartExtras]);
 
+  // Drink mixes are excluded from auto-gen because per-pack pricing
+  // inflates plan cost. Surface them here as a hydration upsell so the
+  // athlete can still buy one alongside their gels/bars/chews.
+  const drinkUpsells = useMemo(() => {
+    const onRoute = new Set(routeData.nutritionPoints.map((n) => n.product.id));
+    const inExtras = new Set(cartExtras.map((e) => e.productId));
+    return products
+      .filter((p) => p.category === 'drink' && p.carbs > 0)
+      .filter((p) => !onRoute.has(p.id) && !inExtras.has(p.id))
+      .sort((a, b) => (b.sodium ?? 0) - (a.sodium ?? 0))
+      .slice(0, 3);
+  }, [products, routeData.nutritionPoints, cartExtras]);
+
   const totalCarbs = cartItems.reduce(
     (sum, item) => sum + item.product.carbs * item.quantity,
     0
@@ -286,6 +299,41 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                           </div>
                         </div>
                       </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Hydration upsell — drink mixes are excluded from auto-gen
+                  to keep plan cost reasonable, but they're still a great
+                  electrolyte add-on. Show the top-3 sodium-dense drinks. */}
+              {drinkUpsells.length > 0 && (
+                <div className="pt-2 border-t border-[var(--color-border)]">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="text-[10px] text-text-muted uppercase tracking-wider">Hydration add-ons</div>
+                    <div className="text-[9px] text-text-muted/70 italic">extra electrolytes</div>
+                  </div>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {drinkUpsells.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => addCartExtra(p.id, 1)}
+                        className="flex items-center gap-2 p-2 rounded-lg border border-dashed border-warm/30 hover:border-warm hover:bg-warm/[0.04] transition-colors text-left"
+                      >
+                        <img src={p.image} alt={p.name} className="w-9 h-9 object-contain flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[10px] text-text-muted uppercase">{p.brand}</div>
+                          <div className="text-xs font-display font-semibold text-text-primary truncate">{p.name}</div>
+                          <div className="text-[10px] text-text-secondary tabular-nums">
+                            {p.carbs}g carbs &middot; {p.sodium}mg sodium
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
+                          <div className="text-xs font-display font-bold text-accent-light tabular-nums">R{(p.priceZAR ?? 0).toFixed(0)}</div>
+                          <div className="text-[9px] text-warm font-display font-bold uppercase tracking-wider">+ Add</div>
+                        </div>
+                      </button>
                     ))}
                   </div>
                 </div>
