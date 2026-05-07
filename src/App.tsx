@@ -192,6 +192,18 @@ function AuthGate() {
   const { pathname } = useRoute();
   const [earlyAccessOpen, setEarlyAccessOpen] = useState(false);
 
+  // SPA navigation → gtag page_view. Initial load is tracked by the inline
+  // gtag('config') call; this picks up history.pushState route changes.
+  useEffect(() => {
+    const gtag = (window as unknown as { gtag?: (...args: unknown[]) => void }).gtag;
+    if (typeof gtag !== 'function') return;
+    gtag('event', 'page_view', {
+      page_path: pathname + window.location.search,
+      page_location: window.location.href,
+      page_title: document.title,
+    });
+  }, [pathname]);
+
   // If a Strava OAuth callback (?code=... or ?error=...) lands at '/', push it to /app.
   useEffect(() => {
     if (pathname === '/' || pathname === '') {
