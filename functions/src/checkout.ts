@@ -84,6 +84,14 @@ interface CheckoutPayload {
     title: string;
     unitPrice: number; // ZAR major units
   }>;
+  /** Flat shipping rate the SPA computed (R140 under R999, free above).
+   *  Source of truth for the rate is the SPA — we just attach it here so
+   *  Stitch charges the right total and Shopify shows the right shipping
+   *  line on the order. Optional for backward compat with old SPAs. */
+  shippingLine?: {
+    title: string;
+    priceZAR: number;
+  };
 }
 
 /* ------------------------ helpers ------------------------ */
@@ -106,6 +114,12 @@ function applyCors(req: any, res: any) {
 
 function totalZar(lineItems: CheckoutPayload['lineItems']): number {
   return lineItems.reduce((sum, li) => sum + li.unitPrice * li.quantity, 0);
+}
+
+/** Subtotal + shipping. Stitch must charge this — paying just the line
+ *  items total leaves Fuel Lab eating the courier fee. */
+function grandTotalZar(p: CheckoutPayload): number {
+  return totalZar(p.lineItems) + (p.shippingLine?.priceZAR ?? 0);
 }
 
 /* ------------------------ createCheckout ------------------------ */
@@ -137,14 +151,17 @@ export const createCheckout = onRequest(
     const fs = getFirestore();
     const orderRef = fs.collection('orders').doc();
     const orderId = orderRef.id;
-    const total = totalZar(payload.lineItems);
+    const subtotal = totalZar(payload.lineItems);
+    const shippingZar = payload.shippingLine?.priceZAR ?? 0;
+    const total = grandTotalZar(payload);
 
     await orderRef.set({
       status: 'pending',
       customer: payload.customer,
       shippingAddress: payload.shippingAddress,
       lineItems: payload.lineItems,
-      amount: { currency: 'ZAR', total },
+      shippingLine: payload.shippingLine ?? null,
+      amount: { currency: 'ZAR', subtotal, shipping: shippingZar, total },
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -211,6 +228,14 @@ function validateCheckout(p: CheckoutPayload | undefined): string[] {
     if (!li.variantId || !Number.isFinite(li.variantId)) errs.push('lineItems.variantId');
     if (!li.quantity || li.quantity < 1) errs.push('lineItems.quantity');
     if (!Number.isFinite(li.unitPrice) || li.unitPrice < 0) errs.push('lineItems.unitPrice');
+  }
+  if (p.shippingLine) {
+    if (typeof p.shippingLine.title !== 'string' || !p.shippingLine.title.trim()) {
+      errs.push('shippingLine.title');
+    }
+    if (!Number.isFinite(p.shippingLine.priceZAR) || p.shippingLine.priceZAR < 0) {
+      errs.push('shippingLine.priceZAR');
+    }
   }
   return errs;
 }
@@ -410,6 +435,10 @@ export const stitchWebhook = onRequest(
         variantId: li.variantId,
         quantity: li.quantity,
       })),
+      // Forward the shipping line we persisted at checkout-create time so
+      // the Shopify receipt + admin show the same R140 / free row Stitch
+      // already charged the customer.
+      ...(data.shippingLine ? { shippingLine: data.shippingLine } : {}),
       externalOrderId: orderId,
       note: `fuelcue order ${orderId} — paid via Stitch Express (${pl.id})`,
     };

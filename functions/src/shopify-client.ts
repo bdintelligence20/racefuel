@@ -40,6 +40,13 @@ export interface CreateOrderInput {
   shippingAddress: OrderAddress;
   billingAddress?: OrderAddress; // defaults to shippingAddress
   lineItems: OrderLineItem[];
+  // Optional flat-rate shipping. Attached as a Shopify `shipping_lines[]`
+  // entry so the customer-facing receipt and Fuel Lab's admin both show
+  // the courier fee the athlete actually paid via Stitch.
+  shippingLine?: {
+    title: string;
+    priceZAR: number;
+  };
   // Free-form note shown in Shopify admin so Fuel Lab knows this was placed
   // through fuelcue.
   note?: string;
@@ -127,6 +134,24 @@ export async function createOrder(
         quantity: li.quantity,
         ...(li.priceOverride !== undefined ? { price: li.priceOverride } : {}),
       })),
+
+      // Shipping line — attach only if the SPA passed one. Use 'Standard'
+      // as the carrier code; Fuel Lab can rename in admin if they need a
+      // specific carrier identifier. Free shipping is still attached as a
+      // zero-priced line so the receipt shows "Shipping: Free" rather than
+      // omitting the row.
+      ...(input.shippingLine
+        ? {
+            shipping_lines: [
+              {
+                title: input.shippingLine.title,
+                price: input.shippingLine.priceZAR.toFixed(2),
+                code: 'Standard',
+                source: 'fuelcue',
+              },
+            ],
+          }
+        : {}),
 
       // Mark as paid — fuelcue collects payment via Stitch BEFORE this call,
       // so by the time we create the Shopify order the money is already in
