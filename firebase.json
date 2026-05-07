@@ -11,5 +11,23 @@
         "npm --prefix \"$RESOURCE_DIR\" run build"
       ]
     }
-  ]
+  ],
+  "hosting": {
+    "site": "promogroup",
+    "public": "public-hosting-shim",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "racefuel",
+          "region": "us-central1"
+        }
+      }
+    ]
+  }
 }

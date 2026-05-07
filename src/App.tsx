@@ -16,6 +16,10 @@ import { PlanStrategyModal } from './components/PlanStrategyModal';
 import { CheckoutTest } from './components/CheckoutTest';
 import { PaymentCallback } from './components/PaymentCallback';
 import { AdminOrders } from './components/AdminOrders';
+import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
+import { TermsOfService } from './components/legal/TermsOfService';
+import { CookiesPolicy } from './components/legal/CookiesPolicy';
+import { ShippingReturns } from './components/legal/ShippingReturns';
 import { MobilePreview } from './dev/MobilePreview';
 import { Menu, X } from 'lucide-react';
 
@@ -199,7 +203,7 @@ function AuthGate() {
   }, [pathname]);
 
   // Redirect unknown paths to landing
-  const KNOWN_PATHS = ['/', '/app', '/checkout-test', '/payment-callback', '/admin/orders', '/dev/preview', ''];
+  const KNOWN_PATHS = ['/', '/app', '/checkout-test', '/payment-callback', '/admin/orders', '/dev/preview', '/privacy', '/terms', '/cookies', '/shipping-returns', ''];
   useEffect(() => {
     if (!KNOWN_PATHS.includes(pathname)) {
       window.history.replaceState({}, '', '/');
@@ -214,6 +218,14 @@ function AuthGate() {
   if (import.meta.env.DEV && pathname === '/dev/preview') {
     return <MobilePreview />;
   }
+
+  // Public legal pages — must be reachable without sign-in so they can be
+  // linked from the OAuth consent screen, Stitch checkout, and email
+  // footers. Render before the auth gate.
+  if (pathname === '/privacy') return <PrivacyPolicy />;
+  if (pathname === '/terms') return <TermsOfService />;
+  if (pathname === '/cookies') return <CookiesPolicy />;
+  if (pathname === '/shipping-returns') return <ShippingReturns />;
 
   // Landing page is public — /
   if (pathname === '/' || pathname === '') {

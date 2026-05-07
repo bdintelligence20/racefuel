@@ -666,9 +666,20 @@ export function LandingPage({ onRequestAccess }: { onRequestAccess: () => void }
 
       {/* ═══ FOOTER ═══ */}
       <footer className="relative z-10 py-12 bg-[#3D2152]">
-        <div className="px-6 lg:px-14 max-w-[1400px] mx-auto flex flex-col items-center gap-3">
+        <div className="px-6 lg:px-14 max-w-[1400px] mx-auto flex flex-col items-center gap-4">
           <img src="/logo-white.png" alt="fuelcue — Route Aware Nutrition" className="h-14 w-auto object-contain" />
           <span className="text-[11px] text-white/40 font-display tracking-wide">Built for athletes who refuse to bonk</span>
+          <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] font-display text-white/50">
+            <a className="hover:text-white transition-colors" href="/privacy">Privacy</a>
+            <span className="text-white/20">·</span>
+            <a className="hover:text-white transition-colors" href="/terms">Terms</a>
+            <span className="text-white/20">·</span>
+            <a className="hover:text-white transition-colors" href="/cookies">Cookies</a>
+            <span className="text-white/20">·</span>
+            <a className="hover:text-white transition-colors" href="/shipping-returns">Shipping &amp; Returns</a>
+            <span className="text-white/20">·</span>
+            <a className="hover:text-white transition-colors" href="mailto:hello@fuelcue.com">Contact</a>
+          </nav>
         </div>
       </footer>
     </div>
