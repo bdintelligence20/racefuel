@@ -13,7 +13,7 @@
     }
   ],
   "hosting": {
-    "site": "promogroup",
+    "site": "fuelcue",
     "public": "public-hosting-shim",
     "ignore": [
       "firebase.json",
