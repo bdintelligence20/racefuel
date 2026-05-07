@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ProductProps } from './NutritionCard';
 import { NutritionDetailCard } from './NutritionDetailCard';
 
@@ -26,6 +27,8 @@ export function NutritionMarker({
 }: NutritionMarkerProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const [anchor, setAnchor] = useState<{ left: number; top: number } | null>(null);
   const pressRef = useRef<{
     startX: number;
     startY: number;
@@ -34,14 +37,16 @@ export function NutritionMarker({
     fired: boolean;
   } | null>(null);
 
-  // Close on outside click or Escape
+  // Close on outside click or Escape. Pointer-down checks both the marker
+  // root and the portaled card, since the card is no longer a DOM descendant.
   useEffect(() => {
     if (!open) return;
 
     const onPointerDown = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      const inMarker = rootRef.current?.contains(target);
+      const inCard = (target as HTMLElement)?.closest?.('[data-nutrition-popup]');
+      if (!inMarker && !inCard) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
@@ -52,6 +57,27 @@ export function NutritionMarker({
     return () => {
       document.removeEventListener('pointerdown', onPointerDown);
       document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  // Track the marker's viewport position so the portaled popup stays anchored
+  // through scroll, resize, and elevation-panel collapse/expand transitions.
+  useLayoutEffect(() => {
+    if (!open) {
+      setAnchor(null);
+      return;
+    }
+    const update = () => {
+      const rect = buttonRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setAnchor({ left: rect.left + rect.width / 2, top: rect.top });
+    };
+    update();
+    window.addEventListener('scroll', update, true);
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update, true);
+      window.removeEventListener('resize', update);
     };
   }, [open]);
 
@@ -106,6 +132,7 @@ export function NutritionMarker({
       style={style}
     >
       <button
+        ref={buttonRef}
         type="button"
         onClick={(e) => {
           // Suppress the click that follows a successful drag-start so the
@@ -154,9 +181,16 @@ export function NutritionMarker({
         </div>
       </button>
 
-      {/* Card — opens on click, closes on outside click / Escape / X */}
-      {open && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 animate-in fade-in slide-in-from-bottom-1 duration-150">
+      {/* Card — portaled to <body> with fixed positioning so it floats over
+          the entire page instead of being clipped by the elevation panel's
+          overflow-x-hidden + bounded height. Anchor follows the marker on
+          scroll/resize via useLayoutEffect above. */}
+      {open && anchor && createPortal(
+        <div
+          data-nutrition-popup
+          className="fixed z-[60] -translate-x-1/2 -translate-y-full pointer-events-auto animate-in fade-in slide-in-from-bottom-1 duration-150"
+          style={{ left: anchor.left, top: anchor.top - 8 }}
+        >
           <NutritionDetailCard
             product={product}
             distanceKm={distanceKm}
@@ -164,7 +198,8 @@ export function NutritionMarker({
             onRemove={onRemove}
           />
           <div className="w-2 h-2 bg-surface border-r border-b border-[var(--color-border)] transform rotate-45 absolute bottom-[-5px] left-1/2 -translate-x-1/2" />
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
