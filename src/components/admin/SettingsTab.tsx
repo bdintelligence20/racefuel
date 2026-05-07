@@ -69,18 +69,21 @@ export function SettingsTab() {
       <section className="bg-white border border-[#3D2152]/10 rounded-2xl p-5 shadow-[0_2px_8px_-4px_rgba(61,33,82,0.08)]">
         <h2 className="text-[13px] font-display font-bold text-[#3D2152] mb-1">Admin allowlist</h2>
         <p className="text-[11px] text-[#A0929E] mb-4">
-          Only these accounts can sign in to <code>/admin</code>. The seed admin can't be removed.
+          Only these accounts can sign in to <code>/admin</code>. Seed admins are baked into the
+          backend and can only be changed by editing source + redeploying.
         </p>
 
         {!data ? (
           <div className="text-[12px] text-[#A0929E] flex items-center gap-2"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading…</div>
         ) : (
           <ul className="space-y-2">
-            <li className="flex items-center gap-3 px-3 py-2.5 bg-[#FFF5E8] border border-[#F5A020]/20 rounded-xl">
-              <Lock className="w-3.5 h-3.5 text-[#F5A020]" />
-              <span className="text-[12.5px] font-display font-semibold text-[#3D2152]">{data.seedAdmin}</span>
-              <span className="text-[10px] text-[#F5A020] uppercase tracking-[0.16em] font-bold ml-auto">Seed</span>
-            </li>
+            {data.seedAdmins.map((email) => (
+              <li key={email} className="flex items-center gap-3 px-3 py-2.5 bg-[#FFF5E8] border border-[#F5A020]/20 rounded-xl">
+                <Lock className="w-3.5 h-3.5 text-[#F5A020]" />
+                <span className="text-[12.5px] font-display font-semibold text-[#3D2152] truncate flex-1">{email}</span>
+                <span className="text-[10px] text-[#F5A020] uppercase tracking-[0.16em] font-bold">Seed</span>
+              </li>
+            ))}
             {data.admins.map((a) => (
               <li key={a.email} className="flex items-center gap-3 px-3 py-2.5 bg-[#FFF9F0] border border-[#3D2152]/[0.08] rounded-xl">
                 <span className="text-[12.5px] font-display font-semibold text-[#3D2152] truncate flex-1">{a.email}</span>

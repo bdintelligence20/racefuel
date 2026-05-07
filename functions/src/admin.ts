@@ -35,7 +35,7 @@ function requireEmail(request: CallableRequest<unknown>): ContextEmail {
 }
 
 async function isAdmin(email: string): Promise<boolean> {
-  if (email === SEED_ADMIN_EMAIL) return true;
+  if (SEED_ADMINS.has(email)) return true;
   const snap = await getFirestore().collection('admins').doc(email).get();
   return snap.exists;
 }
@@ -635,7 +635,7 @@ export const adminListAdmins = onCall({ region: REGION }, async (request) => {
   await assertAdmin(request);
   const snap = await getFirestore().collection('admins').get();
   return {
-    seedAdmin: SEED_ADMIN_EMAIL,
+    seedAdmins: Array.from(SEED_ADMINS),
     admins: snap.docs.map((d) => ({
       email: d.id,
       addedAt: tsToMillis((d.data() as { addedAt?: Timestamp }).addedAt),
@@ -664,8 +664,8 @@ export const adminRemoveAdmin = onCall({ region: REGION }, async (request) => {
   const args = (request.data ?? {}) as { email?: string };
   const email = args.email?.trim().toLowerCase();
   if (!email) throw new HttpsError('invalid-argument', 'email required.');
-  if (email === SEED_ADMIN_EMAIL) {
-    throw new HttpsError('failed-precondition', 'Cannot remove the seed admin.');
+  if (SEED_ADMINS.has(email)) {
+    throw new HttpsError('failed-precondition', 'Cannot remove a seed admin (edit functions/src/admin.ts and redeploy).');
   }
   await getFirestore().collection('admins').doc(email).delete();
   logger.info('admin removed', { email, by: ctx.email });

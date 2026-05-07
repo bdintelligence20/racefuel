@@ -138,7 +138,7 @@ export interface AdminActivityInsights {
 }
 
 export interface AdminListAdminsResult {
-  seedAdmin: string;
+  seedAdmins: string[];
   admins: Array<{ email: string; addedAt: number | null; addedBy: string | null }>;
 }
 
