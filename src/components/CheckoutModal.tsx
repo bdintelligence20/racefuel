@@ -146,6 +146,17 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (lineItems.length === 0) return;
+
+    // Open the Stitch tab synchronously *now*, before we await any fetch —
+    // browsers only let you call window.open from inside a user-gesture
+    // handler. The url is `about:blank` for the moment; we set the real
+    // payment URL once the createCheckout response lands. This is what
+    // lets us keep the user on fuelcue (Stitch can't redirect back per
+    // current Stitch config) — they pay in the new tab, the original tab
+    // stays on /payment-callback subscribing to the order doc and
+    // flipping to "placed" the moment the webhook fires.
+    const stitchTab = window.open('about:blank', '_blank', 'noopener,noreferrer');
+
     setSubmitting(true);
     setError(null);
     try {
@@ -168,9 +179,9 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             zip: addr.zip,
           },
           lineItems,
-          // Fuel Lab flat rate. Backend (createCheckout cloud function)
-          // is expected to attach this as the Shopify draft order's
-          // shipping_line so Stitch charges the same total the user sees.
+          // Fuel Lab flat rate. Backend createCheckout adds this to the
+          // Stitch payment amount and persists it for the webhook to
+          // forward to Shopify as a shipping_lines[] entry.
           shippingLine: shipping.isFree
             ? { title: 'Free shipping', priceZAR: 0 }
             : { title: 'Standard shipping (Fuel Lab flat rate)', priceZAR: shipping.amountZAR },
@@ -178,10 +189,23 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
-      // Off to Stitch's hosted payment page. Successful payment fires the
-      // backend webhook which creates the Shopify order.
-      window.location.href = json.paymentUrl;
+
+      const callbackUrl = `/payment-callback?orderId=${encodeURIComponent(json.orderId)}`;
+
+      if (stitchTab && !stitchTab.closed) {
+        // New-tab flow: send the popup to Stitch, route this tab to the
+        // live status page where the Firestore subscription updates as
+        // the webhook progresses.
+        stitchTab.location.href = json.paymentUrl;
+        window.location.href = callbackUrl;
+      } else {
+        // Popup blocked — fall back to a same-tab redirect. User loses
+        // the "stay on fuelcue" benefit but still completes payment.
+        window.location.href = json.paymentUrl;
+      }
     } catch (err) {
+      // Failed before navigating — clean up the blank tab if it's still open.
+      try { stitchTab?.close(); } catch { /* tab already closed */ }
       setError(err instanceof Error ? err.message : String(err));
       setSubmitting(false);
     }

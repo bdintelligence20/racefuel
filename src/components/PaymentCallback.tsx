@@ -156,15 +156,21 @@ export function PaymentCallback() {
     );
   }
 
-  // status === 'pending' — Stitch redirected us back but the webhook hasn't fired yet.
+  // status === 'pending' — webhook hasn't fired yet. Two flows land here:
+  //   1. Same-tab redirect from Stitch (legacy / popup-blocked) — `status`
+  //      query param is set, so we lean toward "Confirming…".
+  //   2. New-tab flow: this tab never went to Stitch, the Stitch payment
+  //      is happening in another tab. Show "complete in other tab" copy.
   return (
     <Frame>
       <Loader2 className="w-12 h-12 animate-spin text-[#F5A020]" />
       <h1 className="text-xl font-display font-black text-[#3D2152] mt-5 mb-2 tracking-tight">
-        {stitchStatus === 'complete' ? 'Confirming your payment…' : 'Waiting on payment…'}
+        {stitchStatus === 'complete' ? 'Confirming your payment…' : 'Complete payment in the other tab'}
       </h1>
       <p className="text-[13px] text-[#6B5A7A] leading-relaxed max-w-sm">
-        We'll update this page as soon as Stitch confirms the transaction. Don't close the tab.
+        {stitchStatus === 'complete'
+          ? "We'll update this page as soon as Stitch confirms the transaction. Don't close the tab."
+          : "Your Stitch payment opened in a new tab. Once you finish there, this page will update automatically — no need to come back manually. You can close the Stitch tab when it's done."}
       </p>
     </Frame>
   );
