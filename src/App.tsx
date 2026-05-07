@@ -15,7 +15,7 @@ import { AutoGenProgress } from './components/AutoGenProgress';
 import { PlanStrategyModal } from './components/PlanStrategyModal';
 import { CheckoutTest } from './components/CheckoutTest';
 import { PaymentCallback } from './components/PaymentCallback';
-import { AdminOrders } from './components/AdminOrders';
+import { AdminLayout } from './components/admin/AdminLayout';
 import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
 import { TermsOfService } from './components/legal/TermsOfService';
 import { CookiesPolicy } from './components/legal/CookiesPolicy';
@@ -203,13 +203,21 @@ function AuthGate() {
   }, [pathname]);
 
   // Redirect unknown paths to landing
-  const KNOWN_PATHS = ['/', '/app', '/checkout-test', '/payment-callback', '/admin/orders', '/dev/preview', '/privacy', '/terms', '/cookies', '/shipping-returns', ''];
+  const KNOWN_PATHS = ['/', '/app', '/checkout-test', '/payment-callback', '/admin', '/admin/orders', '/dev/preview', '/privacy', '/terms', '/cookies', '/shipping-returns', ''];
   useEffect(() => {
     if (!KNOWN_PATHS.includes(pathname)) {
       window.history.replaceState({}, '', '/');
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  // Back-compat: /admin/orders → /admin?tab=orders
+  useEffect(() => {
+    if (pathname === '/admin/orders') {
+      window.history.replaceState({}, '', '/admin?tab=orders');
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }
   }, [pathname]);
 
   // Dev-only mobile preview harness — renders the SPA inside a phone-sized
@@ -275,7 +283,7 @@ function AuthGate() {
   // Signed-in routes
   if (pathname === '/checkout-test') return <CheckoutTest />;
   if (pathname === '/payment-callback') return <PaymentCallback />;
-  if (pathname === '/admin/orders') return <AdminOrders />;
+  if (pathname === '/admin' || pathname === '/admin/orders') return <AdminLayout />;
 
   // Default signed-in surface — the main app
   return (

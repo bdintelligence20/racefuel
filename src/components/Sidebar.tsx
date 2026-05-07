@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Activity, User, Wind, Zap, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings } from 'lucide-react';
+import { Activity, User, Wind, Zap, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings, ShieldCheck } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
+import { useAdminGate } from '../hooks/useAdminGate';
 import { EditableStatRow } from './EditableStatRow';
 import { SavedPlansModal } from './SavedPlansModal';
 import { HistoryView } from './HistoryView';
@@ -15,6 +16,7 @@ import { toast } from 'sonner';
 export function Sidebar() {
   const { userProfile, updateProfile, routeData, strava, connectStrava, disconnectStrava, resetAll } = useApp();
   const { user, logout } = useAuth();
+  const { isAdmin } = useAdminGate();
   const [savedPlansOpen, setSavedPlansOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [eventSearchOpen, setEventSearchOpen] = useState(false);
@@ -292,6 +294,15 @@ export function Sidebar() {
             {label}
           </button>
         ))}
+        {isAdmin && (
+          <a
+            href="/admin"
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md bg-[#F5A020]/10 border border-[#F5A020]/30 text-[#F5A020] hover:bg-[#F5A020]/15 active:scale-[0.98] transition-all text-[11px] font-display font-bold"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Admin Dashboard
+          </a>
+        )}
         </div>
       </div>
 

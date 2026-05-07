@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { User } from 'firebase/auth';
 import { onAuthChange, signInWithGoogle, signInWithEmail, signUpWithEmail, signOut, sendPasswordResetEmail } from '../services/firebase/auth';
+import { upsertUserMeta } from '../services/firebase/userMeta';
 
 interface AuthContextType {
   user: User | null;
@@ -98,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthChange((u) => {
       setUser(u);
       setLoading(false);
+      if (u) void upsertUserMeta(u);
     });
     return unsubscribe;
   }, []);

@@ -13,6 +13,7 @@ import { validatePlan, ValidationResult } from '../services/nutrition/planValida
 import { autoSavePlan, loadAutoSavedPlan, clearAutoSave } from '../persistence/db';
 import * as firestoreService from '../services/firebase/firestore';
 import { getCurrentUser } from '../services/firebase/auth';
+import { persistStravaMeta, clearStravaMeta } from '../services/firebase/userMeta';
 import { bundles as allBundles } from '../data/bundles';
 import { getWeatherForecast, WeatherForecast } from '../services/weather/weatherService';
 import {
@@ -568,6 +569,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
               error: null,
             });
             setOnboardingComplete(true);
+            const u = getCurrentUser();
+            if (u && response.athlete) void persistStravaMeta(u.uid, response.athlete);
           } catch (err) {
             setStrava({
               ...defaultStravaState,
@@ -591,6 +594,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             error: null,
           });
           setOnboardingComplete(true);
+          const u = getCurrentUser();
+          if (u && athlete) void persistStravaMeta(u.uid, athlete);
         } catch {
           clearStoredTokens();
           setStrava(defaultStravaState);
@@ -619,6 +624,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     clearStoredTokens();
     setStrava(defaultStravaState);
     setStravaActivities([]);
+    const u = getCurrentUser();
+    if (u) void clearStravaMeta(u.uid);
   }, []);
 
   const fetchStravaActivities = useCallback(async () => {
