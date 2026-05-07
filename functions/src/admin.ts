@@ -1,6 +1,7 @@
 import './firebase';
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
+import { getAuth, type UserRecord } from 'firebase-admin/auth';
 import { logger } from 'firebase-functions';
 
 // Always-admin fallback so the dashboard is reachable on first deploy
@@ -123,7 +124,7 @@ export const adminMetrics = onCall({ region: REGION }, async (request) => {
   const db = getFirestore();
 
   const [
-    metaSnap,
+    authUsers,
     ordersSnap,
     plansSnap,
     feedbackSnap,
@@ -134,9 +135,8 @@ export const adminMetrics = onCall({ region: REGION }, async (request) => {
     plansRecentSnap,
     feedbackRecentSnap,
     ordersRecentSnap,
-    metaRecentSnap,
   ] = await Promise.all([
-    safeQuery('count(_meta)', () => db.collectionGroup('_meta').count().get(), emptyCount()),
+    safeQuery('list-auth-users', () => listAllAuthUsers(), [] as UserRecord[]),
     safeQuery('count(orders)', () => db.collection('orders').count().get(), emptyCount()),
     safeQuery('count(plans)', () => db.collectionGroup('plans').count().get(), emptyCount()),
     safeQuery('count(feedback)', () => db.collectionGroup('feedback').count().get(), emptyCount()),
@@ -147,7 +147,6 @@ export const adminMetrics = onCall({ region: REGION }, async (request) => {
     safeQuery('plans-recent', () => db.collectionGroup('plans').where('createdAt', '>=', sinceTs).get(), emptySnap()),
     safeQuery('feedback-recent', () => db.collectionGroup('feedback').where('createdAt', '>=', sinceTs).get(), emptySnap()),
     safeQuery('orders-recent', () => db.collection('orders').where('createdAt', '>=', sinceTs).get(), emptySnap()),
-    safeQuery('meta-recent', () => db.collectionGroup('_meta').where('createdAt', '>=', sinceTs).get(), emptySnap()),
   ]);
 
   let revenueZAR = 0;
@@ -189,9 +188,10 @@ export const adminMetrics = onCall({ region: REGION }, async (request) => {
   }
 
   const signupsByDay = emptyDayBuckets(rangeDays);
-  for (const doc of metaRecentSnap.docs) {
-    const created = tsToMillis((doc.data() as { createdAt?: Timestamp }).createdAt);
-    if (created == null) continue;
+  for (const u of authUsers) {
+    if (!u.metadata.creationTime) continue;
+    const created = new Date(u.metadata.creationTime).getTime();
+    if (created < sinceMs) continue;
     const k = dayKey(created);
     if (k in signupsByDay) signupsByDay[k] += 1;
   }
@@ -199,7 +199,7 @@ export const adminMetrics = onCall({ region: REGION }, async (request) => {
   return {
     rangeDays,
     totals: {
-      usersCount: metaSnap.data().count,
+      usersCount: authUsers.length,
       ordersCount: ordersSnap.data().count,
       plansCount: plansSnap.data().count,
       feedbackCount: feedbackSnap.data().count,
@@ -235,6 +235,21 @@ interface ListUsersArgs {
   sortBy?: 'lastLoginAt' | 'createdAt' | 'loginCount';
 }
 
+/** Fetch every Firebase Auth user (paginated). Capped to be safe but in
+ *  practice the dashboard is operating on hundreds, not millions. */
+async function listAllAuthUsers(): Promise<UserRecord[]> {
+  const auth = getAuth();
+  const all: UserRecord[] = [];
+  let pageToken: string | undefined;
+  for (let i = 0; i < 20; i++) {
+    const res = await auth.listUsers(1000, pageToken);
+    all.push(...res.users);
+    pageToken = res.pageToken;
+    if (!pageToken) break;
+  }
+  return all;
+}
+
 export const adminListUsers = onCall({ region: REGION }, async (request) => {
   await assertAdmin(request);
   const args = (request.data ?? {}) as ListUsersArgs;
@@ -243,46 +258,48 @@ export const adminListUsers = onCall({ region: REGION }, async (request) => {
   const search = args.search?.trim().toLowerCase() ?? '';
   const db = getFirestore();
 
-  let q = db.collectionGroup('_meta').orderBy(sortBy, 'desc');
-  if (args.cursor != null) {
-    q = q.startAfter(Timestamp.fromMillis(args.cursor));
-  }
-  // Pull more than `limit` when filtering client-side by search to compensate.
-  const fetchLimit = search ? limit * 5 : limit + 1;
-  const snap = await safeQuery('listUsers', () => q.limit(fetchLimit).get(), emptySnap());
+  // Source of truth: Firebase Auth. Pull every user, then layer on Firestore
+  // _meta (loginCount) when present.
+  const authUsers = await listAllAuthUsers();
 
-  interface MetaDoc {
-    email?: string;
-    displayName?: string | null;
-    photoURL?: string | null;
-    createdAt?: Timestamp;
-    lastLoginAt?: Timestamp;
-    loginCount?: number;
-    lastSignInProvider?: string | null;
+  // Pull all _meta docs once for loginCount enrichment. Tolerates missing
+  // index by returning empty.
+  const metaSnap = await safeQuery('listUsers-meta', () => db.collectionGroup('_meta').get(), emptySnap());
+  const metaByUid = new Map<string, { loginCount?: number }>();
+  for (const d of metaSnap.docs) {
+    const uid = d.ref.parent.parent?.id;
+    if (!uid) continue;
+    if (d.id !== 'data') continue; // skip /strava etc.
+    metaByUid.set(uid, d.data() as { loginCount?: number });
   }
 
-  const rows = snap.docs.map((d) => {
-    const data = d.data() as MetaDoc;
-    const uid = d.ref.parent.parent?.id ?? '';
-    return {
-      uid,
-      email: (data.email ?? '').toLowerCase(),
-      displayName: data.displayName ?? null,
-      photoURL: data.photoURL ?? null,
-      createdAt: tsToMillis(data.createdAt),
-      lastLoginAt: tsToMillis(data.lastLoginAt),
-      loginCount: data.loginCount ?? 0,
-      provider: data.lastSignInProvider ?? null,
-    };
-  });
+  const rows = authUsers.map((u) => ({
+    uid: u.uid,
+    email: (u.email ?? '').toLowerCase(),
+    displayName: u.displayName ?? null,
+    photoURL: u.photoURL ?? null,
+    createdAt: u.metadata.creationTime ? new Date(u.metadata.creationTime).getTime() : null,
+    lastLoginAt: u.metadata.lastSignInTime ? new Date(u.metadata.lastSignInTime).getTime() : null,
+    loginCount: metaByUid.get(u.uid)?.loginCount ?? 0,
+    provider: u.providerData[0]?.providerId ?? null,
+    disabled: u.disabled,
+  }));
 
   const matched = search
     ? rows.filter((r) => r.email.includes(search) || (r.displayName ?? '').toLowerCase().includes(search))
     : rows;
 
-  const page = matched.slice(0, limit);
-  const lastDoc = page.length > 0 ? page[page.length - 1] : null;
-  const nextCursor = matched.length > limit && lastDoc?.[sortBy] != null ? lastDoc[sortBy] : null;
+  // Sort
+  matched.sort((a, b) => {
+    const av = (a[sortBy] ?? 0) as number;
+    const bv = (b[sortBy] ?? 0) as number;
+    return bv - av;
+  });
+
+  // Cursor = offset (number we slice past)
+  const offset = args.cursor ?? 0;
+  const page = matched.slice(offset, offset + limit);
+  const nextCursor = matched.length > offset + limit ? offset + limit : null;
 
   // Per-user counts via parallel count() queries. ~4 reads × N users.
   const counts = await Promise.all(
@@ -357,8 +374,26 @@ export const adminGetUser = onCall({ region: REGION }, async (request) => {
     userRef.collection('_meta').doc('strava').get(),
   ]);
 
-  const meta = metaSnap.exists ? serializeDoc(metaSnap.data()) : null;
-  const email = (meta?.email as string | undefined)?.toLowerCase();
+  // Pull Firebase Auth record as a fallback / enrichment source — _meta only
+  // exists for users who have signed in since instrumentation went live.
+  const authRecord = await safeQuery(
+    'getUser-auth',
+    () => getAuth().getUser(args.uid),
+    null as UserRecord | null
+  );
+
+  const baseMeta = metaSnap.exists ? serializeDoc(metaSnap.data()) : {};
+  const meta: Record<string, unknown> = {
+    email: (baseMeta.email as string | undefined) ?? authRecord?.email ?? null,
+    displayName: (baseMeta.displayName as string | undefined) ?? authRecord?.displayName ?? null,
+    photoURL: (baseMeta.photoURL as string | undefined) ?? authRecord?.photoURL ?? null,
+    createdAt: baseMeta.createdAt ?? (authRecord?.metadata.creationTime ? new Date(authRecord.metadata.creationTime).getTime() : null),
+    lastLoginAt: baseMeta.lastLoginAt ?? (authRecord?.metadata.lastSignInTime ? new Date(authRecord.metadata.lastSignInTime).getTime() : null),
+    loginCount: baseMeta.loginCount ?? 0,
+    lastSignInProvider: baseMeta.lastSignInProvider ?? authRecord?.providerData[0]?.providerId ?? null,
+    disabled: authRecord?.disabled ?? false,
+  };
+  const email = (meta.email as string | null)?.toLowerCase() ?? null;
   const ordersSnap = email
     ? await db.collection('orders').where('customer.email', '==', email).orderBy('createdAt', 'desc').get()
     : null;
