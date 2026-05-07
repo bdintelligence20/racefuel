@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../data/products';
 import { useModalBehavior } from '../hooks/useModalBehavior';
+import { calculateShipping, FUEL_LAB_SHIPPING } from '../services/shipping/shippingRate';
 
 const FUNCTION_BASE = 'https://us-central1-promogroup.cloudfunctions.net';
 const ADDR_STORAGE_KEY = 'fuelcue_shipping_address';
@@ -116,8 +117,10 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
     }));
   }, [routeData.nutritionPoints, cartExtras, products]);
 
-  const total = lineItems.reduce((s, li) => s + li.unitPrice * li.quantity, 0);
+  const subtotal = lineItems.reduce((s, li) => s + li.unitPrice * li.quantity, 0);
   const itemsCount = lineItems.reduce((s, li) => s + li.quantity, 0);
+  const shipping = calculateShipping(subtotal);
+  const total = subtotal + shipping.amountZAR;
 
   // Items that couldn't be matched to a variantId — surface clearly so the
   // athlete knows what's about to be left out instead of a silent failure.
@@ -165,6 +168,12 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             zip: addr.zip,
           },
           lineItems,
+          // Fuel Lab flat rate. Backend (createCheckout cloud function)
+          // is expected to attach this as the Shopify draft order's
+          // shipping_line so Stitch charges the same total the user sees.
+          shippingLine: shipping.isFree
+            ? { title: 'Free shipping', priceZAR: 0 }
+            : { title: 'Standard shipping (Fuel Lab flat rate)', priceZAR: shipping.amountZAR },
         }),
       });
       const json = await res.json();
@@ -188,7 +197,7 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             <div className="text-[10px] text-warm uppercase tracking-wider font-display font-bold">Checkout · Fuel Lab</div>
             <h2 className="text-lg font-display font-bold text-text-primary">Buy your fuel</h2>
             <div className="text-[11px] text-text-muted font-display">
-              {itemsCount} item{itemsCount === 1 ? '' : 's'} · R{total.toFixed(2)}
+              {itemsCount} item{itemsCount === 1 ? '' : 's'} · R{subtotal.toFixed(2)} + {shipping.isFree ? 'free shipping' : `R${shipping.amountZAR} shipping`}
             </div>
           </div>
           <button onClick={onClose} aria-label="Close" className="p-2 text-text-muted hover:text-text-primary transition-colors">
@@ -256,6 +265,33 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             </div>
           )}
 
+          {/* Order summary — subtotal + shipping + total. Lives above the
+              Pay button so the breakdown can't be missed. Free-shipping
+              prompt nudges the athlete to top up if it's close. */}
+          <div className="rounded-lg bg-surfaceHighlight border border-[var(--color-border)] px-3 py-2.5 space-y-1.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-text-muted uppercase tracking-wider font-display">Subtotal</span>
+              <span className="text-sm font-display font-bold text-text-primary tabular-nums">R{subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-text-muted uppercase tracking-wider font-display">Shipping</span>
+              {shipping.isFree ? (
+                <span className="text-sm font-display font-bold text-accent tabular-nums">Free</span>
+              ) : (
+                <span className="text-sm font-display font-bold text-text-primary tabular-nums">R{shipping.amountZAR.toFixed(2)}</span>
+              )}
+            </div>
+            {!shipping.isFree && (
+              <p className="text-[10px] text-text-muted italic">
+                Add R{(FUEL_LAB_SHIPPING.freeShippingThresholdZAR - subtotal).toFixed(2)} more for free shipping.
+              </p>
+            )}
+            <div className="flex items-center justify-between pt-1.5 border-t border-[var(--color-border)]">
+              <span className="text-[11px] text-text-muted uppercase tracking-wider font-display font-bold">Total</span>
+              <span className="text-lg font-display font-bold text-accent-light tabular-nums">R{total.toFixed(2)}</span>
+            </div>
+          </div>
+
           <button
             type="submit"
             disabled={submitting || lineItems.length === 0}
@@ -276,7 +312,7 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           </button>
 
           <p className="text-[10px] text-text-muted text-center font-display">
-            Secure payment processed by Stitch · order fulfilled by Fuel Lab
+            Secure payment processed by Stitch · order fulfilled by Fuel Lab · R{FUEL_LAB_SHIPPING.flatRateZAR} flat shipping, free over R{FUEL_LAB_SHIPPING.freeShippingThresholdZAR}.
           </p>
         </form>
       </div>

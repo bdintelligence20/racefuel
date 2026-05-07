@@ -4,6 +4,7 @@ import { X, ShoppingCart, Trash2, Minus, Plus, Search, PackagePlus } from 'lucid
 import { useApp, NutritionPoint } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { calculatePlanCost } from '../services/nutrition/costCalculator';
+import { calculateShipping } from '../services/shipping/shippingRate';
 import { useProducts } from '../data/products';
 import { CheckoutModal } from './CheckoutModal';
 
@@ -74,6 +75,10 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
   }, [cartExtras, products]);
   const totalCost = cost.totalCostZAR + extrasCost;
   const hasPackInflation = cost.totalCostZAR > runCost + 1;
+  // Fuel Lab flat rate: R140 under R999, free above. Computed off the
+  // buy total (what the athlete is actually paying for, before shipping).
+  const shipping = calculateShipping(totalCost);
+  const grandTotal = totalCost + shipping.amountZAR;
 
   const extrasResolved = useMemo(() => {
     const byId = new Map(products.map((p) => [p.id, p]));
@@ -434,8 +439,25 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                 <span className="text-lg font-display font-bold text-warm tabular-nums">R{runCost.toFixed(2)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-[11px] text-text-muted uppercase tracking-wider">Total to buy {hasPackInflation && <span className="text-text-muted/70 lowercase">(full packs)</span>}</span>
-                <span className="text-lg font-display font-bold text-accent-light tabular-nums">R{totalCost.toFixed(2)}</span>
+                <span className="text-[11px] text-text-muted uppercase tracking-wider">Subtotal {hasPackInflation && <span className="text-text-muted/70 lowercase">(full packs)</span>}</span>
+                <span className="text-sm font-display font-bold text-text-primary tabular-nums">R{totalCost.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-text-muted uppercase tracking-wider">Shipping</span>
+                {shipping.isFree ? (
+                  <span className="text-sm font-display font-bold text-accent tabular-nums">Free</span>
+                ) : (
+                  <span className="text-sm font-display font-bold text-text-primary tabular-nums">R{shipping.amountZAR.toFixed(2)}</span>
+                )}
+              </div>
+              {!shipping.isFree && (
+                <p className="text-[10px] text-text-muted italic">
+                  Add R{(shipping.freeAtZAR - totalCost).toFixed(2)} more for free shipping.
+                </p>
+              )}
+              <div className="flex items-center justify-between pt-1.5 border-t border-[var(--color-border)]">
+                <span className="text-[11px] text-text-muted uppercase tracking-wider font-bold">Total</span>
+                <span className="text-lg font-display font-bold text-accent-light tabular-nums">R{grandTotal.toFixed(2)}</span>
               </div>
               {hasPackInflation && (
                 <p className="text-[10px] text-text-muted italic pt-1">
@@ -451,7 +473,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
               onClick={() => setCheckoutOpen(true)}
             >
               <ShoppingCart className="w-4 h-4" />
-              Checkout - R{totalCost.toFixed(2)}
+              Checkout - R{grandTotal.toFixed(2)}
             </button>
           </div>
         )}
