@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Loader2, Users, ShoppingBag, FileText, MessageSquare, Mail, Coins, Star, ChefHat } from 'lucide-react';
+import { Loader2, Users, ShoppingBag, FileText, MessageSquare, Mail, Coins, Star, ChefHat, Megaphone } from 'lucide-react';
 import { adminMetrics, type AdminMetrics } from '../../services/firebase/admin';
 import { StatCard } from './charts/StatCard';
 import { LineChart } from './charts/LineChart';
@@ -67,6 +67,7 @@ export function OverviewTab() {
         <StatCard label="Saved plans" value={data.totals.plansCount} icon={FileText} accent="warm" hint="all time" />
         <StatCard label="Feedback" value={data.totals.feedbackCount} icon={MessageSquare} accent="rust" hint="all time" />
         <StatCard label="Early access" value={data.totals.earlyAccessCount} icon={Mail} accent="plum" />
+        <StatCard label="Site feedback" value={data.totals.siteFeedbackCount} icon={Megaphone} accent="rust" hint="launch banner" />
         <StatCard label="Custom products" value={data.totals.customProductsCount} icon={ChefHat} accent="warm" />
         <StatCard label="Ratings" value={data.totals.ratingsCount} icon={Star} accent="rust" />
       </div>

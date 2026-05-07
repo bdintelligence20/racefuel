@@ -16,6 +16,13 @@ service cloud.firestore {
       allow read, update, delete: if false;
     }
 
+    // Site-wide feedback banner: signed-in or anonymous can submit. Admin
+    // dashboard reads via callable (Admin SDK).
+    match /siteFeedback/{docId} {
+      allow create: if isValidSiteFeedback(request.resource.data);
+      allow read, update, delete: if false;
+    }
+
     // Orders: only the customer (matched by email) can read their own order.
     // All writes go through the Cloud Function via Admin SDK (bypasses rules).
     match /orders/{orderId} {
@@ -32,6 +39,21 @@ service cloud.firestore {
     // Default deny everything else.
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    function isValidSiteFeedback(d) {
+      return d.keys().hasOnly(
+               ['message', 'email', 'displayName', 'uid',
+                'path', 'userAgent', 'referrer', 'createdAt']
+             )
+             && d.message is string && d.message.size() > 0 && d.message.size() <= 4000
+             && (d.email == null      || (d.email is string      && d.email.size() <= 200))
+             && (d.displayName == null || (d.displayName is string && d.displayName.size() <= 200))
+             && (d.uid == null        || (d.uid is string        && d.uid.size() <= 128))
+             && (d.path == null       || (d.path is string       && d.path.size() <= 500))
+             && (d.userAgent == null  || (d.userAgent is string  && d.userAgent.size() <= 500))
+             && (d.referrer == null   || (d.referrer is string   && d.referrer.size() <= 500))
+             && d.createdAt == request.time;
     }
 
     function isValidEarlyAccessSubmission(d) {

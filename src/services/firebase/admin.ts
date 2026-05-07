@@ -20,6 +20,7 @@ export interface AdminMetrics {
     customProductsCount: number;
     ratingsCount: number;
     earlyAccessCount: number;
+    siteFeedbackCount: number;
     revenueZAR: number;
     paidOrders: number;
   };
@@ -102,6 +103,24 @@ export interface AdminListEarlyAccessResult {
   total: number;
 }
 
+export interface AdminSiteFeedbackRow extends Record<string, unknown> {
+  id: string;
+  message?: string;
+  email?: string | null;
+  displayName?: string | null;
+  uid?: string | null;
+  path?: string | null;
+  userAgent?: string | null;
+  referrer?: string | null;
+  createdAt?: number;
+}
+
+export interface AdminListSiteFeedbackResult {
+  rows: AdminSiteFeedbackRow[];
+  nextCursor: number | null;
+  total: number;
+}
+
 export interface AdminProductInsights {
   ratingsCount: number;
   customProductsCount: number;
@@ -172,6 +191,11 @@ export const adminListEarlyAccess = callableUnwrap<
   { cursor?: number | null; limit?: number; search?: string },
   AdminListEarlyAccessResult
 >('adminListEarlyAccess');
+
+export const adminListSiteFeedback = callableUnwrap<
+  { cursor?: number | null; limit?: number; search?: string },
+  AdminListSiteFeedbackResult
+>('adminListSiteFeedback');
 
 export const adminProductInsights = callableUnwrap<void, AdminProductInsights>('adminProductInsights');
 

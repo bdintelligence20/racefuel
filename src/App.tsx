@@ -16,6 +16,7 @@ import { PlanStrategyModal } from './components/PlanStrategyModal';
 import { CheckoutTest } from './components/CheckoutTest';
 import { PaymentCallback } from './components/PaymentCallback';
 import { AdminLayout } from './components/admin/AdminLayout';
+import { SiteFeedbackBanner } from './components/SiteFeedbackBanner';
 import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
 import { TermsOfService } from './components/legal/TermsOfService';
 import { CookiesPolicy } from './components/legal/CookiesPolicy';
@@ -43,7 +44,7 @@ function MobileNav({
   setSidebarOpen: (o: boolean) => void;
 }) {
   return (
-    <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-surface border-b border-[var(--color-border)] safe-top">
+    <div className="lg:hidden fixed left-0 right-0 z-50 bg-surface border-b border-[var(--color-border)] safe-top" style={{ top: 'var(--banner-h, 0px)' }}>
       <div className="flex items-center gap-2 px-3 py-2">
         {/* Hamburger */}
         <button
@@ -299,6 +300,7 @@ export function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
+        <SiteFeedbackBanner />
         <AuthGate />
       </AuthProvider>
     </ErrorBoundary>

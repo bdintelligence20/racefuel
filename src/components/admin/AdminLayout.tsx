@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, BarChart3, Users, ShoppingBag, Activity, Mail, Package, Settings as SettingsIcon, Loader2 } from 'lucide-react';
+import { ArrowLeft, BarChart3, Users, ShoppingBag, Activity, Mail, Package, Settings as SettingsIcon, MessageSquare, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAdminGate } from '../../hooks/useAdminGate';
 import { OverviewTab } from './OverviewTab';
@@ -9,12 +9,14 @@ import { ActivityTab } from './ActivityTab';
 import { EarlyAccessTab } from './EarlyAccessTab';
 import { ProductsTab } from './ProductsTab';
 import { SettingsTab } from './SettingsTab';
+import { SiteFeedbackTab } from './SiteFeedbackTab';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
   { id: 'users', label: 'Users', icon: Users },
   { id: 'orders', label: 'Orders', icon: ShoppingBag },
   { id: 'activity', label: 'Activity', icon: Activity },
+  { id: 'feedback', label: 'Feedback', icon: MessageSquare },
   { id: 'early-access', label: 'Early Access', icon: Mail },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
@@ -53,6 +55,7 @@ export function AdminLayout() {
       case 'users': return <UsersTab />;
       case 'orders': return <OrdersTab />;
       case 'activity': return <ActivityTab />;
+      case 'feedback': return <SiteFeedbackTab />;
       case 'early-access': return <EarlyAccessTab />;
       case 'products': return <ProductsTab />;
       case 'settings': return <SettingsTab />;
@@ -75,7 +78,7 @@ export function AdminLayout() {
 
   return (
     <div className="min-h-screen bg-[#FFF9F0] font-sans">
-      <header className="bg-white border-b border-[#3D2152]/10 sticky top-0 z-30">
+      <header className="bg-white border-b border-[#3D2152]/10 sticky z-30" style={{ top: 'var(--banner-h, 0px)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
           <a
             href="/app"

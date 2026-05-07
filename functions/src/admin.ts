@@ -112,6 +112,7 @@ export const adminMetrics = onCall({ region: REGION }, async (request) => {
     customProductsSnap,
     ratingsSnap,
     earlyAccessSnap,
+    siteFeedbackSnap,
     plansRecentSnap,
     feedbackRecentSnap,
     ordersRecentSnap,
@@ -124,6 +125,7 @@ export const adminMetrics = onCall({ region: REGION }, async (request) => {
     db.collectionGroup('customProducts').count().get(),
     db.collectionGroup('ratings').count().get(),
     db.collection('earlyAccessRequests').count().get(),
+    db.collection('siteFeedback').count().get(),
     db.collectionGroup('plans').where('createdAt', '>=', sinceTs).get(),
     db.collectionGroup('feedback').where('createdAt', '>=', sinceTs).get(),
     db.collection('orders').where('createdAt', '>=', sinceTs).get(),
@@ -186,6 +188,7 @@ export const adminMetrics = onCall({ region: REGION }, async (request) => {
       customProductsCount: customProductsSnap.data().count,
       ratingsCount: ratingsSnap.data().count,
       earlyAccessCount: earlyAccessSnap.data().count,
+      siteFeedbackCount: siteFeedbackSnap.data().count,
       revenueZAR,
       paidOrders,
     },
@@ -468,6 +471,43 @@ export const adminListEarlyAccess = onCall({ region: REGION }, async (request) =
   const nextCursor = matched.length > limit && last?.createdAt != null ? last.createdAt : null;
 
   return { rows: page, sportCounts, nextCursor, total: matched.length };
+});
+
+/* ----------------------- adminListSiteFeedback --------------------- */
+
+interface ListSiteFeedbackArgs {
+  cursor?: number | null;
+  limit?: number;
+  search?: string;
+}
+
+export const adminListSiteFeedback = onCall({ region: REGION }, async (request) => {
+  await assertAdmin(request);
+  const args = (request.data ?? {}) as ListSiteFeedbackArgs;
+  const limit = Math.max(1, Math.min(500, args.limit ?? 50));
+  const search = args.search?.trim().toLowerCase() ?? '';
+  const db = getFirestore();
+
+  let q: FirebaseFirestore.Query = db.collection('siteFeedback').orderBy('createdAt', 'desc');
+  if (args.cursor != null) q = q.startAfter(Timestamp.fromMillis(args.cursor));
+  const fetchLimit = search ? limit * 4 : limit + 1;
+  const snap = await q.limit(fetchLimit).get();
+
+  const rows = snap.docs.map((d) => ({ id: d.id, ...serializeDoc(d.data()) }));
+  const matched = search
+    ? rows.filter((r) => {
+        const row = r as { message?: string; email?: string; displayName?: string };
+        const hay = [row.message, row.email, row.displayName]
+          .filter(Boolean).join(' ').toLowerCase();
+        return hay.includes(search);
+      })
+    : rows;
+
+  const page = matched.slice(0, limit);
+  const last = page[page.length - 1] as { createdAt?: number } | undefined;
+  const nextCursor = matched.length > limit && last?.createdAt != null ? last.createdAt : null;
+
+  return { rows: page, nextCursor, total: matched.length };
 });
 
 /* ------------------------- product analytics ----------------------- */
