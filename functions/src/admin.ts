@@ -14,6 +14,7 @@ const SEED_ADMINS: ReadonlySet<string> = new Set([
   'spiesbradley@gmail.com',
   'dane@thepromogroup.co.za',
   'jeff@thepromogroup.co.za',
+  'clickfirm.utt@gmail.com',
 ]);
 
 const REGION = 'us-central1';
