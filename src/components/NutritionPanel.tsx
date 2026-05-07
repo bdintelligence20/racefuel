@@ -7,7 +7,7 @@ import { getActiveDurationHours } from '../services/route/timeFormat';
 import { CartModal } from './CartModal';
 import { ProductDetailModal } from './ProductDetailModal';
 import { RaceDayChecklist } from './RaceDayChecklist';
-import { CustomProductModal, loadCustomProducts, hydrateCustomProductsFromCloud } from './CustomProductModal';
+import { CustomProductModal, hydrateCustomProductsFromCloud } from './CustomProductModal';
 import { BundlePicker } from './BundlePicker';
 
 type FilterTab = 'all' | ProductCategory;
@@ -19,14 +19,12 @@ export function NutritionPanel() {
   const [cartOpen, setCartOpen] = useState(false);
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [customProductOpen, setCustomProductOpen] = useState(false);
-  const [customProducts, setCustomProducts] = useState<ProductProps[]>(loadCustomProducts);
 
-  // Hydrate custom products from Firestore once auth is ready. Falls through
-  // silently for signed-out users — local cache still works.
+  // Hydrate custom products from Firestore once auth is ready. The hydrate
+  // helper writes through to the shared products store, so useProducts() picks
+  // up the cloud copies automatically — no local state needed here.
   useEffect(() => {
-    hydrateCustomProductsFromCloud().then((cloud) => {
-      if (cloud) setCustomProducts(cloud);
-    });
+    hydrateCustomProductsFromCloud();
   }, []);
   const [selectedProduct, setSelectedProduct] = useState<ProductProps | null>(null);
   const [bundlePickerOpen, setBundlePickerOpen] = useState(false);
@@ -37,18 +35,16 @@ export function NutritionPanel() {
     e.dataTransfer.effectAllowed = 'copy';
   };
 
-  const allProducts = useMemo(() => [...products, ...customProducts], [products, customProducts]);
-
   const filteredProducts = useMemo(() => {
     const query = searchQuery.toLowerCase();
     let result = query
-      ? allProducts.filter(p => p.name.toLowerCase().includes(query) || p.brand.toLowerCase().includes(query))
-      : allProducts;
+      ? products.filter(p => p.name.toLowerCase().includes(query) || p.brand.toLowerCase().includes(query))
+      : products;
     if (activeFilter !== 'all') {
       result = result.filter(p => p.category === activeFilter);
     }
     return result;
-  }, [searchQuery, activeFilter, allProducts]);
+  }, [searchQuery, activeFilter, products]);
 
   // Calculate totals
   const totalCarbs = routeData.nutritionPoints.reduce(
@@ -249,7 +245,6 @@ export function NutritionPanel() {
       <CustomProductModal
         isOpen={customProductOpen}
         onClose={() => setCustomProductOpen(false)}
-        onAdd={(product) => setCustomProducts(prev => [...prev, product])}
       />
 
       {/* Bundle Picker */}

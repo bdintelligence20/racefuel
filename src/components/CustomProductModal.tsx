@@ -5,11 +5,15 @@ import { ProductProps, ProductCategory } from './NutritionCard';
 import { nanoid } from 'nanoid';
 import * as firestoreService from '../services/firebase/firestore';
 import { getCurrentUser } from '../services/firebase/auth';
+import { setCustomProducts } from '../data/products';
 
 interface CustomProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAdd: (product: ProductProps) => void;
+  /** Optional notification hook fired after the product is saved. The modal's
+   *  saveCustomProduct() already pushes the new product into the shared store,
+   *  so callers don't need this for re-renders — useProducts() picks it up. */
+  onAdd?: (product: ProductProps) => void;
 }
 
 const categoryOptions: { value: ProductCategory; label: string }[] = [
@@ -39,6 +43,14 @@ export function loadCustomProducts(): ProductProps[] {
   }
 }
 
+/** Localstorage write helper that also keeps the in-memory product store in
+ *  sync. Always go through this — direct localStorage writes will leave
+ *  useProducts() / the products proxy stale until next full reload. */
+function persistCustomProducts(list: ProductProps[]): void {
+  localStorage.setItem(CUSTOM_PRODUCTS_KEY, JSON.stringify(list));
+  setCustomProducts(list);
+}
+
 /**
  * Hydrate custom products from Firestore on login. Returns the merged list so
  * the caller can re-render. Treats Firestore as the source of truth and
@@ -62,7 +74,7 @@ export async function hydrateCustomProductsFromCloud(): Promise<ProductProps[] |
       image: p.image ?? '',
       servingsPerPack: p.servingsPerPack,
     }));
-    localStorage.setItem(CUSTOM_PRODUCTS_KEY, JSON.stringify(mapped));
+    persistCustomProducts(mapped);
     return mapped;
   } catch (err) {
     console.warn('[custom products] cloud hydrate failed:', err);
@@ -73,7 +85,7 @@ export async function hydrateCustomProductsFromCloud(): Promise<ProductProps[] |
 export function saveCustomProduct(product: ProductProps): void {
   const existing = loadCustomProducts();
   existing.push(product);
-  localStorage.setItem(CUSTOM_PRODUCTS_KEY, JSON.stringify(existing));
+  persistCustomProducts(existing);
   if (getCurrentUser()) {
     firestoreService.addCustomProduct({
       id: product.id,
@@ -94,7 +106,7 @@ export function saveCustomProduct(product: ProductProps): void {
 
 export function removeCustomProduct(id: string): void {
   const existing = loadCustomProducts().filter(p => p.id !== id);
-  localStorage.setItem(CUSTOM_PRODUCTS_KEY, JSON.stringify(existing));
+  persistCustomProducts(existing);
   if (getCurrentUser()) {
     firestoreService.deleteCustomProduct(id).catch((err) => {
       console.warn('[custom products] delete sync failed:', err);
@@ -132,7 +144,7 @@ export function CustomProductModal({ isOpen, onClose, onAdd }: CustomProductModa
     };
 
     saveCustomProduct(product);
-    onAdd(product);
+    onAdd?.(product);
 
     // Reset form
     setBrand('');

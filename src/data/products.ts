@@ -195,11 +195,41 @@ function parseProductsFromXml(xml: string): ProductProps[] {
 
 // Shared state + listeners for React reactivity
 let _products: ProductProps[] = [];
+let _customProducts: ProductProps[] = readCustomProductsFromStorage();
+let _combined: ProductProps[] = _customProducts.slice();
 const _listeners: Set<() => void> = new Set();
 let _loaded = false;
 
+const CUSTOM_PRODUCTS_STORAGE_KEY = 'fuelcue_custom_products';
+
+function readCustomProductsFromStorage(): ProductProps[] {
+  if (typeof localStorage === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(CUSTOM_PRODUCTS_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as ProductProps[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function recomputeCombined() {
+  _combined = [..._products, ..._customProducts];
+}
+
 function notify() {
   _listeners.forEach(fn => fn());
+}
+
+/** Replace the in-memory custom-product list and notify subscribers.
+ *  Custom products live alongside feed products in `useProducts()` and the
+ *  `products` proxy so brand pickers, planners, and pickers all see them
+ *  without caller-side merging. The localStorage write is the caller's
+ *  responsibility (see CustomProductModal helpers) — this only updates the
+ *  reactive in-memory mirror. */
+export function setCustomProducts(list: ProductProps[]): void {
+  _customProducts = list.slice();
+  recomputeCombined();
+  notify();
 }
 
 // Fetch once, cache forever (until page reload)
@@ -215,6 +245,7 @@ function ensureLoaded(): Promise<void> {
     })
     .then((xml) => {
       _products = parseProductsFromXml(xml).filter(isSingleServeProduct);
+      recomputeCombined();
       _loaded = true;
       notify();
     })
@@ -228,37 +259,35 @@ function ensureLoaded(): Promise<void> {
 // Start loading immediately on module import
 ensureLoaded();
 
-/** React hook — returns live products from the XML feed */
+/** React hook — returns live products from the XML feed merged with the
+ *  user's custom additions. Subscribes for reactivity even after the feed
+ *  is loaded so custom-product saves/removals re-render. */
 export function useProducts(): ProductProps[] {
   const [, setTick] = useState(0);
 
   useEffect(() => {
-    // If already loaded, no need to subscribe
-    if (_loaded) return;
-
     const listener = () => setTick(t => t + 1);
     _listeners.add(listener);
     ensureLoaded();
-
     return () => { _listeners.delete(listener); };
   }, []);
 
-  return _products;
+  return _combined;
 }
 
 // Backwards-compatible exports for non-component code (planGenerator etc.)
 export const products = new Proxy([] as ProductProps[], {
   get(_target, prop) {
-    if (prop === 'length') return _products.length;
-    if (prop === Symbol.iterator) return _products[Symbol.iterator].bind(_products);
-    if (typeof prop === 'string' && !isNaN(Number(prop))) return _products[Number(prop)];
-    const val = (_products as unknown as Record<string | symbol, unknown>)[prop];
-    return typeof val === 'function' ? val.bind(_products) : val;
+    if (prop === 'length') return _combined.length;
+    if (prop === Symbol.iterator) return _combined[Symbol.iterator].bind(_combined);
+    if (typeof prop === 'string' && !isNaN(Number(prop))) return _combined[Number(prop)];
+    const val = (_combined as unknown as Record<string | symbol, unknown>)[prop];
+    return typeof val === 'function' ? val.bind(_combined) : val;
   },
 });
 
 export function getProductsByCategory(category: ProductCategory): ProductProps[] {
-  return _products.filter(p => p.category === category);
+  return _combined.filter(p => p.category === category);
 }
 export function getGels(): ProductProps[] { return getProductsByCategory('gel'); }
 export function getDrinks(): ProductProps[] { return getProductsByCategory('drink'); }
@@ -267,7 +296,7 @@ export function getChews(): ProductProps[] { return getProductsByCategory('chew'
 
 export function searchProducts(query: string): ProductProps[] {
   const q = query.toLowerCase();
-  return _products.filter(p =>
+  return _combined.filter(p =>
     p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q)
   );
 }

@@ -5,7 +5,6 @@ import { type ProductCategory, type ProductProps } from './NutritionCard';
 import { useApp } from '../context/AppContext';
 import { useMap } from '../context/MapContext';
 import { useProducts } from '../data/products';
-import { loadCustomProducts } from './CustomProductModal';
 import { ProductDetailModal } from './ProductDetailModal';
 import useEmblaCarousel from 'embla-carousel-react';
 
@@ -39,7 +38,6 @@ export function MobileNutritionStrip() {
   const { addNutritionPoint, routeData } = useApp();
   const map = useMap();
   const products = useProducts();
-  const [customProducts, setCustomProducts] = useState<ProductProps[]>(loadCustomProducts);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<CategoryFilter>('all');
@@ -83,14 +81,8 @@ export function MobileNutritionStrip() {
     emblaApi?.reInit();
   }, [drag, emblaApi]);
 
-  useEffect(() => {
-    setCustomProducts(loadCustomProducts());
-  }, []);
-
-  const allProducts = useMemo(() => [...customProducts, ...products], [products, customProducts]);
-
   const visibleProducts = useMemo(() => {
-    let pool = allProducts;
+    let pool = products;
     if (filter !== 'all') pool = pool.filter((p) => p.category === filter);
     const q = query.trim().toLowerCase();
     if (q) {
@@ -99,7 +91,7 @@ export function MobileNutritionStrip() {
       );
     }
     return pool;
-  }, [allProducts, filter, query]);
+  }, [products, filter, query]);
 
   /* ──────────────── long-press detection ──────────────── */
 
