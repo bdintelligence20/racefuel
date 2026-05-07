@@ -143,7 +143,7 @@ export function LandingPage({ onRequestAccess }: { onRequestAccess: () => void }
       <RouteTrail scrollYProgress={scrollYProgress} />
 
       {/* ── NAV ── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 px-4 sm:px-6 lg:px-14 py-3 flex items-center justify-between bg-[#FFF9F0]/80 backdrop-blur-xl border-b border-[#3D2152]/[0.06]">
+      <nav className="fixed left-0 right-0 z-50 px-4 sm:px-6 lg:px-14 py-3 flex items-center justify-between bg-[#FFF9F0]/80 backdrop-blur-xl border-b border-[#3D2152]/[0.06]" style={{ top: 'var(--banner-h, 0px)' }}>
         <img src="/logo.png" alt="fuelcue" className="h-8 sm:h-10 w-auto object-contain" />
         <div className="hidden md:flex items-center gap-8 text-[13px] text-[#6B5A7A] font-medium">
           <a href="#features" className="hover:text-[#3D2152] transition-colors">Features</a>

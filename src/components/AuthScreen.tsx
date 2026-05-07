@@ -47,7 +47,7 @@ export function AuthScreen() {
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background">
+      <div className="fixed left-0 right-0 bottom-0 z-50 flex items-center justify-center bg-background" style={{ top: 'var(--banner-h, 0px)' }}>
         <div className="text-center">
           <img src="/logo.png" alt="fuelcue" className="h-16 w-auto mx-auto mb-4" />
           <div className="w-8 h-8 border-2 border-warm border-t-transparent rounded-full animate-spin mx-auto" />
@@ -57,7 +57,7 @@ export function AuthScreen() {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm overflow-y-auto p-0 sm:p-4">
+    <div className="fixed left-0 right-0 bottom-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm overflow-y-auto p-0 sm:p-4" style={{ top: 'var(--banner-h, 0px)' }}>
       <div className="w-full sm:max-w-md bg-surface border-t sm:border border-[var(--color-border)] rounded-t-2xl sm:rounded-2xl shadow-2xl my-auto max-h-[100dvh] sm:max-h-[95dvh] flex flex-col overflow-hidden">
         {/* Hero */}
         <div className="relative h-40 sm:h-48 flex-shrink-0 overflow-hidden">

@@ -71,7 +71,7 @@ function AppContent() {
   const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan } = useApp();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   return (
-    <div className="flex w-full h-[100dvh] bg-background overflow-hidden font-sans">
+    <div className="flex w-full bg-background overflow-hidden font-sans" style={{ height: 'calc(100dvh - var(--banner-h, 0px))' }}>
       <MobileNav
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
@@ -279,7 +279,7 @@ function AuthGate() {
   // Auth loading
   if (loading) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-background">
+      <div className="fixed left-0 right-0 bottom-0 flex items-center justify-center bg-background" style={{ top: 'var(--banner-h, 0px)' }}>
         <div className="text-center">
           <img src="/logo.png" alt="fuelcue" className="h-16 w-auto mx-auto mb-4" />
           <div className="w-8 h-8 border-2 border-warm border-t-transparent rounded-full animate-spin mx-auto" />

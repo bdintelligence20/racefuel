@@ -23,14 +23,16 @@ export function SiteFeedbackBanner() {
     setDismissed(true);
   };
 
-  // Publish banner height as a CSS var so other fixed-top elements (MobileNav)
-  // can offset themselves while the banner is up.
+  // Publish banner height as a CSS var so other fixed-top elements
+  // (MobileNav, landing nav, AppContent) can offset themselves while the
+  // banner is up. Includes the iOS safe-area inset so the banner can sit
+  // below the system status bar without clipping.
   useEffect(() => {
     const root = document.documentElement;
     if (dismissed) {
       root.style.removeProperty('--banner-h');
     } else {
-      root.style.setProperty('--banner-h', '36px');
+      root.style.setProperty('--banner-h', 'calc(2.25rem + env(safe-area-inset-top))');
     }
     return () => { root.style.removeProperty('--banner-h'); };
   }, [dismissed]);
@@ -70,7 +72,7 @@ export function SiteFeedbackBanner() {
 
   return (
     <>
-      <div className="fixed top-0 left-0 right-0 z-[60] bg-[#3D2152] text-white shadow-[0_2px_10px_-4px_rgba(61,33,82,0.4)]">
+      <div className="fixed top-0 left-0 right-0 z-[60] bg-[#3D2152] text-white shadow-[0_2px_10px_-4px_rgba(61,33,82,0.4)] safe-top">
         <div className="max-w-7xl mx-auto px-3 sm:px-5 h-9 flex items-center gap-3 text-[12px] font-display">
           <span className="text-[#F5A020] font-bold uppercase tracking-[0.16em] text-[10px] hidden sm:inline">
             New
@@ -95,8 +97,9 @@ export function SiteFeedbackBanner() {
           </button>
         </div>
       </div>
-      {/* Spacer matching banner height so fixed-banner doesn't cover content. */}
-      <div className="h-9" aria-hidden="true" />
+      {/* Spacer matching banner height so fixed-banner doesn't cover content
+          on screens that flow naturally (LandingPage min-h-screen, AdminLayout). */}
+      <div aria-hidden="true" style={{ height: 'var(--banner-h, 0px)' }} />
 
       {open && (
         <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center font-sans">
@@ -136,7 +139,7 @@ export function SiteFeedbackBanner() {
                   What's working? What's broken?
                 </h2>
                 <p className="text-[12px] text-[#6B5A7A] mb-3">
-                  Tell us anything — bug reports, ideas, missing products. Goes straight to Nic.
+                  Tell us anything — bug reports, ideas, missing products.
                 </p>
 
                 <textarea
