@@ -82,6 +82,24 @@ async function chunkedAll<I, O>(items: I[], size: number, fn: (chunk: I[]) => Pr
   return out;
 }
 
+/** Resolve a Firestore query, returning a fallback if it fails (e.g. an
+ *  index is still being built). Logs the error so we know about it. */
+async function safeQuery<T>(name: string, fn: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    logger.warn(`safeQuery ${name} failed (fallback used)`, { err: String(err) });
+    return fallback;
+  }
+}
+
+function emptyCount(): FirebaseFirestore.AggregateQuerySnapshot<{ count: FirebaseFirestore.AggregateField<number> }> {
+  return { data: () => ({ count: 0 }) } as unknown as FirebaseFirestore.AggregateQuerySnapshot<{ count: FirebaseFirestore.AggregateField<number> }>;
+}
+function emptySnap(): FirebaseFirestore.QuerySnapshot {
+  return { docs: [], size: 0, empty: true } as unknown as FirebaseFirestore.QuerySnapshot;
+}
+
 /* --------------------------- adminCheck ---------------------------- */
 
 export const adminCheck = onCall({ region: REGION }, async (request) => {
@@ -118,18 +136,18 @@ export const adminMetrics = onCall({ region: REGION }, async (request) => {
     ordersRecentSnap,
     metaRecentSnap,
   ] = await Promise.all([
-    db.collectionGroup('_meta').count().get(),
-    db.collection('orders').count().get(),
-    db.collectionGroup('plans').count().get(),
-    db.collectionGroup('feedback').count().get(),
-    db.collectionGroup('customProducts').count().get(),
-    db.collectionGroup('ratings').count().get(),
-    db.collection('earlyAccessRequests').count().get(),
-    db.collection('siteFeedback').count().get(),
-    db.collectionGroup('plans').where('createdAt', '>=', sinceTs).get(),
-    db.collectionGroup('feedback').where('createdAt', '>=', sinceTs).get(),
-    db.collection('orders').where('createdAt', '>=', sinceTs).get(),
-    db.collectionGroup('_meta').where('createdAt', '>=', sinceTs).get(),
+    safeQuery('count(_meta)', () => db.collectionGroup('_meta').count().get(), emptyCount()),
+    safeQuery('count(orders)', () => db.collection('orders').count().get(), emptyCount()),
+    safeQuery('count(plans)', () => db.collectionGroup('plans').count().get(), emptyCount()),
+    safeQuery('count(feedback)', () => db.collectionGroup('feedback').count().get(), emptyCount()),
+    safeQuery('count(customProducts)', () => db.collectionGroup('customProducts').count().get(), emptyCount()),
+    safeQuery('count(ratings)', () => db.collectionGroup('ratings').count().get(), emptyCount()),
+    safeQuery('count(earlyAccess)', () => db.collection('earlyAccessRequests').count().get(), emptyCount()),
+    safeQuery('count(siteFeedback)', () => db.collection('siteFeedback').count().get(), emptyCount()),
+    safeQuery('plans-recent', () => db.collectionGroup('plans').where('createdAt', '>=', sinceTs).get(), emptySnap()),
+    safeQuery('feedback-recent', () => db.collectionGroup('feedback').where('createdAt', '>=', sinceTs).get(), emptySnap()),
+    safeQuery('orders-recent', () => db.collection('orders').where('createdAt', '>=', sinceTs).get(), emptySnap()),
+    safeQuery('meta-recent', () => db.collectionGroup('_meta').where('createdAt', '>=', sinceTs).get(), emptySnap()),
   ]);
 
   let revenueZAR = 0;
@@ -231,7 +249,7 @@ export const adminListUsers = onCall({ region: REGION }, async (request) => {
   }
   // Pull more than `limit` when filtering client-side by search to compensate.
   const fetchLimit = search ? limit * 5 : limit + 1;
-  const snap = await q.limit(fetchLimit).get();
+  const snap = await safeQuery('listUsers', () => q.limit(fetchLimit).get(), emptySnap());
 
   interface MetaDoc {
     email?: string;
