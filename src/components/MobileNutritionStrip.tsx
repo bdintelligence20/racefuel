@@ -44,12 +44,14 @@ export function MobileNutritionStrip() {
   const [detailProduct, setDetailProduct] = useState<ProductProps | null>(null);
 
   const [drag, setDrag] = useState<{ product: ProductProps; x: number; y: number } | null>(null);
-  const dragRef = useRef(drag);
-  dragRef.current = drag;
 
   const pressRef = useRef<{
     product: ProductProps;
     pointerId: number;
+    // The card DOM node — captured synchronously in pointerdown so the
+    // long-press timer (which fires later, once e.currentTarget is gone)
+    // can call setPointerCapture on it.
+    target: HTMLElement;
     startX: number;
     startY: number;
     timer: ReturnType<typeof setTimeout> | null;
@@ -103,9 +105,12 @@ export function MobileNutritionStrip() {
 
   function onCardPointerDown(e: React.PointerEvent, product: ProductProps) {
     cancelPress();
+    const target = e.currentTarget as HTMLElement;
+    const pointerId = e.pointerId;
     pressRef.current = {
       product,
-      pointerId: e.pointerId,
+      pointerId,
+      target,
       startX: e.clientX,
       startY: e.clientY,
       // Touch: long-press triggers drag-to-map. Mouse: no long-press —
@@ -118,15 +123,28 @@ export function MobileNutritionStrip() {
           : setTimeout(() => {
               const p = pressRef.current;
               if (!p) return;
+              // Explicit pointer capture: the card now owns the pointer,
+              // so move/up events fire on the card regardless of where
+              // the finger goes (over the map, off-screen, etc.) on every
+              // browser that implements Pointer Events. Without this, iOS
+              // 17 / some Androids deliver moves only to the captured
+              // element and never bubble to window listeners.
+              try { p.target.setPointerCapture(p.pointerId); } catch { /* pointer already gone */ }
               suppressNextClickRef.current = true;
               setDrag({ product: p.product, x: p.startX, y: p.startY });
-              try { (navigator as any).vibrate?.(15); } catch {}
+              try { (navigator as any).vibrate?.(15); } catch { /* vibrate unsupported */ }
             }, LONG_PRESS_MS),
     };
   }
 
   function onCardPointerMove(e: React.PointerEvent) {
     const p = pressRef.current;
+    // Drag in progress: this is our captured pointer — update the ghost.
+    if (drag && p && e.pointerId === p.pointerId) {
+      if (e.cancelable) e.preventDefault();
+      setDrag({ ...drag, x: e.clientX, y: e.clientY });
+      return;
+    }
     if (!p) return;
     if (
       Math.abs(e.clientX - p.startX) > PRESS_CANCEL_PX ||
@@ -134,10 +152,11 @@ export function MobileNutritionStrip() {
     ) {
       if (e.pointerType === 'mouse') {
         // Mouse moved past the slop — user is dragging, not clicking.
-        // Enter drag mode now and suppress the click that follows mouseup.
+        // Capture the pointer to the card so subsequent moves/ups fire
+        // on it even when the cursor leaves the card's bounds.
+        try { p.target.setPointerCapture(p.pointerId); } catch { /* pointer already gone */ }
         suppressNextClickRef.current = true;
         setDrag({ product: p.product, x: e.clientX, y: e.clientY });
-        pressRef.current = null;
       } else {
         // Touch: assume the user is swiping the carousel. Cancel the
         // long-press AND suppress the synthetic click so a swipe can't
@@ -146,6 +165,20 @@ export function MobileNutritionStrip() {
         suppressNextClickRef.current = true;
       }
     }
+  }
+
+  function onCardPointerUp(e: React.PointerEvent) {
+    const p = pressRef.current;
+    if (drag && p && e.pointerId === p.pointerId) {
+      placeFromScreenCoords(drag.product, e.clientX, e.clientY);
+      setDrag(null);
+    }
+    cancelPress();
+  }
+
+  function onCardPointerCancel() {
+    setDrag(null);
+    cancelPress();
   }
 
   // Tap-to-open uses native onClick. Browsers already debounce click on
@@ -158,37 +191,6 @@ export function MobileNutritionStrip() {
     }
     setDetailProduct(product);
   }
-
-  /* ──────────────── window-level drag handlers (only when active) ──────────────── */
-
-  useEffect(() => {
-    if (!drag) return;
-
-    function onMove(e: PointerEvent) {
-      if (e.cancelable) e.preventDefault();
-      const cur = dragRef.current;
-      if (!cur) return;
-      setDrag({ ...cur, x: e.clientX, y: e.clientY });
-    }
-    function onUp(e: PointerEvent) {
-      const cur = dragRef.current;
-      setDrag(null);
-      if (cur) placeFromScreenCoords(cur.product, e.clientX, e.clientY);
-    }
-    function onCancel() {
-      setDrag(null);
-    }
-
-    window.addEventListener('pointermove', onMove, { passive: false });
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('pointercancel', onCancel);
-    return () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('pointercancel', onCancel);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [drag !== null]);
 
   function placeFromScreenCoords(product: ProductProps, clientX: number, clientY: number) {
     if (!map) return;
@@ -288,8 +290,8 @@ export function MobileNutritionStrip() {
                     key={p.id}
                     onPointerDown={(e) => onCardPointerDown(e, p)}
                     onPointerMove={onCardPointerMove}
-                    onPointerCancel={cancelPress}
-                    onPointerUp={cancelPress}
+                    onPointerCancel={onCardPointerCancel}
+                    onPointerUp={onCardPointerUp}
                     onClick={() => onCardClick(p)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
