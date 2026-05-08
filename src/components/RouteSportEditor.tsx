@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { ChipEditor } from './ChipEditor';
 
 type Sport = 'run' | 'cycle' | 'hike';
 type Surface = 'road' | 'trail' | 'mountain';
@@ -27,33 +27,10 @@ const SURFACES: Array<{ value: Surface; label: string }> = [
  *  inside AppContext when either changes, so the chip's "Time" sibling
  *  updates immediately. */
 export function RouteSportEditor({ sport, surface, onSaveSport, onSaveSurface, onClose }: Props) {
-  const ref = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('mousedown', onClick);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onClick);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
-
   return (
-    <>
-      <div
-        className="lg:hidden fixed inset-0 z-[80] bg-[#3D2152]/40 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
-    <div
-      ref={ref}
-      className="fixed left-0 right-0 bottom-0 z-[81] max-h-[80dvh] overflow-y-auto bg-surface border-t border-[var(--color-border)] shadow-2xl rounded-t-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:absolute lg:left-0 lg:right-auto lg:bottom-auto lg:top-full lg:z-40 lg:max-h-none lg:overflow-visible lg:rounded-xl lg:border lg:shadow-xl lg:p-3 lg:pb-3 lg:mt-1 lg:w-60 lg:max-w-[calc(100vw-1.5rem)]"
+    <ChipEditor
+      onClose={onClose}
+      desktopClassName="absolute top-full left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 w-60 max-w-[calc(100vw-1.5rem)]"
     >
       <div className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider mb-2">
         Route sport &amp; surface
@@ -114,7 +91,6 @@ export function RouteSportEditor({ sport, surface, onSaveSport, onSaveSurface, o
           Done
         </button>
       </div>
-    </div>
-    </>
+    </ChipEditor>
   );
 }

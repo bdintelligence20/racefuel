@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
+import { ChipEditor } from './ChipEditor';
 
 interface Props {
   value: number | undefined;
@@ -11,22 +12,6 @@ interface Props {
  *  back to inferring intensity from pace + elevation. */
 export function EffortEditor({ value, onSave, onClose }: Props) {
   const [effort, setEffort] = useState<number>(value ?? 6);
-  const ref = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('mousedown', onClick);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onClick);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
 
   const label = effort <= 3 ? 'Easy' : effort <= 6 ? 'Moderate' : effort <= 8 ? 'Hard' : 'Max';
   const description =
@@ -39,15 +24,9 @@ export function EffortEditor({ value, onSave, onClose }: Props) {
       : 'All-out. Upper gut-tolerance territory.';
 
   return (
-    <>
-      <div
-        className="lg:hidden fixed inset-0 z-[80] bg-[#3D2152]/40 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
-    <div
-      ref={ref}
-      className="fixed left-0 right-0 bottom-0 z-[81] max-h-[80dvh] overflow-y-auto bg-surface border-t border-[var(--color-border)] shadow-2xl rounded-t-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:absolute lg:left-0 lg:right-auto lg:bottom-auto lg:top-full lg:z-40 lg:max-h-none lg:overflow-visible lg:rounded-xl lg:border lg:shadow-xl lg:p-4 lg:pb-4 lg:mt-1 lg:w-64 lg:max-w-[calc(100vw-1.5rem)]"
+    <ChipEditor
+      onClose={onClose}
+      desktopClassName="absolute top-full left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-4 w-64 max-w-[calc(100vw-1.5rem)]"
     >
       <div className="flex items-baseline justify-between mb-1.5 lg:mb-2">
         <div>
@@ -101,7 +80,6 @@ export function EffortEditor({ value, onSave, onClose }: Props) {
           Save
         </button>
       </div>
-    </div>
-    </>
+    </ChipEditor>
   );
 }

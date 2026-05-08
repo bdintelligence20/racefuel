@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { Check, X, RotateCcw } from 'lucide-react';
+import { ChipEditor } from './ChipEditor';
 
 interface EstimatedTimeEditorProps {
   /** Current effective value in "H:MM" or "H:MM:SS" format. */
@@ -21,22 +22,6 @@ export function EstimatedTimeEditor({ value, isUserSet, onSave, onClear, onClose
   const initial = splitHM(value);
   const [hours, setHours] = useState<string>(String(initial.h));
   const [minutes, setMinutes] = useState<string>(String(initial.m).padStart(2, '0'));
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const onPointer = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('pointerdown', onPointer);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onPointer);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
 
   const handleSave = () => {
     const h = Math.max(0, Math.min(99, parseInt(hours, 10) || 0));
@@ -47,16 +32,10 @@ export function EstimatedTimeEditor({ value, isUserSet, onSave, onClear, onClose
   };
 
   return (
-    <>
-      <div
-        className="lg:hidden fixed inset-0 z-[80] bg-[#3D2152]/40 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
-    <div
-      ref={rootRef}
-      className="fixed left-0 right-0 bottom-0 z-[81] max-h-[80dvh] overflow-y-auto bg-surface border-t border-[var(--color-border)] shadow-2xl rounded-t-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-3 lg:absolute lg:left-0 lg:right-auto lg:bottom-auto lg:top-full lg:z-30 lg:max-h-none lg:overflow-visible lg:rounded-xl lg:border lg:shadow-xl lg:p-3 lg:pb-3 lg:mt-2 lg:w-[240px] lg:max-w-[calc(100vw-1.5rem)] lg:space-y-3 animate-in fade-in slide-in-from-bottom-2 lg:slide-in-from-top-1 duration-150"
-    >
+    <ChipEditor
+      onClose={onClose}
+      desktopClassName="absolute top-full left-0 mt-2 z-30 w-[240px] max-w-[calc(100vw-1.5rem)] bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150"
+    ><div className="space-y-3 lg:contents">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-display text-text-muted uppercase tracking-wider font-semibold">
           Expected time
@@ -121,7 +100,7 @@ export function EstimatedTimeEditor({ value, isUserSet, onSave, onClear, onClose
           Save
         </button>
       </div>
-    </div>
-    </>
+      </div>
+    </ChipEditor>
   );
 }

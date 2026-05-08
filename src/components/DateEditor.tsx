@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChipEditor } from './ChipEditor';
 
 interface Props {
   /** Current ISO date (YYYY-MM-DD) or undefined. */
@@ -20,22 +21,6 @@ export function DateEditor({ value, onSave, onClose }: Props) {
   const [viewYear, setViewYear] = useState(initial.getFullYear());
   const [viewMonth, setViewMonth] = useState(initial.getMonth()); // 0–11
   const [selected, setSelected] = useState<string | undefined>(value);
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const onPointer = (e: PointerEvent) => {
-      if (rootRef.current && !rootRef.current.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('pointerdown', onPointer);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('pointerdown', onPointer);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [onClose]);
 
   const monthName = new Date(viewYear, viewMonth, 1).toLocaleString(undefined, { month: 'long', year: 'numeric' });
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -76,15 +61,9 @@ export function DateEditor({ value, onSave, onClose }: Props) {
   const weekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
   return (
-    <>
-      <div
-        className="lg:hidden fixed inset-0 z-[80] bg-[#3D2152]/40 backdrop-blur-sm"
-        onClick={onClose}
-        aria-hidden
-      />
-    <div
-      ref={rootRef}
-      className="fixed left-0 right-0 bottom-0 z-[81] max-h-[80dvh] overflow-y-auto bg-surface border-t border-[var(--color-border)] shadow-2xl rounded-t-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:absolute lg:left-0 lg:right-auto lg:bottom-auto lg:top-full lg:z-40 lg:max-h-none lg:overflow-visible lg:rounded-xl lg:border lg:shadow-xl lg:p-3 lg:pb-3 lg:mt-1 lg:w-72 lg:max-w-[calc(100vw-1.5rem)]"
+    <ChipEditor
+      onClose={onClose}
+      desktopClassName="absolute top-full left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 w-72 max-w-[calc(100vw-1.5rem)]"
     >
       <div className="flex items-center justify-between mb-1.5 lg:mb-2">
         <button
@@ -178,8 +157,7 @@ export function DateEditor({ value, onSave, onClose }: Props) {
           </button>
         </div>
       </div>
-    </div>
-    </>
+    </ChipEditor>
   );
 }
 
