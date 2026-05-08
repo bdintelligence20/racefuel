@@ -144,7 +144,7 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
 
       {/* ── NAV ── */}
       <nav className="fixed left-0 right-0 z-50 px-4 sm:px-6 lg:px-14 py-3 flex items-center justify-between bg-[#FFF9F0]/80 backdrop-blur-xl border-b border-[#3D2152]/[0.06]" style={{ top: 'var(--banner-h, 0px)' }}>
-        <img src="/logo.png" alt="fuelcue" className="h-8 sm:h-10 w-auto object-contain" />
+        <img src="/logo.png" alt="fuelcue" className="h-11 sm:h-12 w-auto object-contain" />
         <div className="hidden md:flex items-center gap-8 text-[13px] text-[#6B5A7A] font-medium">
           <a href="#features" className="hover:text-[#3D2152] transition-colors">Features</a>
           <a href="#races" className="hover:text-[#3D2152] transition-colors">Races</a>
