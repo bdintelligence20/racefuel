@@ -101,6 +101,9 @@ function emptyCount(): FirebaseFirestore.AggregateQuerySnapshot<{ count: Firebas
 function emptySnap(): FirebaseFirestore.QuerySnapshot {
   return { docs: [], size: 0, empty: true } as unknown as FirebaseFirestore.QuerySnapshot;
 }
+function emptyDoc(): FirebaseFirestore.DocumentSnapshot {
+  return { exists: false, data: () => undefined } as unknown as FirebaseFirestore.DocumentSnapshot;
+}
 
 /* --------------------------- adminCheck ---------------------------- */
 
@@ -355,6 +358,9 @@ export const adminGetUser = onCall({ region: REGION }, async (request) => {
   const db = getFirestore();
   const userRef = db.collection('users').doc(args.uid);
 
+  // Wrap each read in safeQuery so a single failing subcollection query
+  // (e.g. an index that's still building) doesn't take down the whole
+  // detail view with INTERNAL.
   const [
     metaSnap,
     profileSnap,
@@ -365,14 +371,14 @@ export const adminGetUser = onCall({ region: REGION }, async (request) => {
     preferencesSnap,
     stravaMetaSnap,
   ] = await Promise.all([
-    userRef.collection('_meta').doc('data').get(),
-    userRef.collection('profile').doc('data').get(),
-    userRef.collection('plans').orderBy('updatedAt', 'desc').get(),
-    userRef.collection('feedback').orderBy('createdAt', 'desc').get(),
-    userRef.collection('ratings').orderBy('createdAt', 'desc').get(),
-    userRef.collection('customProducts').orderBy('createdAt', 'desc').get(),
-    userRef.collection('preferences').doc('data').get(),
-    userRef.collection('_meta').doc('strava').get(),
+    safeQuery('getUser-meta', () => userRef.collection('_meta').doc('data').get(), emptyDoc()),
+    safeQuery('getUser-profile', () => userRef.collection('profile').doc('data').get(), emptyDoc()),
+    safeQuery('getUser-plans', () => userRef.collection('plans').orderBy('updatedAt', 'desc').get(), emptySnap()),
+    safeQuery('getUser-feedback', () => userRef.collection('feedback').orderBy('createdAt', 'desc').get(), emptySnap()),
+    safeQuery('getUser-ratings', () => userRef.collection('ratings').orderBy('createdAt', 'desc').get(), emptySnap()),
+    safeQuery('getUser-customProducts', () => userRef.collection('customProducts').orderBy('createdAt', 'desc').get(), emptySnap()),
+    safeQuery('getUser-preferences', () => userRef.collection('preferences').doc('data').get(), emptyDoc()),
+    safeQuery('getUser-strava', () => userRef.collection('_meta').doc('strava').get(), emptyDoc()),
   ]);
 
   // Pull Firebase Auth record as a fallback / enrichment source — _meta only
@@ -395,8 +401,15 @@ export const adminGetUser = onCall({ region: REGION }, async (request) => {
     disabled: authRecord?.disabled ?? false,
   };
   const email = (meta.email as string | null)?.toLowerCase() ?? null;
+  // Needs a composite index on (customer.email ASC, createdAt DESC).
+  // Wrap in safeQuery so the page still renders (just with no orders) if
+  // the index is missing or still building.
   const ordersSnap = email
-    ? await db.collection('orders').where('customer.email', '==', email).orderBy('createdAt', 'desc').get()
+    ? await safeQuery(
+        'getUser-orders',
+        () => db.collection('orders').where('customer.email', '==', email).orderBy('createdAt', 'desc').get(),
+        emptySnap()
+      )
     : null;
 
   return {
