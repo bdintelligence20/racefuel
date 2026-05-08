@@ -73,19 +73,21 @@ export function SiteFeedbackBanner() {
   return (
     <>
       <div className="fixed top-0 left-0 right-0 z-[60] bg-[#3D2152] text-white shadow-[0_2px_10px_-4px_rgba(61,33,82,0.4)] safe-top">
-        <div className="max-w-7xl mx-auto px-3 sm:px-5 h-9 flex items-center gap-3 text-[12px] font-display">
+        <div className="max-w-7xl mx-auto px-3 sm:px-5 h-9 flex items-center gap-2 sm:gap-3 text-[12px] font-display">
           <span className="text-[#F5A020] font-bold uppercase tracking-[0.16em] text-[10px] hidden sm:inline">
             New
           </span>
-          <span className="flex-1 truncate font-medium">
-            We've just launched — help us shape it.
+          <span className="flex-1 min-w-0 truncate font-medium">
+            <span className="hidden sm:inline">We've just launched — help us shape it.</span>
+            <span className="sm:hidden">Just launched — help shape it.</span>
           </span>
           <button
             onClick={() => setOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#F5A020] text-[#3D2152] text-[11px] font-bold uppercase tracking-[0.12em] hover:bg-[#F5A020]/90 transition-colors"
+            className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md bg-[#F5A020] text-[#3D2152] text-[11px] font-bold uppercase tracking-[0.12em] hover:bg-[#F5A020]/90 transition-colors flex-shrink-0"
+            aria-label="Feedback"
           >
             <MessageSquarePlus className="w-3 h-3" />
-            Feedback
+            <span className="hidden sm:inline">Feedback</span>
           </button>
           <button
             onClick={dismiss}
