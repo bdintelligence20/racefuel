@@ -10,7 +10,6 @@ import { NutritionPanel } from './components/NutritionPanel';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ActionBar } from './components/ActionBar';
 import { LandingPage } from './components/LandingPage';
-import { EarlyAccessModal } from './components/EarlyAccessModal';
 import { AutoGenProgress } from './components/AutoGenProgress';
 import { PlanStrategyModal } from './components/PlanStrategyModal';
 import { CheckoutTest } from './components/CheckoutTest';
@@ -189,8 +188,7 @@ function useRoute() {
 
 function AuthGate() {
   const { user, loading } = useAuth();
-  const { pathname } = useRoute();
-  const [earlyAccessOpen, setEarlyAccessOpen] = useState(false);
+  const { pathname, navigate } = useRoute();
 
   // SPA navigation → gtag page_view. Initial load is tracked by the inline
   // gtag('config') call; this picks up history.pushState route changes.
@@ -252,11 +250,7 @@ function AuthGate() {
   if (pathname === '/' || pathname === '') {
     return (
       <>
-        <LandingPage onRequestAccess={() => setEarlyAccessOpen(true)} />
-        <EarlyAccessModal
-          isOpen={earlyAccessOpen}
-          onClose={() => setEarlyAccessOpen(false)}
-        />
+        <LandingPage onOpenApp={() => navigate('/app')} />
         <Toaster
           position="bottom-center"
           toastOptions={{
