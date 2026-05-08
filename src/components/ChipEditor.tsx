@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { X } from 'lucide-react';
 
 interface Props {
   onClose: () => void;
@@ -69,9 +70,25 @@ export function ChipEditor({ onClose, children, desktopClassName }: Props) {
       />
       <div
         ref={rootRef}
-        className="fixed left-0 right-0 bottom-0 z-[81] max-h-[80dvh] overflow-y-auto bg-surface border-t border-[var(--color-border)] shadow-2xl rounded-t-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className="fixed left-0 right-0 bottom-0 z-[81] max-h-[85dvh] flex flex-col bg-surface border-t border-[var(--color-border)] shadow-2xl rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))]"
       >
-        {children}
+        {/* Sticky header — drag handle + X close. Stays pinned while the
+            content below scrolls so the close affordance is always reachable. */}
+        <div className="relative flex-shrink-0 pt-2 pb-1">
+          <div
+            aria-hidden
+            className="mx-auto h-1 w-10 rounded-full bg-[var(--color-border)]"
+          />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="absolute top-1 right-1 w-9 h-9 flex items-center justify-center rounded-full text-text-muted hover:text-text-primary hover:bg-surfaceHighlight transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 pt-2 pb-2">{children}</div>
       </div>
     </>,
     document.body

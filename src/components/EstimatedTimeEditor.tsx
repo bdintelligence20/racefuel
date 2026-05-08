@@ -36,16 +36,16 @@ export function EstimatedTimeEditor({ value, isUserSet, onSave, onClear, onClose
       onClose={onClose}
       desktopClassName="absolute top-full left-0 mt-2 z-30 w-[240px] max-w-[calc(100vw-1.5rem)] bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 space-y-3 animate-in fade-in slide-in-from-top-1 duration-150"
     ><div className="space-y-3 lg:contents">
-      <div className="flex items-center justify-between">
+      <div className="hidden lg:flex items-center justify-between">
         <span className="text-[10px] font-display text-text-muted uppercase tracking-wider font-semibold">
           Expected time
         </span>
         <button
           onClick={onClose}
           aria-label="Close"
-          className="w-8 h-8 -m-1 flex items-center justify-center rounded-full hover:bg-surfaceHighlight text-text-muted hover:text-text-primary transition-colors lg:w-auto lg:h-auto lg:m-0 lg:block lg:rounded-none lg:hover:bg-transparent"
+          className="text-text-muted hover:text-text-primary transition-colors"
         >
-          <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
+          <X className="w-3.5 h-3.5" />
         </button>
       </div>
 
