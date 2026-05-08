@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Info, X } from 'lucide-react';
 
 type ColorMode = 'distance' | 'elevation';
@@ -10,12 +10,28 @@ interface Props {
 
 /** Compact legend explaining what the route colours and markers mean. Starts
  *  collapsed as a floating "i" button so it doesn't crowd the map — tap to
- *  expand. */
+ *  expand. On mobile the (i) sits at the top-right of the map so the popup
+ *  panel can grow downward without being clipped above by the map area's
+ *  overflow:hidden. Desktop keeps it at bottom-left where there's room. */
 export function MapLegend({ colorMode, hasNutritionPoints }: Props) {
   const [open, setOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Tap-anywhere-outside closes the panel — the X is small and easy to miss
+  // on mobile, especially when the panel sits over the CONFIG chips.
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    window.addEventListener('pointerdown', onPointer);
+    return () => window.removeEventListener('pointerdown', onPointer);
+  }, [open]);
 
   return (
-    <div className="absolute bottom-20 left-3 z-10 pointer-events-auto">
+    <div className="absolute top-3 right-3 lg:top-auto lg:right-auto lg:bottom-20 lg:left-3 z-10 pointer-events-auto">
       {!open ? (
         <button
           type="button"
@@ -27,16 +43,19 @@ export function MapLegend({ colorMode, hasNutritionPoints }: Props) {
           <Info className="w-4 h-4" />
         </button>
       ) : (
-        <div className="bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 w-56 max-w-[72vw]">
+        <div
+          ref={panelRef}
+          className="bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 w-56 max-w-[72vw]"
+        >
           <div className="flex items-center justify-between mb-2">
             <div className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">Legend</div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="w-6 h-6 rounded-full hover:bg-surfaceHighlight text-text-muted hover:text-text-primary flex items-center justify-center transition-colors"
+              className="w-8 h-8 -m-1 rounded-full hover:bg-surfaceHighlight text-text-muted hover:text-text-primary flex items-center justify-center transition-colors"
               aria-label="Hide legend"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-4 h-4" />
             </button>
           </div>
 

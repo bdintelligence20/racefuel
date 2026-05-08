@@ -39,13 +39,19 @@ export function EffortEditor({ value, onSave, onClose }: Props) {
       : 'All-out. Upper gut-tolerance territory.';
 
   return (
+    <>
+      <div
+        className="lg:hidden fixed inset-0 z-[80] bg-[#3D2152]/40 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden
+      />
     <div
       ref={ref}
-      className="relative lg:absolute lg:top-full lg:left-0 mt-1 z-40 bg-surface border border-[var(--color-border)] rounded-lg lg:rounded-xl shadow-md lg:shadow-xl p-2.5 lg:p-4 w-full lg:w-64 lg:max-w-[calc(100vw-1.5rem)]"
+      className="fixed left-0 right-0 bottom-0 z-[81] max-h-[80dvh] overflow-y-auto bg-surface border-t border-[var(--color-border)] shadow-2xl rounded-t-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))] lg:absolute lg:left-0 lg:right-auto lg:bottom-auto lg:top-full lg:max-h-none lg:overflow-visible lg:rounded-xl lg:border lg:shadow-xl lg:p-4 lg:pb-4 lg:mt-1 lg:w-64 lg:max-w-[calc(100vw-1.5rem)]"
     >
       <div className="flex items-baseline justify-between mb-1.5 lg:mb-2">
         <div>
-          <div className="hidden lg:block text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">Perceived Effort</div>
+          <div className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">Perceived Effort</div>
           <div className="text-sm lg:text-lg font-display font-bold text-text-primary">
             {effort}/10 · <span className="text-warm">{label}</span>
           </div>
@@ -77,7 +83,7 @@ export function EffortEditor({ value, onSave, onClose }: Props) {
         <span>10</span>
       </div>
 
-      <p className="hidden lg:block text-[11px] text-text-secondary mt-2 leading-snug">{description}</p>
+      <p className="text-[11px] text-text-secondary mt-2 leading-snug">{description}</p>
 
       <div className="flex gap-1.5 lg:gap-2 mt-2 lg:mt-3">
         <button
@@ -96,5 +102,6 @@ export function EffortEditor({ value, onSave, onClose }: Props) {
         </button>
       </div>
     </div>
+    </>
   );
 }

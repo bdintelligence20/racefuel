@@ -221,7 +221,7 @@ export function MobileNutritionStrip() {
     <>
       <div className="lg:hidden bg-surfaceHighlight border-t border-[var(--color-border)] flex-shrink-0">
         {/* Header row */}
-        <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+        <div className="flex items-center gap-2 px-3 pt-1.5 pb-0.5">
           <span className="text-[9px] font-display font-semibold text-text-muted uppercase tracking-wider">
             Fuel · hold &amp; drag onto route
           </span>
@@ -249,7 +249,7 @@ export function MobileNutritionStrip() {
         )}
 
         {/* Category filter chips */}
-        <div className="flex gap-1.5 px-3 pb-1.5 overflow-x-auto no-scrollbar">
+        <div className="flex gap-1.5 px-3 pb-1 overflow-x-auto no-scrollbar">
           {(Object.keys(CATEGORY_LABELS) as CategoryFilter[]).map((c) => {
             const active = filter === c;
             return (
@@ -274,7 +274,7 @@ export function MobileNutritionStrip() {
             Padding lives on the inner flex container (px-3) — when it was
             on the viewport, Embla's scroll calc included the padding and
             the last few cards couldn't scroll fully into view. */}
-        <div className="overflow-hidden pb-2" ref={emblaRef}>
+        <div className="overflow-hidden pb-1.5" ref={emblaRef}>
           <div className="flex gap-2 px-3">
             {visibleProducts.length === 0 ? (
               <div className="text-[11px] text-text-muted py-3 font-display">
@@ -310,7 +310,7 @@ export function MobileNutritionStrip() {
                       WebkitTapHighlightColor: 'transparent',
                       WebkitTouchCallout: 'none',
                     }}
-                    className={`relative flex flex-col items-start text-left rounded-lg border bg-surface overflow-hidden px-2.5 pt-2.5 pb-2 cursor-grab active:cursor-grabbing select-none transition-opacity ${
+                    className={`relative flex flex-col items-start text-left rounded-lg border bg-surface overflow-hidden px-2.5 pt-2 pb-1.5 cursor-grab active:cursor-grabbing select-none transition-opacity ${
                       isDragging ? 'opacity-30' : 'opacity-100'
                     }`}
                   >
@@ -325,10 +325,10 @@ export function MobileNutritionStrip() {
                     <div className="text-[8.5px] font-display font-bold uppercase tracking-wider truncate w-full text-text-muted">
                       {p.brand}
                     </div>
-                    <div className="text-[11.5px] font-display font-semibold text-text-primary leading-tight mt-0.5 line-clamp-2 min-h-[28px] w-full">
+                    <div className="text-[11.5px] font-display font-semibold text-text-primary leading-tight mt-0.5 truncate w-full">
                       {p.name}
                     </div>
-                    <div className="mt-1 flex items-baseline gap-1 w-full">
+                    <div className="mt-0.5 flex items-baseline gap-1 w-full">
                       <span className="text-[13px] font-display font-bold text-text-primary tabular-nums">{p.carbs}</span>
                       <span className="text-[9px] text-text-muted font-display uppercase tracking-wider">g carbs</span>
                     </div>

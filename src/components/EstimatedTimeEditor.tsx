@@ -47,20 +47,26 @@ export function EstimatedTimeEditor({ value, isUserSet, onSave, onClear, onClose
   };
 
   return (
+    <>
+      <div
+        className="lg:hidden fixed inset-0 z-[80] bg-[#3D2152]/40 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden
+      />
     <div
       ref={rootRef}
-      className="relative lg:absolute lg:top-full lg:left-0 mt-1 lg:mt-2 z-30 w-full lg:w-[240px] lg:max-w-[calc(100vw-1.5rem)] bg-surface border border-[var(--color-border)] rounded-lg lg:rounded-xl shadow-md lg:shadow-xl p-2 lg:p-3 space-y-2 lg:space-y-3 animate-in fade-in slide-in-from-top-1 duration-150"
+      className="fixed left-0 right-0 bottom-0 z-[81] max-h-[80dvh] overflow-y-auto bg-surface border-t border-[var(--color-border)] shadow-2xl rounded-t-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))] space-y-3 lg:absolute lg:left-0 lg:right-auto lg:bottom-auto lg:top-full lg:max-h-none lg:overflow-visible lg:rounded-xl lg:border lg:shadow-xl lg:p-3 lg:pb-3 lg:mt-2 lg:w-[240px] lg:max-w-[calc(100vw-1.5rem)] lg:space-y-3 animate-in fade-in slide-in-from-bottom-2 lg:slide-in-from-top-1 duration-150"
     >
-      <div className="hidden lg:flex items-center justify-between">
+      <div className="flex items-center justify-between">
         <span className="text-[10px] font-display text-text-muted uppercase tracking-wider font-semibold">
           Expected time
         </span>
         <button
           onClick={onClose}
           aria-label="Close"
-          className="text-text-muted hover:text-text-primary transition-colors"
+          className="w-8 h-8 -m-1 flex items-center justify-center rounded-full text-text-muted hover:text-text-primary hover:bg-surfaceHighlight transition-colors lg:w-auto lg:h-auto lg:m-0 lg:rounded-none lg:hover:bg-transparent"
         >
-          <X className="w-3.5 h-3.5" />
+          <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
         </button>
       </div>
 
@@ -116,5 +122,6 @@ export function EstimatedTimeEditor({ value, isUserSet, onSave, onClear, onClose
         </button>
       </div>
     </div>
+    </>
   );
 }
