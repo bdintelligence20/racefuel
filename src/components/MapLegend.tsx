@@ -18,9 +18,11 @@ export function MapLegend({ colorMode, hasNutritionPoints }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Tap-anywhere-outside closes the panel — the X is small and easy to miss
-  // on mobile, especially when the panel sits over the CONFIG chips.
+  // on mobile, especially when the panel sits over the CONFIG chips. Scoped
+  // to mobile so desktop's behaviour (X-only close) is unchanged.
   useEffect(() => {
     if (!open) return;
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) return;
     const onPointer = (e: PointerEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         setOpen(false);
@@ -52,10 +54,10 @@ export function MapLegend({ colorMode, hasNutritionPoints }: Props) {
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="w-8 h-8 -m-1 rounded-full hover:bg-surfaceHighlight text-text-muted hover:text-text-primary flex items-center justify-center transition-colors"
+              className="w-8 h-8 -m-1 lg:w-6 lg:h-6 lg:m-0 rounded-full hover:bg-surfaceHighlight text-text-muted hover:text-text-primary flex items-center justify-center transition-colors"
               aria-label="Hide legend"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
             </button>
           </div>
 
