@@ -3,6 +3,12 @@ name: Deploy to Cloud Run
 on:
   push:
     branches: [main]
+    # Skip frontend redeploy when only CMS files change — the CMS lives in
+    # its own Cloud Run service and has a separate deploy workflow.
+    paths-ignore:
+      - 'cms/**'
+      - '.github/workflows/deploy-cms.yml'
+  workflow_dispatch:
 
 env:
   PROJECT_ID: promogroup

@@ -1,0 +1,27 @@
+node_modules/
+.cache/
+build/
+dist/
+.strapi/
+.strapi-updater.json
+.tmp/
+
+# Strapi keeps the SQLite DB in development under ./.tmp; in production we
+# point it at the mounted GCS volume so it's outside the build artifact.
+.tmp/data.db
+
+# Local uploads — in production these go to GCS, but keep the folder shape.
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Local env files — never commit.
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+*.log
+*.pid
+*.seed
+*.pid.lock
