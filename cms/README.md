@@ -22,43 +22,34 @@ moving to Cloud SQL.
 
 ## One-time GCP setup
 
-Run these once per project, before the first deploy. Replace bucket names
-to match your project if needed.
+Run the bootstrap script once from your workstation (with `gcloud` and
+`gsutil` installed, authenticated to a principal with project-owner-ish
+permissions on the target project):
 
 ```bash
-# Buckets — DATA_BUCKET stores the SQLite file, UPLOADS_BUCKET stores media.
-gsutil mb -l us-central1 -b on gs://fuelcue-cms-data
-gsutil mb -l us-central1 -b on gs://fuelcue-cms-uploads
-
-# Make uploads publicly readable (so the frontend can render them via the
-# bucket's public URL without signed URLs).
-gsutil iam ch allUsers:objectViewer gs://fuelcue-cms-uploads
-
-# Grant the Cloud Run service account write access to both buckets. Replace
-# the SA email with the one Cloud Run uses for the racefuel-cms service.
-SA=racefuel-cms@promogroup.iam.gserviceaccount.com
-gsutil iam ch serviceAccount:${SA}:roles/storage.objectAdmin gs://fuelcue-cms-data
-gsutil iam ch serviceAccount:${SA}:roles/storage.objectAdmin gs://fuelcue-cms-uploads
+./cms/scripts/bootstrap-gcp.sh
 ```
 
-Generate the five required secrets (each is a base64 random string) and
-store them in Secret Manager. The deploy workflow wires them in via
-`--set-secrets`.
+That script is idempotent — running again skips anything that already
+exists, so it's safe to re-run if a step fails. It will:
+
+- Create `fuelcue-cms-data` and `fuelcue-cms-uploads` (regional, uniform
+  access).
+- Make the uploads bucket publicly readable so the frontend can fetch
+  media directly from GCS without signed URLs.
+- Grant the Cloud Run service account `roles/storage.objectAdmin` on both
+  buckets.
+- Generate and store five Secret Manager secrets (`cms-app-keys`,
+  `cms-api-token-salt`, `cms-admin-jwt-secret`, `cms-transfer-token-salt`,
+  `cms-jwt-secret`) with 16-byte cryptographic random values.
+- Grant the Cloud Run service account `roles/secretmanager.secretAccessor`
+  on each secret.
+
+Override defaults via env vars if your project / region / bucket names
+differ from the values in `.github/workflows/deploy-cms.yml`:
 
 ```bash
-for name in cms-app-keys cms-api-token-salt cms-admin-jwt-secret \
-            cms-transfer-token-salt cms-jwt-secret; do
-  value=$(node -e "console.log(require('crypto').randomBytes(16).toString('base64'))")
-  echo -n "$value" | gcloud secrets create $name --data-file=-
-done
-```
-
-`cms-app-keys` is technically expected to be a comma-separated list of 4
-keys; the simplest version is to generate four values and join them:
-
-```bash
-keys=$(for _ in 1 2 3 4; do node -e "console.log(require('crypto').randomBytes(16).toString('base64'))"; done | paste -sd,)
-echo -n "$keys" | gcloud secrets versions add cms-app-keys --data-file=-
+PROJECT_ID=myproj REGION=eu-west1 ./cms/scripts/bootstrap-gcp.sh
 ```
 
 ## Deploying
@@ -72,10 +63,12 @@ First-time deploy:
 
 1. Wait for the service to come up (check logs for `Server started`).
 2. Visit `https://<service-url>/admin` and create the first admin user.
-3. In **Settings → Users & Permissions → Roles → Public** enable
-   `Article.find` and `Article.findOne`.
-4. Set `VITE_STRAPI_URL` in the frontend's GitHub Action secrets / .env to
+3. Set `VITE_STRAPI_URL` in the frontend's GitHub Action secrets / .env to
    the public URL of this service.
+
+Public read permissions for the Article collection are granted
+automatically on every boot by the bootstrap hook in `src/index.ts` — no
+admin-UI clicks needed.
 
 ## Local development
 
