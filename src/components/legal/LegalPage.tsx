@@ -74,6 +74,8 @@ export function LegalPage({ title, lastUpdated, intro, sections }: LegalPageProp
             .
           </p>
           <p className="mt-2">
+            <a className="hover:text-text-primary" href="/blog">Blog</a>
+            <span className="mx-2 text-text-muted/50">·</span>
             <a className="hover:text-text-primary" href="/privacy">Privacy</a>
             <span className="mx-2 text-text-muted/50">·</span>
             <a className="hover:text-text-primary" href="/terms">Terms</a>

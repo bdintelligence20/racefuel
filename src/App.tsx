@@ -20,6 +20,8 @@ import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
 import { TermsOfService } from './components/legal/TermsOfService';
 import { CookiesPolicy } from './components/legal/CookiesPolicy';
 import { ShippingReturns } from './components/legal/ShippingReturns';
+import { BlogIndex } from './components/blog/BlogIndex';
+import { BlogPost } from './components/blog/BlogPost';
 import { MobilePreview } from './dev/MobilePreview';
 import { Menu, X } from 'lucide-react';
 
@@ -213,10 +215,13 @@ function AuthGate() {
     }
   }, [pathname]);
 
-  // Redirect unknown paths to landing
-  const KNOWN_PATHS = ['/', '/app', '/checkout-test', '/payment-callback', '/admin', '/admin/orders', '/dev/preview', '/privacy', '/terms', '/cookies', '/shipping-returns', ''];
+  // Redirect unknown paths to landing. /blog is a public CMS-backed surface
+  // (Strapi); any /blog/<slug> path is treated as known so the BlogPost
+  // component can fetch and render or fall back to its own 'not-found' state.
+  const KNOWN_PATHS = ['/', '/app', '/checkout-test', '/payment-callback', '/admin', '/admin/orders', '/dev/preview', '/privacy', '/terms', '/cookies', '/shipping-returns', '/blog', ''];
   useEffect(() => {
-    if (!KNOWN_PATHS.includes(pathname)) {
+    const isBlogPath = pathname === '/blog' || pathname.startsWith('/blog/');
+    if (!KNOWN_PATHS.includes(pathname) && !isBlogPath) {
       window.history.replaceState({}, '', '/');
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
@@ -245,6 +250,14 @@ function AuthGate() {
   if (pathname === '/terms') return <TermsOfService />;
   if (pathname === '/cookies') return <CookiesPolicy />;
   if (pathname === '/shipping-returns') return <ShippingReturns />;
+
+  // Public blog — list at /blog, detail at /blog/:slug. Rendered before the
+  // auth gate so posts can be linked and shared without sign-in.
+  if (pathname === '/blog') return <BlogIndex />;
+  if (pathname.startsWith('/blog/')) {
+    const slug = pathname.slice('/blog/'.length);
+    if (slug.length > 0) return <BlogPost slug={decodeURIComponent(slug)} />;
+  }
 
   // Landing page is public — /
   if (pathname === '/' || pathname === '') {
