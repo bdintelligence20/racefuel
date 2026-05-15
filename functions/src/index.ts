@@ -18,3 +18,15 @@ export {
   adminAddAdmin,
   adminRemoveAdmin,
 } from './admin';
+export {
+  validateCoupon,
+  adminListCoupons,
+  adminUpsertCoupon,
+  adminDeleteCoupon,
+} from './coupons';
+export {
+  adminListPosts,
+  adminGetPost,
+  adminUpsertPost,
+  adminDeletePost,
+} from './posts';

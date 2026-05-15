@@ -54,6 +54,15 @@ export interface CreateOrderInput {
   externalOrderId: string;
   // Tag(s) — useful for filtering in Shopify admin.
   tags?: string[];
+  // Coupon discount applied at checkout. We pass this through as a Shopify
+  // applied_discount (fixed-amount) so the customer's receipt shows the
+  // same -RX line that Stitch already charged off, and admin reporting can
+  // attribute revenue to the code.
+  appliedDiscount?: {
+    title: string;
+    code: string;
+    amountZAR: number;
+  };
 }
 
 export interface CreatedOrder {
@@ -148,6 +157,23 @@ export async function createOrder(
                 price: input.shippingLine.priceZAR.toFixed(2),
                 code: 'Standard',
                 source: 'fuelcue',
+              },
+            ],
+          }
+        : {}),
+
+      // Order-level discount — Shopify renders this as a "-RX (CODE)" line on
+      // the receipt and the order details page, and counts it in discount
+      // reports. Fixed-amount keeps the math identical to what Stitch already
+      // charged; percentage discounts on tax-inclusive totals can drift by a
+      // rand here and there.
+      ...(input.appliedDiscount
+        ? {
+            discount_codes: [
+              {
+                code: input.appliedDiscount.code,
+                amount: input.appliedDiscount.amountZAR.toFixed(2),
+                type: 'fixed_amount',
               },
             ],
           }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, BarChart3, Users, ShoppingBag, Activity, Mail, Package, Settings as SettingsIcon, MessageSquare, Loader2 } from 'lucide-react';
+import { ArrowLeft, BarChart3, Users, ShoppingBag, Activity, Mail, Package, Settings as SettingsIcon, MessageSquare, Tag, FileText, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAdminGate } from '../../hooks/useAdminGate';
 import { OverviewTab } from './OverviewTab';
@@ -10,6 +10,8 @@ import { EarlyAccessTab } from './EarlyAccessTab';
 import { ProductsTab } from './ProductsTab';
 import { SettingsTab } from './SettingsTab';
 import { SiteFeedbackTab } from './SiteFeedbackTab';
+import { CouponsTab } from './CouponsTab';
+import { BlogTab } from './BlogTab';
 
 const TABS = [
   { id: 'overview', label: 'Overview', icon: BarChart3 },
@@ -19,6 +21,8 @@ const TABS = [
   { id: 'feedback', label: 'Feedback', icon: MessageSquare },
   { id: 'early-access', label: 'Early Access', icon: Mail },
   { id: 'products', label: 'Products', icon: Package },
+  { id: 'blog', label: 'Blog', icon: FileText },
+  { id: 'coupons', label: 'Coupons', icon: Tag },
   { id: 'settings', label: 'Settings', icon: SettingsIcon },
 ] as const;
 
@@ -58,6 +62,8 @@ export function AdminLayout() {
       case 'feedback': return <SiteFeedbackTab />;
       case 'early-access': return <EarlyAccessTab />;
       case 'products': return <ProductsTab />;
+      case 'blog': return <BlogTab />;
+      case 'coupons': return <CouponsTab />;
       case 'settings': return <SettingsTab />;
     }
   }, [tab]);

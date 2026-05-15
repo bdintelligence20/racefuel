@@ -36,6 +36,25 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Coupons — all reads/writes go through callable Cloud Functions
+    // (validateCoupon for public, adminUpsertCoupon/Delete/List for admins).
+    // The Admin SDK inside the function bypasses these rules.
+    match /coupons/{code} {
+      allow read, write: if false;
+      match /redemptions/{orderId} {
+        allow read, write: if false;
+      }
+    }
+
+    // Blog posts — public can read posts whose `published` flag is true and
+    // whose `publishedAt` has already elapsed. Drafts and scheduled posts are
+    // invisible to anonymous readers. All writes flow through admin callables.
+    match /posts/{postId} {
+      allow read: if resource.data.published == true
+                  && resource.data.publishedAt <= request.time;
+      allow write: if false;
+    }
+
     // Default deny everything else.
     match /{document=**} {
       allow read, write: if false;

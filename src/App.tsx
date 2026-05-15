@@ -20,6 +20,8 @@ import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
 import { TermsOfService } from './components/legal/TermsOfService';
 import { CookiesPolicy } from './components/legal/CookiesPolicy';
 import { ShippingReturns } from './components/legal/ShippingReturns';
+import { BlogIndex } from './components/blog/BlogIndex';
+import { BlogPost } from './components/blog/BlogPost';
 import { MobilePreview } from './dev/MobilePreview';
 import { Menu, X } from 'lucide-react';
 
@@ -213,10 +215,12 @@ function AuthGate() {
     }
   }, [pathname]);
 
-  // Redirect unknown paths to landing
-  const KNOWN_PATHS = ['/', '/app', '/checkout-test', '/payment-callback', '/admin', '/admin/orders', '/dev/preview', '/privacy', '/terms', '/cookies', '/shipping-returns', ''];
+  // Redirect unknown paths to landing. /blog and /blog/:slug pass through —
+  // matched by isBlogPath, not the literal allowlist.
+  const KNOWN_PATHS = ['/', '/app', '/checkout-test', '/payment-callback', '/admin', '/admin/orders', '/dev/preview', '/privacy', '/terms', '/cookies', '/shipping-returns', '/blog', ''];
+  const isBlogPath = pathname.startsWith('/blog');
   useEffect(() => {
-    if (!KNOWN_PATHS.includes(pathname)) {
+    if (!KNOWN_PATHS.includes(pathname) && !isBlogPath) {
       window.history.replaceState({}, '', '/');
       window.dispatchEvent(new PopStateEvent('popstate'));
     }
@@ -245,6 +249,14 @@ function AuthGate() {
   if (pathname === '/terms') return <TermsOfService />;
   if (pathname === '/cookies') return <CookiesPolicy />;
   if (pathname === '/shipping-returns') return <ShippingReturns />;
+
+  // Blog — also public, content lives in Strapi (Cloud Run service).
+  if (pathname === '/blog' || pathname === '/blog/') return <BlogIndex />;
+  if (pathname.startsWith('/blog/')) {
+    const slug = pathname.slice('/blog/'.length).replace(/\/+$/, '');
+    if (slug) return <BlogPost slug={slug} />;
+    return <BlogIndex />;
+  }
 
   // Landing page is public — /
   if (pathname === '/' || pathname === '') {

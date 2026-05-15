@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useModalBehavior } from '../hooks/useModalBehavior';
-import { X, ShoppingCart, Trash2, Minus, Plus, Search, PackagePlus } from 'lucide-react';
+import { X, ShoppingCart, Trash2, Minus, Plus, Search, PackagePlus, Tag, Loader2 } from 'lucide-react';
 import { useApp, NutritionPoint } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { calculatePlanCost } from '../services/nutrition/costCalculator';
 import { calculateShipping } from '../services/shipping/shippingRate';
 import { useProducts } from '../data/products';
 import { CheckoutModal } from './CheckoutModal';
+import { validateCoupon, type ValidateCouponResult } from '../services/firebase/admin';
+
+type AppliedCoupon = NonNullable<ValidateCouponResult['discount']>;
 
 interface CartModalProps {
   isOpen: boolean;
@@ -33,6 +36,10 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
   const [extrasOpen, setExtrasOpen] = useState(false);
   const [extrasQuery, setExtrasQuery] = useState('');
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
 
   // Group nutrition points by product - must be before early return!
   const cartItems: CartItem[] = useMemo(() => {
@@ -77,8 +84,19 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
   const hasPackInflation = cost.totalCostZAR > runCost + 1;
   // Fuel Lab flat rate: R140 under R999, free above. Computed off the
   // buy total (what the athlete is actually paying for, before shipping).
-  const shipping = calculateShipping(totalCost);
-  const grandTotal = totalCost + shipping.amountZAR;
+  const baseShipping = calculateShipping(totalCost);
+  // Coupon math — recompute from the live subtotal each render so the
+  // displayed discount tracks cart edits without a re-validate round-trip.
+  const discountOff = appliedCoupon
+    ? appliedCoupon.type === 'percent'
+      ? Math.min(totalCost, Math.round(totalCost * appliedCoupon.value) / 100)
+      : appliedCoupon.type === 'fixed'
+        ? Math.min(totalCost, appliedCoupon.value)
+        : 0
+    : 0;
+  const freeShipping = appliedCoupon?.freeShipping ?? false;
+  const effectiveShipping = freeShipping ? 0 : baseShipping.amountZAR;
+  const grandTotal = Math.max(0, totalCost - discountOff + effectiveShipping);
 
   const extrasResolved = useMemo(() => {
     const byId = new Map(products.map((p) => [p.id, p]));
@@ -432,6 +450,38 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
               </div>
             </div>
 
+            {/* Coupon — small inline input, validates against Firestore via
+                callable. Resolved discount is mirrored at checkout-create time
+                so the server is always the source of truth. */}
+            <CouponBox
+              subtotal={totalCost}
+              applied={appliedCoupon}
+              code={couponCode}
+              loading={couponLoading}
+              error={couponError}
+              onCodeChange={(v) => { setCouponCode(v); setCouponError(null); }}
+              onApply={async () => {
+                const trimmed = couponCode.trim().toUpperCase();
+                if (!trimmed) return;
+                setCouponLoading(true);
+                setCouponError(null);
+                try {
+                  const res = await validateCoupon({ code: trimmed, subtotalZar: totalCost });
+                  if (!res.ok || !res.discount) {
+                    setCouponError(prettyReason(res.reason));
+                    return;
+                  }
+                  setAppliedCoupon(res.discount);
+                  setCouponCode(res.discount.code);
+                } catch (e) {
+                  setCouponError(e instanceof Error ? e.message : 'Could not check that code.');
+                } finally {
+                  setCouponLoading(false);
+                }
+              }}
+              onRemove={() => { setAppliedCoupon(null); setCouponCode(''); setCouponError(null); }}
+            />
+
             {/* Totals — split into "what gets used on the run" vs "what you buy" */}
             <div className="py-3 border-t border-[var(--color-border)] space-y-1.5">
               <div className="flex items-center justify-between">
@@ -442,17 +492,25 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                 <span className="text-[11px] text-text-muted uppercase tracking-wider">Subtotal {hasPackInflation && <span className="text-text-muted/70 lowercase">(full packs)</span>}</span>
                 <span className="text-sm font-display font-bold text-text-primary tabular-nums">R{totalCost.toFixed(2)}</span>
               </div>
+              {appliedCoupon && discountOff > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-accent uppercase tracking-wider">Coupon · {appliedCoupon.code}</span>
+                  <span className="text-sm font-display font-bold text-accent tabular-nums">−R{discountOff.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-text-muted uppercase tracking-wider">Shipping</span>
-                {shipping.isFree ? (
-                  <span className="text-sm font-display font-bold text-accent tabular-nums">Free</span>
+                {effectiveShipping === 0 ? (
+                  <span className="text-sm font-display font-bold text-accent tabular-nums">
+                    Free{freeShipping ? ` · ${appliedCoupon?.code}` : ''}
+                  </span>
                 ) : (
-                  <span className="text-sm font-display font-bold text-text-primary tabular-nums">R{shipping.amountZAR.toFixed(2)}</span>
+                  <span className="text-sm font-display font-bold text-text-primary tabular-nums">R{effectiveShipping.toFixed(2)}</span>
                 )}
               </div>
-              {!shipping.isFree && (
+              {effectiveShipping > 0 && !freeShipping && (
                 <p className="text-[10px] text-text-muted italic">
-                  Add R{(shipping.freeAtZAR - totalCost).toFixed(2)} more for free shipping.
+                  Add R{(baseShipping.freeAtZAR - totalCost).toFixed(2)} more for free shipping.
                 </p>
               )}
               <div className="flex items-center justify-between pt-1.5 border-t border-[var(--color-border)]">
@@ -479,7 +537,101 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
         )}
       </div>
 
-      <CheckoutModal isOpen={checkoutOpen} onClose={() => setCheckoutOpen(false)} />
+      <CheckoutModal
+        isOpen={checkoutOpen}
+        onClose={() => setCheckoutOpen(false)}
+        appliedCoupon={appliedCoupon}
+      />
+    </div>
+  );
+}
+
+function prettyReason(reason: string | undefined): string {
+  switch (reason) {
+    case 'unknown-code': return "That code doesn't exist.";
+    case 'inactive': return 'This code is no longer active.';
+    case 'not-started': return 'This code isn\'t active yet.';
+    case 'expired': return 'This code has expired.';
+    case 'usage-limit-reached': return 'This code has been fully redeemed.';
+    case 'below-minimum-subtotal': return 'Cart subtotal is below the code\'s minimum.';
+    default: return 'That code can\'t be applied right now.';
+  }
+}
+
+function CouponBox({
+  subtotal,
+  applied,
+  code,
+  loading,
+  error,
+  onCodeChange,
+  onApply,
+  onRemove,
+}: {
+  subtotal: number;
+  applied: AppliedCoupon | null;
+  code: string;
+  loading: boolean;
+  error: string | null;
+  onCodeChange: (v: string) => void;
+  onApply: () => void;
+  onRemove: () => void;
+}) {
+  if (applied) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-accent/30 bg-accent/[0.06]">
+        <Tag className="w-4 h-4 text-accent flex-shrink-0" />
+        <div className="flex-1 min-w-0">
+          <div className="text-[12px] font-display font-bold text-accent uppercase tracking-wider truncate">
+            {applied.code} applied
+          </div>
+          <div className="text-[10.5px] text-text-muted truncate">
+            {applied.description ??
+              (applied.type === 'percent'
+                ? `${applied.value}% off subtotal`
+                : applied.type === 'fixed'
+                  ? `R${applied.value} off subtotal`
+                  : 'Free shipping')}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onRemove}
+          className="p-1.5 text-text-muted hover:text-accent transition-colors"
+          aria-label="Remove coupon"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1">
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={code}
+          onChange={(e) => onCodeChange(e.target.value.toUpperCase())}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); onApply(); }
+          }}
+          placeholder="Coupon code"
+          className="flex-1 px-3 py-2 rounded-lg bg-surface border border-[var(--color-border)] text-sm font-mono uppercase tracking-wider text-text-primary placeholder:normal-case placeholder:font-sans placeholder:tracking-normal placeholder:text-text-muted/70 focus:outline-none focus:border-accent/50 transition-colors"
+          disabled={loading || subtotal <= 0}
+        />
+        <button
+          type="button"
+          onClick={onApply}
+          disabled={loading || !code.trim() || subtotal <= 0}
+          className="px-4 py-2 rounded-lg bg-surfaceHighlight border border-[var(--color-border)] text-xs font-display font-bold uppercase tracking-wider text-text-primary hover:bg-accent/[0.08] hover:border-accent/30 disabled:opacity-50 transition-colors flex items-center gap-1.5"
+        >
+          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Tag className="w-3 h-3" />}
+          Apply
+        </button>
+      </div>
+      {error && (
+        <p className="text-[10.5px] text-warm">{error}</p>
+      )}
     </div>
   );
 }

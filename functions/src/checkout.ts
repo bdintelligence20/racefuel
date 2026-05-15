@@ -17,6 +17,11 @@ import {
   type ShopifyConfig,
   type CreateOrderInput,
 } from './shopify-client';
+import {
+  tryResolveCoupon,
+  recordCouponRedemption,
+  type ResolvedDiscount,
+} from './coupons';
 
 /**
  * End-to-end checkout flow (Stitch Express + Shopify).
@@ -92,6 +97,9 @@ interface CheckoutPayload {
     title: string;
     priceZAR: number;
   };
+  /** Optional coupon code the athlete applied in the cart. The server
+   *  re-validates against Firestore — never trust the client's discount math. */
+  coupon?: { code: string };
 }
 
 /* ------------------------ helpers ------------------------ */
@@ -116,10 +124,14 @@ function totalZar(lineItems: CheckoutPayload['lineItems']): number {
   return lineItems.reduce((sum, li) => sum + li.unitPrice * li.quantity, 0);
 }
 
-/** Subtotal + shipping. Stitch must charge this — paying just the line
- *  items total leaves Fuel Lab eating the courier fee. */
-function grandTotalZar(p: CheckoutPayload): number {
-  return totalZar(p.lineItems) + (p.shippingLine?.priceZAR ?? 0);
+/** Subtotal + shipping − discount. Stitch must charge this — paying just the
+ *  line items total leaves Fuel Lab eating the courier fee, and skipping the
+ *  discount means the athlete's coupon never reached the rails. */
+function grandTotalZar(p: CheckoutPayload, discount: ResolvedDiscount | null): number {
+  const subtotal = totalZar(p.lineItems);
+  const shipping = discount?.freeShipping ? 0 : (p.shippingLine?.priceZAR ?? 0);
+  const off = discount?.amountOffSubtotalZAR ?? 0;
+  return Math.max(0, subtotal - off + shipping);
 }
 
 /* ------------------------ createCheckout ------------------------ */
@@ -152,16 +164,42 @@ export const createCheckout = onRequest(
     const orderRef = fs.collection('orders').doc();
     const orderId = orderRef.id;
     const subtotal = totalZar(payload.lineItems);
-    const shippingZar = payload.shippingLine?.priceZAR ?? 0;
-    const total = grandTotalZar(payload);
+
+    // Server-side coupon resolution — never trust the SPA's discount math.
+    // If the code became invalid between cart and submit (expired, hit usage
+    // cap, etc.), we silently drop it; the SPA will see the unsold-out total
+    // on the next redirect and can re-prompt.
+    const discount = await tryResolveCoupon(payload.coupon?.code, subtotal);
+
+    const baseShipping = payload.shippingLine?.priceZAR ?? 0;
+    const shippingZar = discount?.freeShipping ? 0 : baseShipping;
+    const total = grandTotalZar(payload, discount);
 
     await orderRef.set({
       status: 'pending',
       customer: payload.customer,
       shippingAddress: payload.shippingAddress,
       lineItems: payload.lineItems,
-      shippingLine: payload.shippingLine ?? null,
-      amount: { currency: 'ZAR', subtotal, shipping: shippingZar, total },
+      shippingLine: discount?.freeShipping && payload.shippingLine
+        ? { ...payload.shippingLine, priceZAR: 0, title: `${payload.shippingLine.title} (coupon)` }
+        : (payload.shippingLine ?? null),
+      coupon: discount
+        ? {
+            code: discount.code,
+            type: discount.type,
+            value: discount.value,
+            amountOffSubtotalZAR: discount.amountOffSubtotalZAR,
+            freeShipping: discount.freeShipping,
+            description: discount.description,
+          }
+        : null,
+      amount: {
+        currency: 'ZAR',
+        subtotal,
+        shipping: shippingZar,
+        discount: discount?.amountOffSubtotalZAR ?? 0,
+        total,
+      },
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     });
@@ -235,6 +273,11 @@ function validateCheckout(p: CheckoutPayload | undefined): string[] {
     }
     if (!Number.isFinite(p.shippingLine.priceZAR) || p.shippingLine.priceZAR < 0) {
       errs.push('shippingLine.priceZAR');
+    }
+  }
+  if (p.coupon !== undefined) {
+    if (typeof p.coupon !== 'object' || p.coupon === null || typeof p.coupon.code !== 'string') {
+      errs.push('coupon.code');
     }
   }
   return errs;
@@ -423,6 +466,18 @@ export const stitchWebhook = onRequest(
       accessToken: SHOPIFY_ADMIN_TOKEN.value(),
     };
 
+    const persistedCoupon = data.coupon as
+      | {
+          code: string;
+          type: 'percent' | 'fixed' | 'freeShipping';
+          value: number;
+          amountOffSubtotalZAR: number;
+          freeShipping: boolean;
+          description: string | null;
+        }
+      | null
+      | undefined;
+
     const orderInput: CreateOrderInput = {
       customer: data.customer,
       shippingAddress: {
@@ -439,8 +494,22 @@ export const stitchWebhook = onRequest(
       // the Shopify receipt + admin show the same R140 / free row Stitch
       // already charged the customer.
       ...(data.shippingLine ? { shippingLine: data.shippingLine } : {}),
+      // If a coupon was applied at checkout-create time, mirror it on the
+      // Shopify order via applied_discount so the customer-facing receipt
+      // shows "Discount: -RX (CODE)" instead of a phantom write-off.
+      ...(persistedCoupon && (persistedCoupon.amountOffSubtotalZAR > 0 || persistedCoupon.freeShipping)
+        ? {
+            appliedDiscount: {
+              title: persistedCoupon.description || `Coupon ${persistedCoupon.code}`,
+              code: persistedCoupon.code,
+              amountZAR:
+                persistedCoupon.amountOffSubtotalZAR +
+                (persistedCoupon.freeShipping ? (data.shippingLine?.priceZAR ?? 0) : 0),
+            },
+          }
+        : {}),
       externalOrderId: orderId,
-      note: `fuelcue order ${orderId} — paid via Stitch Express (${pl.id})`,
+      note: `fuelcue order ${orderId} — paid via Stitch Express (${pl.id})${persistedCoupon ? ` — coupon ${persistedCoupon.code}` : ''}`,
     };
 
     try {
@@ -458,6 +527,24 @@ export const stitchWebhook = onRequest(
         },
         updatedAt: FieldValue.serverTimestamp(),
       });
+      // Atomically bump the coupon's usedCount + record the redemption.
+      // Idempotent — replayed webhooks are skipped inside recordCouponRedemption.
+      if (persistedCoupon) {
+        try {
+          const totalOff =
+            persistedCoupon.amountOffSubtotalZAR +
+            (persistedCoupon.freeShipping ? (data.shippingLine?.priceZAR ?? 0) : 0);
+          await recordCouponRedemption(persistedCoupon.code, orderId, data.customer.email, totalOff);
+        } catch (couponErr) {
+          // Don't fail the webhook over usage-counting — order is placed in
+          // Shopify, that's what matters. We log loudly so admin can reconcile.
+          logger.error('Coupon redemption record failed (order is placed)', {
+            orderId,
+            code: persistedCoupon.code,
+            err: String(couponErr),
+          });
+        }
+      }
       logger.info('Order placed in Shopify', { orderId, shopifyOrderName: created.name });
       res.status(200).send('placed');
     } catch (err) {

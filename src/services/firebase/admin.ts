@@ -161,6 +161,41 @@ export interface AdminListAdminsResult {
   admins: Array<{ email: string; addedAt: number | null; addedBy: string | null }>;
 }
 
+export type CouponType = 'percent' | 'fixed' | 'freeShipping';
+
+export interface AdminCouponRow {
+  code: string;
+  type: CouponType;
+  value: number;
+  active: boolean;
+  usageLimit: number | null;
+  usedCount: number;
+  minSubtotalZAR: number | null;
+  startsAt: number | null;
+  expiresAt: number | null;
+  description: string | null;
+  createdAt: number | null;
+  createdBy: string;
+}
+
+export interface AdminListCouponsResult {
+  rows: AdminCouponRow[];
+}
+
+export interface ValidateCouponResult {
+  ok: boolean;
+  reason?: string;
+  code?: string;
+  discount?: {
+    code: string;
+    type: CouponType;
+    value: number;
+    amountOffSubtotalZAR: number;
+    freeShipping: boolean;
+    description: string | null;
+  };
+}
+
 /* ----------------------------- callables ---------------------------- */
 
 const callableUnwrap = <Args, Result>(name: string) => {
@@ -208,3 +243,75 @@ export const adminListAdmins = callableUnwrap<void, AdminListAdminsResult>('admi
 export const adminAddAdmin = callableUnwrap<{ email: string }, { ok: boolean }>('adminAddAdmin');
 
 export const adminRemoveAdmin = callableUnwrap<{ email: string }, { ok: boolean }>('adminRemoveAdmin');
+
+export const validateCoupon = callableUnwrap<
+  { code: string; subtotalZar: number },
+  ValidateCouponResult
+>('validateCoupon');
+
+export const adminListCoupons = callableUnwrap<
+  { activeOnly?: boolean } | void,
+  AdminListCouponsResult
+>('adminListCoupons');
+
+export const adminUpsertCoupon = callableUnwrap<
+  {
+    code: string;
+    type: CouponType;
+    value?: number;
+    active?: boolean;
+    usageLimit?: number | null;
+    minSubtotalZAR?: number | null;
+    startsAt?: number | null;
+    expiresAt?: number | null;
+    description?: string | null;
+  },
+  { ok: boolean; code: string }
+>('adminUpsertCoupon');
+
+export const adminDeleteCoupon = callableUnwrap<{ code: string }, { ok: boolean }>('adminDeleteCoupon');
+
+export interface AdminPostRow {
+  id: string;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  body: string;
+  coverImageUrl: string | null;
+  author: string;
+  tags: string[];
+  readingMinutes: number | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
+  published: boolean;
+  publishedAt: number | null;
+  createdAt: number | null;
+  updatedAt: number | null;
+  createdBy: string | null;
+  updatedBy: string | null;
+}
+
+export const adminListPosts = callableUnwrap<void, { rows: AdminPostRow[] }>('adminListPosts');
+
+export const adminGetPost = callableUnwrap<{ id: string }, AdminPostRow>('adminGetPost');
+
+export const adminUpsertPost = callableUnwrap<
+  {
+    id?: string | null;
+    slug: string;
+    title: string;
+    excerpt?: string | null;
+    body: string;
+    coverImageUrl?: string | null;
+    author?: string;
+    tags?: string[];
+    readingMinutes?: number | null;
+    seoTitle?: string | null;
+    seoDescription?: string | null;
+    published?: boolean;
+    publishedAt?: number | null;
+  },
+  { ok: boolean; id: string; slug: string }
+>('adminUpsertPost');
+
+export const adminDeletePost = callableUnwrap<{ id: string }, { ok: boolean }>('adminDeletePost');

@@ -1,10 +1,13 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
-import { Loader2, ShoppingBag, X, AlertCircle, ArrowRight } from 'lucide-react';
+import { Loader2, ShoppingBag, X, AlertCircle, ArrowRight, Tag } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../data/products';
 import { useModalBehavior } from '../hooks/useModalBehavior';
 import { calculateShipping, FUEL_LAB_SHIPPING } from '../services/shipping/shippingRate';
+import type { ValidateCouponResult } from '../services/firebase/admin';
+
+type AppliedCoupon = NonNullable<ValidateCouponResult['discount']>;
 
 const FUNCTION_BASE = 'https://us-central1-promogroup.cloudfunctions.net';
 const ADDR_STORAGE_KEY = 'fuelcue_shipping_address';
@@ -12,6 +15,7 @@ const ADDR_STORAGE_KEY = 'fuelcue_shipping_address';
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
+  appliedCoupon?: AppliedCoupon | null;
 }
 
 interface SavedAddress {
@@ -66,7 +70,7 @@ function saveAddress(addr: SavedAddress): void {
  *  4. Redirect to Stitch. Webhook on payment success creates the real
  *     Shopify order (already wired up on the backend).
  */
-export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
+export function CheckoutModal({ isOpen, onClose, appliedCoupon = null }: CheckoutModalProps) {
   const { routeData, cartExtras } = useApp();
   const { user } = useAuth();
   const products = useProducts();
@@ -119,8 +123,17 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
 
   const subtotal = lineItems.reduce((s, li) => s + li.unitPrice * li.quantity, 0);
   const itemsCount = lineItems.reduce((s, li) => s + li.quantity, 0);
-  const shipping = calculateShipping(subtotal);
-  const total = subtotal + shipping.amountZAR;
+  const baseShipping = calculateShipping(subtotal);
+  const couponOff = appliedCoupon
+    ? appliedCoupon.type === 'percent'
+      ? Math.min(subtotal, Math.round(subtotal * appliedCoupon.value) / 100)
+      : appliedCoupon.type === 'fixed'
+        ? Math.min(subtotal, appliedCoupon.value)
+        : 0
+    : 0;
+  const freeShipping = appliedCoupon?.freeShipping ?? false;
+  const effectiveShipping = freeShipping ? 0 : baseShipping.amountZAR;
+  const total = Math.max(0, subtotal - couponOff + effectiveShipping);
 
   // Items that couldn't be matched to a variantId — surface clearly so the
   // athlete knows what's about to be left out instead of a silent failure.
@@ -181,10 +194,16 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
           lineItems,
           // Fuel Lab flat rate. Backend createCheckout adds this to the
           // Stitch payment amount and persists it for the webhook to
-          // forward to Shopify as a shipping_lines[] entry.
-          shippingLine: shipping.isFree
+          // forward to Shopify as a shipping_lines[] entry. Free-shipping
+          // coupons are honoured server-side after a re-validate, so we
+          // still send the underlying rate here.
+          shippingLine: baseShipping.isFree
             ? { title: 'Free shipping', priceZAR: 0 }
-            : { title: 'Standard shipping (Fuel Lab flat rate)', priceZAR: shipping.amountZAR },
+            : { title: 'Standard shipping (Fuel Lab flat rate)', priceZAR: baseShipping.amountZAR },
+          // Server re-validates the code against Firestore — if it became
+          // invalid between the cart and submit, the discount is silently
+          // dropped and the order is created at the unsold-out total.
+          ...(appliedCoupon ? { coupon: { code: appliedCoupon.code } } : {}),
         }),
       });
       const json = await res.json();
@@ -221,7 +240,8 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
             <div className="text-[10px] text-warm uppercase tracking-wider font-display font-bold">Checkout · Fuel Lab</div>
             <h2 className="text-lg font-display font-bold text-text-primary">Buy your fuel</h2>
             <div className="text-[11px] text-text-muted font-display">
-              {itemsCount} item{itemsCount === 1 ? '' : 's'} · R{subtotal.toFixed(2)} + {shipping.isFree ? 'free shipping' : `R${shipping.amountZAR} shipping`}
+              {itemsCount} item{itemsCount === 1 ? '' : 's'} · R{subtotal.toFixed(2)} + {effectiveShipping === 0 ? 'free shipping' : `R${effectiveShipping} shipping`}
+              {appliedCoupon && <span className="text-accent"> · {appliedCoupon.code}</span>}
             </div>
           </div>
           <button onClick={onClose} aria-label="Close" className="p-2 text-text-muted hover:text-text-primary transition-colors">
@@ -297,15 +317,25 @@ export function CheckoutModal({ isOpen, onClose }: CheckoutModalProps) {
               <span className="text-[11px] text-text-muted uppercase tracking-wider font-display">Subtotal</span>
               <span className="text-sm font-display font-bold text-text-primary tabular-nums">R{subtotal.toFixed(2)}</span>
             </div>
+            {appliedCoupon && couponOff > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-accent uppercase tracking-wider font-display flex items-center gap-1">
+                  <Tag className="w-3 h-3" /> {appliedCoupon.code}
+                </span>
+                <span className="text-sm font-display font-bold text-accent tabular-nums">−R{couponOff.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <span className="text-[11px] text-text-muted uppercase tracking-wider font-display">Shipping</span>
-              {shipping.isFree ? (
-                <span className="text-sm font-display font-bold text-accent tabular-nums">Free</span>
+              {effectiveShipping === 0 ? (
+                <span className="text-sm font-display font-bold text-accent tabular-nums">
+                  Free{freeShipping ? ` · ${appliedCoupon?.code}` : ''}
+                </span>
               ) : (
-                <span className="text-sm font-display font-bold text-text-primary tabular-nums">R{shipping.amountZAR.toFixed(2)}</span>
+                <span className="text-sm font-display font-bold text-text-primary tabular-nums">R{effectiveShipping.toFixed(2)}</span>
               )}
             </div>
-            {!shipping.isFree && (
+            {effectiveShipping > 0 && !freeShipping && (
               <p className="text-[10px] text-text-muted italic">
                 Add R{(FUEL_LAB_SHIPPING.freeShippingThresholdZAR - subtotal).toFixed(2)} more for free shipping.
               </p>
