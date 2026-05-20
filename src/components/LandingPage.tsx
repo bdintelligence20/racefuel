@@ -152,13 +152,23 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
           <a href="/blog" className="hover:text-[#3D2152] transition-colors">Blog</a>
           <ScrollKmBadge progress={scrollYProgress} />
         </div>
-        <button
-          onClick={onOpenApp}
-          className="group flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-xl bg-[#3D2152] text-white text-xs sm:text-[13px] font-bold hover:bg-[#5C2D6E] transition-colors"
-        >
-          Open App
-          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-        </button>
+        <div className="flex items-center gap-1 sm:gap-3">
+          {/* Mobile-only — the full nav links are hidden below md, so the
+              blog needs its own entry point next to Open App. */}
+          <a
+            href="/blog"
+            className="md:hidden px-2.5 py-2 text-[13px] font-medium text-[#6B5A7A] hover:text-[#3D2152] transition-colors"
+          >
+            Blog
+          </a>
+          <button
+            onClick={onOpenApp}
+            className="group flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-xl bg-[#3D2152] text-white text-xs sm:text-[13px] font-bold hover:bg-[#5C2D6E] transition-colors"
+          >
+            Open App
+            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </button>
+        </div>
       </nav>
 
       {/* Top scroll progress bar */}
