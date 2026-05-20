@@ -149,6 +149,7 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
           <a href="#features" className="hover:text-[#3D2152] transition-colors">Features</a>
           <a href="#races" className="hover:text-[#3D2152] transition-colors">Races</a>
           <a href="#how" className="hover:text-[#3D2152] transition-colors">How it works</a>
+          <a href="/blog" className="hover:text-[#3D2152] transition-colors">Blog</a>
           <ScrollKmBadge progress={scrollYProgress} />
         </div>
         <button
