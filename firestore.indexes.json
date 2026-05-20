@@ -20,8 +20,9 @@
       "collectionGroup": "posts",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "published", "order": "ASCENDING" },
         { "fieldPath": "slug", "order": "ASCENDING" },
-        { "fieldPath": "published", "order": "ASCENDING" }
+        { "fieldPath": "publishedAt", "order": "DESCENDING" }
       ]
     }
   ],

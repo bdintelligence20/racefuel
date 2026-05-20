@@ -76,21 +76,24 @@ export async function listPosts(opts: { pageSize?: number } = {}): Promise<BlogP
 }
 
 export async function getPostBySlug(slug: string): Promise<BlogPost | null> {
-  // Slug + published composite index covers this. We then check publishedAt
-  // client-side rather than in the query (rules already enforce it, and we
-  // avoid the index requirement on three fields).
+  // The `posts` read rule is `published == true && publishedAt <= request.time`.
+  // Firestore rules are not filters: a query is rejected with permission-denied
+  // unless its constraints *prove* every result satisfies the rule. So this
+  // query MUST carry both the `published == true` and `publishedAt <=` filters —
+  // omitting the latter (as an earlier version did) makes every blog-post page
+  // fail with "Missing or insufficient permissions". Mirrors listPosts().
   const q = query(
     collection(firestore, 'posts'),
     where('slug', '==', slug),
     where('published', '==', true),
+    where('publishedAt', '<=', Timestamp.now()),
+    orderBy('publishedAt', 'desc'),
     limit(1),
   );
   const snap = await getDocs(q);
   const first = snap.docs[0];
   if (!first) return null;
-  const post = rowToPost(first.id, first.data());
-  if (post.publishedAt && post.publishedAt > Date.now()) return null;
-  return post;
+  return rowToPost(first.id, first.data());
 }
 
 export async function getPostById(id: string): Promise<BlogPost | null> {

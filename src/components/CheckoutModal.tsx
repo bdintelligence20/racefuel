@@ -168,7 +168,11 @@ export function CheckoutModal({ isOpen, onClose, appliedCoupon = null }: Checkou
     // current Stitch config) — they pay in the new tab, the original tab
     // stays on /payment-callback subscribing to the order doc and
     // flipping to "placed" the moment the webhook fires.
-    const stitchTab = window.open('about:blank', '_blank', 'noopener,noreferrer');
+    //
+    // NB: no 'noopener'/'noreferrer' here — both make window.open return
+    // null, which would leave us with no handle to point at paymentUrl and
+    // silently collapse the whole flow into a same-tab redirect.
+    const stitchTab = window.open('about:blank', '_blank');
 
     setSubmitting(true);
     setError(null);

@@ -3,16 +3,10 @@ import { onRequest } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import { logger } from 'firebase-functions';
 import { listVariants, type ShopifyConfig } from './shopify-client';
+import { resolveAllowedOrigin } from './cors';
 
 const SHOPIFY_ADMIN_TOKEN = defineSecret('SHOPIFY_ADMIN_TOKEN');
 const SHOPIFY_STORE_URL = defineSecret('SHOPIFY_STORE_URL');
-
-const ALLOWED_ORIGINS = new Set([
-  'https://fuelcue.com',
-  'https://www.fuelcue.com',
-  'https://racefuel-dtlkpe56ha-uc.a.run.app',
-  'http://localhost:5173',
-]);
 
 /**
  * Read-only list of in-stock active product variants on Fuel Lab's store.
@@ -34,8 +28,7 @@ export const listShopifyProducts = onRequest(
     cors: false,
   },
   async (req, res) => {
-    const origin = req.get('origin');
-    res.set('Access-Control-Allow-Origin', origin && ALLOWED_ORIGINS.has(origin) ? origin : 'https://fuelcue.com');
+    res.set('Access-Control-Allow-Origin', resolveAllowedOrigin(req.get('origin')));
     res.set('Vary', 'Origin');
     if (req.method === 'OPTIONS') {
       res.status(204).send('');

@@ -22,6 +22,7 @@ import {
   recordCouponRedemption,
   type ResolvedDiscount,
 } from './coupons';
+import { resolveAllowedOrigin } from './cors';
 
 /**
  * End-to-end checkout flow (Stitch Express + Shopify).
@@ -56,13 +57,6 @@ const SHOPIFY_STORE_URL = defineSecret('SHOPIFY_STORE_URL');
 const PROJECT_ID = 'promogroup';
 const SELF_BASE_URL = 'https://us-central1-promogroup.cloudfunctions.net';
 const SPA_PAYMENT_CALLBACK = 'https://fuelcue.com/payment-callback';
-
-const ALLOWED_ORIGINS = new Set([
-  'https://fuelcue.com',
-  'https://www.fuelcue.com',
-  'https://racefuel-dtlkpe56ha-uc.a.run.app',
-  'http://localhost:5173',
-]);
 
 const sm = new SecretManagerServiceClient();
 
@@ -105,7 +99,7 @@ interface CheckoutPayload {
 /* ------------------------ helpers ------------------------ */
 
 function corsHeaders(origin: string | undefined): Record<string, string> {
-  const o = origin && ALLOWED_ORIGINS.has(origin) ? origin : 'https://fuelcue.com';
+  const o = resolveAllowedOrigin(origin);
   return {
     'Access-Control-Allow-Origin': o,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
