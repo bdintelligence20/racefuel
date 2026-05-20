@@ -315,3 +315,9 @@ export const adminUpsertPost = callableUnwrap<
 >('adminUpsertPost');
 
 export const adminDeletePost = callableUnwrap<{ id: string }, { ok: boolean }>('adminDeletePost');
+
+/** Upload a blog image (base64) — returns its public URL. Admin-gated. */
+export const adminUploadImage = callableUnwrap<
+  { dataBase64: string; contentType: string; filename?: string },
+  { url: string }
+>('adminUploadImage');

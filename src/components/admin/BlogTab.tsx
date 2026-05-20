@@ -1,12 +1,44 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Plus, FileText, Trash2, Eye, EyeOff, ExternalLink, ArrowLeft } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Loader2, Plus, FileText, Trash2, Eye, EyeOff, ExternalLink, ArrowLeft, ImagePlus, X } from 'lucide-react';
 import {
   adminListPosts,
   adminUpsertPost,
   adminDeletePost,
+  adminUploadImage,
   type AdminPostRow,
 } from '../../services/firebase/admin';
 import { Markdown } from '../../services/blog/markdown';
+
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8 MB — matches the adminUploadImage cap
+const ACCEPTED_IMAGE_TYPES = 'image/jpeg,image/png,image/webp,image/gif,image/avif';
+
+function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read the file.'));
+    reader.onload = () => {
+      // Drop the "data:<mime>;base64," prefix — the callable wants raw base64.
+      const result = String(reader.result);
+      const comma = result.indexOf(',');
+      resolve(comma >= 0 ? result.slice(comma + 1) : result);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/** Validate + upload an image file via the admin callable; returns its public URL. */
+async function uploadImage(file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) throw new Error('That file is not an image.');
+  if (file.size > MAX_IMAGE_BYTES) throw new Error('Image is too large — max 8 MB.');
+  const dataBase64 = await readFileAsBase64(file);
+  const { url } = await adminUploadImage({ dataBase64, contentType: file.type, filename: file.name });
+  return url;
+}
+
+/** Human-ish alt text from a filename: "sunset-run_02.jpg" → "sunset run 02". */
+function altFromFilename(name: string): string {
+  return name.replace(/\.[^.]*$/, '').replace(/[-_]+/g, ' ').trim() || 'image';
+}
 
 interface FormState {
   id: string | null;
@@ -253,9 +285,61 @@ function Editor({
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [pane, setPane] = useState<'edit' | 'preview'>('edit');
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [bodyUploading, setBodyUploading] = useState(false);
+
+  // Always-current form snapshot — async upload handlers resolve after the
+  // closure's `form` may be stale (e.g. title edited mid-upload), so they
+  // write back from this ref instead.
+  const formRef = useRef(form);
+  formRef.current = form;
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   const patch = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     onChange({ ...form, [k]: v });
+
+  // Upload a cover image and store its URL on the post.
+  const onCoverFile = async (file: File | undefined) => {
+    if (!file) return;
+    setErr(null);
+    setCoverUploading(true);
+    try {
+      const url = await uploadImage(file);
+      onChange({ ...formRef.current, coverImageUrl: url });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Cover image upload failed.');
+    } finally {
+      setCoverUploading(false);
+    }
+  };
+
+  // Upload an image and splice a Markdown image tag into the body at the
+  // caret (or the end of the body if the editor isn't focused).
+  const onBodyImageFile = async (file: File | undefined) => {
+    if (!file) return;
+    setErr(null);
+    setBodyUploading(true);
+    try {
+      const url = await uploadImage(file);
+      const ta = bodyRef.current;
+      const body = formRef.current.body;
+      const at = ta ? ta.selectionStart : body.length;
+      const snippet = `\n\n![${altFromFilename(file.name)}](${url})\n\n`;
+      onChange({ ...formRef.current, body: body.slice(0, at) + snippet + body.slice(at) });
+      requestAnimationFrame(() => {
+        const el = bodyRef.current;
+        if (el) {
+          el.focus();
+          const pos = at + snippet.length;
+          el.setSelectionRange(pos, pos);
+        }
+      });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : 'Image upload failed.');
+    } finally {
+      setBodyUploading(false);
+    }
+  };
 
   // Auto-derive slug from title until the user types into the slug field.
   const onTitleChange = (title: string) => {
@@ -374,12 +458,34 @@ function Editor({
               >
                 Preview
               </button>
-              <div className="ml-auto px-3 py-2 text-[10px] text-[#A0929E] font-display">
+              <label
+                className={`ml-auto flex items-center gap-1.5 px-3 py-2 text-[11px] font-display font-bold uppercase tracking-wider transition-colors ${
+                  bodyUploading ? 'text-[#A0929E] pointer-events-none' : 'text-[#6B5A7A] hover:text-[#3D2152] cursor-pointer'
+                }`}
+                title="Upload an image and insert it into the post body"
+              >
+                {bodyUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
+                Insert image
+                <input
+                  type="file"
+                  accept={ACCEPTED_IMAGE_TYPES}
+                  disabled={bodyUploading}
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = '';
+                    setPane('edit');
+                    void onBodyImageFile(file);
+                  }}
+                />
+              </label>
+              <div className="px-3 py-2 text-[10px] text-[#A0929E] font-display">
                 Markdown · {form.body.split(/\s+/).filter(Boolean).length} words
               </div>
             </div>
             {pane === 'edit' ? (
               <textarea
+                ref={bodyRef}
                 value={form.body}
                 onChange={(e) => patch('body', e.target.value)}
                 rows={24}
@@ -421,18 +527,47 @@ function Editor({
 
           <div className="bg-white border border-[#3D2152]/10 rounded-2xl p-4 space-y-3">
             <div className="text-[10px] font-display uppercase tracking-[0.16em] font-bold text-[#A0929E]">Presentation</div>
-            <Field label="Cover image URL">
-              <input
-                value={form.coverImageUrl}
-                onChange={(e) => patch('coverImageUrl', e.target.value)}
-                placeholder="https://…/cover.jpg"
-                className="w-full px-3 py-2 rounded-xl border border-[#3D2152]/10 bg-[#FFF9F0] text-[12.5px] font-mono text-[#3D2152] focus:outline-none focus:border-[#F5A020]/50"
-              />
-              {form.coverImageUrl && (
-                <div className="mt-2 aspect-[16/9] w-full overflow-hidden rounded-lg border border-[#3D2152]/10 bg-[#FFF9F0]">
+            <Field label="Cover image">
+              {form.coverImageUrl ? (
+                <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg border border-[#3D2152]/10 bg-[#FFF9F0]">
                   {/* eslint-disable-next-line jsx-a11y/img-redundant-alt */}
                   <img src={form.coverImageUrl} alt="Cover preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => patch('coverImageUrl', '')}
+                    className="absolute top-1.5 right-1.5 w-7 h-7 inline-flex items-center justify-center rounded-lg bg-white/90 text-[#6B5A7A] hover:text-[#E8671A] shadow-sm transition-colors"
+                    aria-label="Remove cover image"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
                 </div>
+              ) : (
+                <label
+                  className={`flex flex-col items-center justify-center gap-1 aspect-[16/9] w-full rounded-lg border-2 border-dashed border-[#3D2152]/15 bg-[#FFF9F0] transition-colors ${
+                    coverUploading ? 'opacity-60 pointer-events-none' : 'cursor-pointer hover:border-[#F5A020]/50'
+                  }`}
+                >
+                  {coverUploading ? (
+                    <Loader2 className="w-5 h-5 animate-spin text-[#F5A020]" />
+                  ) : (
+                    <>
+                      <ImagePlus className="w-6 h-6 text-[#A0929E]" />
+                      <span className="text-[11.5px] font-display font-bold text-[#6B5A7A]">Upload cover image</span>
+                      <span className="text-[10px] text-[#A0929E]">JPEG · PNG · WebP — max 8 MB</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept={ACCEPTED_IMAGE_TYPES}
+                    disabled={coverUploading}
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      e.target.value = '';
+                      void onCoverFile(file);
+                    }}
+                  />
+                </label>
               )}
             </Field>
             <Field label="Author">

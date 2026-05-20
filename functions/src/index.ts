@@ -29,4 +29,5 @@ export {
   adminGetPost,
   adminUpsertPost,
   adminDeletePost,
+  adminUploadImage,
 } from './posts';

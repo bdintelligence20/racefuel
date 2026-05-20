@@ -1,7 +1,9 @@
 import './firebase';
 import { onCall, HttpsError, type CallableRequest } from 'firebase-functions/v2/https';
 import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { logger } from 'firebase-functions';
+import { randomUUID } from 'crypto';
 
 /**
  * Blog posts on Firestore.
@@ -220,3 +222,82 @@ export const adminDeletePost = onCall({ region: REGION }, async (request) => {
   logger.info('Post deleted', { id: args.id, by: ctx.email });
   return { ok: true };
 });
+
+/* --------------------------- image upload --------------------------- */
+
+/**
+ * Admin-only blog image upload. The client sends the file as base64; we
+ * write it to a dedicated public bucket and hand back the public URL,
+ * which the editor stores as the cover image or drops into the Markdown
+ * body. Going through this callable means uploads reuse the same admin
+ * gate as every other blog write — no Storage security rules needed, and
+ * the bucket only ever receives objects an admin actually authorised.
+ */
+const BLOG_IMAGE_BUCKET = 'promogroup-fuelcue-blog';
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // 8 MB raw
+const IMAGE_EXT: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+  'image/avif': 'avif',
+};
+
+export const adminUploadImage = onCall(
+  { region: REGION, memory: '512MiB' },
+  async (request) => {
+    const ctx = await assertAdmin(request);
+    const args = (request.data ?? {}) as {
+      dataBase64?: string;
+      contentType?: string;
+      filename?: string;
+    };
+
+    const contentType = (args.contentType ?? '').toLowerCase();
+    const ext = IMAGE_EXT[contentType];
+    if (!ext) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Unsupported image type — use JPEG, PNG, WebP, GIF or AVIF.'
+      );
+    }
+    if (typeof args.dataBase64 !== 'string' || args.dataBase64.length === 0) {
+      throw new HttpsError('invalid-argument', 'Missing image data.');
+    }
+
+    const buffer = Buffer.from(args.dataBase64, 'base64');
+    if (buffer.length === 0) {
+      throw new HttpsError('invalid-argument', 'Image data could not be decoded.');
+    }
+    if (buffer.length > MAX_IMAGE_BYTES) {
+      throw new HttpsError('invalid-argument', 'Image is too large — max 8 MB.');
+    }
+
+    // Slug-safe stem from the original filename + a random prefix so
+    // re-uploads never collide and the resulting URL isn't guessable.
+    const stem =
+      (args.filename ?? 'image')
+        .replace(/\.[^.]*$/, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 48) || 'image';
+    const yyyymm = new Date().toISOString().slice(0, 7); // e.g. 2026-05
+    const objectPath = `blog/${yyyymm}/${randomUUID()}-${stem}.${ext}`;
+
+    await getStorage()
+      .bucket(BLOG_IMAGE_BUCKET)
+      .file(objectPath)
+      .save(buffer, {
+        resumable: false,
+        contentType,
+        // Bucket is public-read; hashed-style path means the object never
+        // changes, so it's safe to cache hard.
+        metadata: { cacheControl: 'public, max-age=31536000, immutable' },
+      });
+
+    const url = `https://storage.googleapis.com/${BLOG_IMAGE_BUCKET}/${objectPath}`;
+    logger.info('Blog image uploaded', { objectPath, bytes: buffer.length, by: ctx.email });
+    return { url };
+  }
+);
