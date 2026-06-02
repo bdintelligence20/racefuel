@@ -18,7 +18,8 @@
  * zero valid placements) returns null → caller falls back to the
  * deterministic algorithm so Auto Generate never just errors.
  */
-import { GoogleGenerativeAI, SchemaType, type Schema } from '@google/generative-ai';
+import { getAI, getGenerativeModel, GoogleAIBackend, Schema } from 'firebase/ai';
+import { app } from '../firebase/config';
 import { nanoid } from 'nanoid';
 import { NutritionPoint, UserProfile, GpsPoint } from '../../context/AppContext';
 import { ProductProps } from '../../components/NutritionCard';
@@ -29,16 +30,13 @@ import { calculateHydration, HydrationTarget } from './hydrationCalculator';
 import { calculateCaffeineStrategy, CaffeineRecommendation } from './caffeineStrategy';
 import { isSingleServe } from './planGenerator';
 
-let _testOverrideKey: string | undefined;
+// AI runs through Firebase AI Logic (App Check–gated) — there is NO Gemini
+// API key in the browser bundle. The feature is gated by enablement only.
+let _testEnabledOverride: boolean | undefined;
 
-/** Test-only override. Not used in production. */
-export function __setApiKeyForTesting(key: string | undefined): void {
-  _testOverrideKey = key;
-}
-
-function getApiKey(): string | undefined {
-  if (_testOverrideKey !== undefined) return _testOverrideKey;
-  return (import.meta as unknown as { env: Record<string, string | undefined> }).env?.VITE_GEMINI_API_KEY;
+/** Test-only override to force-enable/disable the AI planner. */
+export function __setApiKeyForTesting(enabled: string | boolean | undefined): void {
+  _testEnabledOverride = enabled === undefined ? undefined : Boolean(enabled);
 }
 const MODEL = 'gemini-2.5-flash';
 const CATALOG_TOP_N = 35;
@@ -86,7 +84,9 @@ export interface GeminiGeneratedPlan {
 }
 
 export function isGeminiEnabled(): boolean {
-  return Boolean(getApiKey());
+  if (_testEnabledOverride !== undefined) return _testEnabledOverride;
+  // On by default. Set VITE_AI_PLANNER_ENABLED="false" to kill-switch via config (no code change).
+  return (import.meta as unknown as { env: Record<string, string | undefined> }).env?.VITE_AI_PLANNER_ENABLED !== 'false';
 }
 
 export function inferIntensityPercent(distanceKm: number, durationHours: number, elevationGainM: number, sport: 'running' | 'cycling'): number {
@@ -335,25 +335,22 @@ interface AgentOutput {
   overallRationale: string;
 }
 
-const AGENT_SCHEMA: Schema = {
-  type: SchemaType.OBJECT,
+// firebase/ai Schema: all object properties are required by default
+// (matches the original all-required schema).
+const AGENT_SCHEMA = Schema.object({
   properties: {
-    placements: {
-      type: SchemaType.ARRAY,
-      items: {
-        type: SchemaType.OBJECT,
+    placements: Schema.array({
+      items: Schema.object({
         properties: {
-          distanceKm: { type: SchemaType.NUMBER },
-          productId: { type: SchemaType.STRING },
-          rationale: { type: SchemaType.STRING },
+          distanceKm: Schema.number(),
+          productId: Schema.string(),
+          rationale: Schema.string(),
         },
-        required: ['distanceKm', 'productId', 'rationale'],
-      },
-    },
-    overallRationale: { type: SchemaType.STRING },
+      }),
+    }),
+    overallRationale: Schema.string(),
   },
-  required: ['placements', 'overallRationale'],
-};
+});
 
 /**
  * Materialise a raw agent response against the real catalog. Exported for
@@ -414,8 +411,7 @@ export function materialisePlacements(
 }
 
 export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<GeminiGeneratedPlan | null> {
-  const apiKey = getApiKey();
-  if (!apiKey) return null;
+  if (!isGeminiEnabled()) return null;
 
   const { distanceKm, durationHours, profile, isCompetition, temperatureCelsius, humidity } = input;
   const sport = profile.sport ?? 'running';
@@ -557,8 +553,8 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
   input.onPhase?.('Reasoning through the plan');
   let raw: string;
   try {
-    const ai = new GoogleGenerativeAI(apiKey);
-    const model = ai.getGenerativeModel({
+    const ai = getAI(app, { backend: new GoogleAIBackend() });
+    const model = getGenerativeModel(ai, {
       model: MODEL,
       generationConfig: {
         responseMimeType: 'application/json',

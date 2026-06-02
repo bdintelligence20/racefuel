@@ -8,7 +8,9 @@ ARG VITE_FIREBASE_PROJECT_ID
 ARG VITE_FIREBASE_STORAGE_BUCKET
 ARG VITE_FIREBASE_MESSAGING_SENDER_ID
 ARG VITE_FIREBASE_APP_ID
-ARG VITE_GEMINI_API_KEY
+# No Gemini API key in the build anymore — AI runs via Firebase AI Logic (App Check).
+# reCAPTCHA *site* key is public by design.
+ARG VITE_RECAPTCHA_SITE_KEY
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
@@ -22,7 +24,7 @@ RUN VITE_STRAVA_CLIENT_ID=$VITE_STRAVA_CLIENT_ID \
     VITE_FIREBASE_STORAGE_BUCKET=$VITE_FIREBASE_STORAGE_BUCKET \
     VITE_FIREBASE_MESSAGING_SENDER_ID=$VITE_FIREBASE_MESSAGING_SENDER_ID \
     VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID \
-    VITE_GEMINI_API_KEY=$VITE_GEMINI_API_KEY \
+    VITE_RECAPTCHA_SITE_KEY=$VITE_RECAPTCHA_SITE_KEY \
     npm run build
 # products.ts + XML feed are generated as part of `npm run build`
 RUN cp public/products-feed.xml dist/products-feed.xml
