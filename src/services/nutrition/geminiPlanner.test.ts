@@ -27,20 +27,31 @@ vi.mock('../../data/products', () => ({
   ],
 }));
 
-vi.mock('@google/generative-ai', async () => {
-  const actual = await vi.importActual<typeof import('@google/generative-ai')>('@google/generative-ai');
+// The planner was moved off the in-browser @google/generative-ai SDK onto
+// Firebase AI Logic (firebase/ai) so no API key ships to the browser. The mock
+// follows: stub firebase/ai's getAI/getGenerativeModel/Schema, and the firebase
+// app so CI needs no live Firebase config.
+vi.mock('../firebase/config', () => ({ app: {} }));
+
+vi.mock('firebase/ai', () => {
+  // Schema.* runs at module load to build the response schema; the returned
+  // shape is irrelevant (getGenerativeModel is mocked), it just must not throw.
+  const schemaStub = () => ({});
   return {
-    ...actual,
-    GoogleGenerativeAI: class {
-      getGenerativeModel() {
-        return {
-          generateContent: async (...args: unknown[]) => {
-            agentState.calls.push(args);
-            if (agentState.thrown) throw agentState.thrown;
-            return { response: { text: () => agentState.responseText } };
-          },
-        };
-      }
+    getAI: () => ({}),
+    GoogleAIBackend: class {},
+    getGenerativeModel: () => ({
+      generateContent: async (...args: unknown[]) => {
+        agentState.calls.push(args);
+        if (agentState.thrown) throw agentState.thrown;
+        return { response: { text: () => agentState.responseText } };
+      },
+    }),
+    Schema: {
+      object: schemaStub,
+      array: schemaStub,
+      number: schemaStub,
+      string: schemaStub,
     },
   };
 });
