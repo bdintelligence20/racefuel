@@ -10,7 +10,6 @@ import { EffortEditor } from './EffortEditor';
 import { DateEditor } from './DateEditor';
 import { RouteSportEditor } from './RouteSportEditor';
 import { MapLegend } from './MapLegend';
-import { MobileNutritionStrip } from './MobileNutritionStrip';
 import { useApp } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { NutritionMarker } from './NutritionMarker';
@@ -752,11 +751,12 @@ export function MapCanvas() {
         )}
       </div>
 
-      {/* Mobile-only nutrition strip — sits directly above the elevation
-          profile. Drag a card down onto the map to drop a fuel point at the
-          closest position on the route. Hidden on lg+ where the existing
-          NutritionPanel sidebar handles this. */}
-      {showElevation && <MobileNutritionStrip />}
+      {/* The always-on mobile fuel strip ("hold & drag onto route") used to
+          live here. It was the clunky, busy band the redesign called out — and
+          the drag-to-add gesture the brief asked us to drop. Adding fuel is now
+          a tap on the map or the elevation profile, which opens the product
+          picker at that point. Browsing the full catalogue stays available
+          there too, so nothing's lost — the main view is just calmer. */}
 
       {/* Elevation Profile Panel — only show when route loaded + not drawing.
           overflow-hidden + max-w-full on the panel itself: the chart SVG

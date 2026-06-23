@@ -864,7 +864,10 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
           />
         </div>
       ) : (
-        <div className="absolute bottom-6 left-20 z-30">
+        // Floating "Draw Route" only appears once a route is loaded (drawing a
+        // replacement) — an editing action, so keep it off the calm mobile plan
+        // view. Desktop has the room. On mobile: Clear → redraw from import.
+        <div className="hidden lg:block absolute bottom-6 left-20 z-30">
           <RouteDrawingToolbar
             state={drawing.state}
             waypointCount={drawing.waypoints.length}

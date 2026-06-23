@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Download, Undo2, Redo2, Info, Share2, Zap, Trash2, ShoppingCart } from 'lucide-react';
+import { Download, Undo2, Redo2, Info, Share2, Zap, Trash2, ShoppingCart, MoreHorizontal, Watch, X, ArrowRight } from 'lucide-react';
 import { ExportModal } from './export/ExportModal';
 import { FlyoverExportModal } from './export/FlyoverExportModal';
 import { ScorePopover } from './ScorePopover';
@@ -14,8 +14,19 @@ export function ActionBar() {
   const [shareOpen, setShareOpen] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   if (!routeData.loaded) return null;
+
+  const hasPlan = routeData.nutritionPoints.length > 0;
+
+  // Mobile shows ONE momentum action, not a 7-button toolkit. The label is the
+  // next step in the journey: build the plan, then send it to the watch. Buy,
+  // share, undo/redo, clear all live in the overflow sheet — present, but out
+  // of the way (the brief's "everything else one tap away").
+  const primary = hasPlan
+    ? { label: 'Export to watch', icon: <Watch className="w-5 h-5" />, onClick: () => setExportOpen(true) }
+    : { label: 'Build my plan', icon: <Zap className="w-5 h-5 fill-current" />, onClick: autoGeneratePlan };
 
   const totalCarbs = routeData.nutritionPoints.reduce((sum, point) => {
     return sum + point.product.carbs;
@@ -37,6 +48,7 @@ export function ActionBar() {
             explicit left group, the stats inherited extra space from the
             parent column and fanned out across the full row.)
             Mobile keeps `overflow-x-auto` for narrow viewports. */}
+        {hasPlan && (
         <div className="flex items-start gap-2 overflow-x-auto no-scrollbar">
           <div className="flex items-start gap-x-5 sm:gap-x-6 lg:gap-x-8 flex-shrink-0">
             {[
@@ -78,8 +90,30 @@ export function ActionBar() {
             </div>
           )}
         </div>
+        )}
 
-        {/* Actions row.
+        {/* MOBILE actions — one primary momentum button + an overflow sheet.
+            Replaces the old 7-icon strip that made the screen feel like a
+            toolkit. */}
+        <div className="sm:hidden flex items-center gap-2">
+          <button
+            onClick={primary.onClick}
+            className="flex-1 h-12 rounded-xl bg-accent text-white font-display font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(61,33,82,0.15)]"
+          >
+            {primary.icon}
+            {primary.label}
+            <ArrowRight className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setMenuOpen(true)}
+            aria-label="More actions"
+            className="w-12 h-12 flex-shrink-0 rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-secondary flex items-center justify-center active:scale-95 transition-all"
+          >
+            <MoreHorizontal className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Desktop actions row (sm+).
             Mobile (< sm): all 7 buttons live directly in one flex container
             so they form a single connected strip — outer rounded border,
             divide-x between cells, each button takes 1/7 via `flex-1`.
@@ -90,7 +124,7 @@ export function ActionBar() {
             disabled and the second group is pushed right via `sm:ml-auto`
             on the first View Kit button — preserving the old left/right
             split layout without needing wrapper divs. */}
-        <div className="flex w-full rounded-xl overflow-hidden border border-[var(--color-border)] divide-x divide-[var(--color-border)] sm:w-auto sm:rounded-none sm:border-0 sm:divide-x-0 sm:items-stretch sm:gap-2 [&>button]:flex-1 sm:[&>button]:flex-none">
+        <div className="hidden sm:flex sm:w-auto sm:items-stretch sm:gap-2">
           <ActionButton
             mobileLabel="Undo"
             desktopLabel="Undo"
@@ -158,6 +192,27 @@ export function ActionBar() {
         </div>
       </div>
 
+      {/* Mobile overflow sheet — the rest of the toolkit, one tap away. */}
+      {menuOpen && (
+        <div className="sm:hidden fixed inset-0 z-[55] flex items-end" onClick={() => setMenuOpen(false)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+          <div className="relative w-full bg-surface border-t border-[var(--color-border)] rounded-t-2xl p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-center pt-1 pb-2"><div className="w-10 h-1 rounded-full bg-[var(--color-border)]" /></div>
+            <div className="grid grid-cols-3 gap-2">
+              {hasPlan && <SheetItem icon={<ShoppingCart className="w-5 h-5" />} label="Buy fuel" onClick={() => { setMenuOpen(false); setCartOpen(true); }} />}
+              {hasPlan && <SheetItem icon={<Share2 className="w-5 h-5" />} label="Share" onClick={() => { setMenuOpen(false); setShareOpen(true); }} />}
+              {hasPlan && <SheetItem icon={<Download className="w-5 h-5" />} label="Export" onClick={() => { setMenuOpen(false); setExportOpen(true); }} />}
+              <SheetItem icon={<Undo2 className="w-5 h-5" />} label="Undo" disabled={!canUndo} onClick={() => undo()} />
+              <SheetItem icon={<Redo2 className="w-5 h-5" />} label="Redo" disabled={!canRedo} onClick={() => redo()} />
+              <SheetItem icon={<Trash2 className="w-5 h-5" />} label="Clear route" tone="danger" onClick={() => { setMenuOpen(false); resetRoute(); }} />
+            </div>
+            <button onClick={() => setMenuOpen(false)} className="w-full mt-2 py-3 text-text-muted hover:text-text-primary font-display text-sm flex items-center justify-center gap-1.5">
+              <X className="w-4 h-4" /> Close
+            </button>
+          </div>
+        </div>
+      )}
+
       <ExportModal
         isOpen={exportOpen}
         onClose={() => setExportOpen(false)}
@@ -179,6 +234,19 @@ export function ActionBar() {
 
    The 'mobileOnly' flag hides the cell on lg+ (used for Auto and Clear,
    which have desktop equivalents elsewhere on the map). */
+function SheetItem({ icon, label, onClick, disabled, tone }: { icon: React.ReactNode; label: string; onClick: () => void; disabled?: boolean; tone?: 'danger' }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex flex-col items-center justify-center gap-1.5 py-3.5 rounded-xl bg-surfaceHighlight border border-[var(--color-border)] active:scale-95 transition-all disabled:opacity-30 disabled:cursor-not-allowed ${tone === 'danger' ? 'text-red-400' : 'text-text-primary'}`}
+    >
+      {icon}
+      <span className="text-[10px] font-display font-semibold uppercase tracking-wider">{label}</span>
+    </button>
+  );
+}
+
 type ButtonTone = 'neutral' | 'danger' | 'primary' | 'warm-filled' | 'warm-outline';
 
 // On mobile the buttons live inside a single bordered strip, so we suppress

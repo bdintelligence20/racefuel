@@ -44,36 +44,40 @@ function MapLoadingFallback() {
 function MobileNav({
   sidebarOpen,
   setSidebarOpen,
+  showSteps,
 }: {
   sidebarOpen: boolean;
   setSidebarOpen: (o: boolean) => void;
+  showSteps: boolean;
 }) {
   return (
     <div className="lg:hidden fixed left-0 right-0 z-50 bg-surface border-b border-[var(--color-border)] safe-top" style={{ top: 'var(--banner-h, 0px)' }}>
-      <div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex items-center gap-2 px-2 py-1.5">
         {/* Hamburger */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
-          className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl hover:bg-accent/[0.06] active:bg-accent/[0.08] transition-colors text-text-primary"
+          className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl hover:bg-accent/[0.06] active:bg-accent/[0.08] transition-colors text-text-primary"
         >
           {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
 
-        {/* Logo — pushed to the right by `ml-auto` now that the Map/Fuel
-            tab switcher is gone, and bumped to h-9 since there's room. */}
-        <img
-          src="/logo.png"
-          alt="fuelcue"
-          className="h-9 w-auto object-contain flex-shrink-0 ml-auto"
-        />
+        {/* Step progress, inline — merges the old separate step band into the
+            nav so there's one top bar, not two. Only meaningful once a route
+            exists; the logo holds the spot otherwise. */}
+        <div className="flex-1 min-w-0 flex justify-center">
+          {showSteps ? <FlowStepIndicator embedded /> : <img src="/logo.png" alt="fuelcue" className="h-7 w-auto object-contain" />}
+        </div>
+
+        {/* Logo, small, right — kept for brand anchor when steps are showing. */}
+        {showSteps && <img src="/logo.png" alt="fuelcue" className="h-7 w-auto object-contain flex-shrink-0" />}
       </div>
     </div>
   );
 }
 
 function AppContent() {
-  const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan } = useApp();
+  const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan, routeData } = useApp();
   const { mode } = useCoachStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -107,6 +111,7 @@ function AppContent() {
       <MobileNav
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
+        showSteps={routeData.loaded}
       />
 
       <div className={`
@@ -146,12 +151,8 @@ function AppContent() {
         <div className="flex-shrink-0">
           <CoachPlanningBanner />
         </div>
-        {/* Mobile primary-flow step indicator — persistent "where am I / what's
-            next" cue. Mobile only (lg:hidden); desktop has the full sidebar +
-            action bar for orientation. */}
-        <div className="lg:hidden flex-shrink-0">
-          <FlowStepIndicator />
-        </div>
+        {/* Step indicator now lives inline in the top nav (MobileNav), so the
+            old standalone band here is gone — one less stacked bar. */}
         <ErrorBoundary>
           <Suspense fallback={<MapLoadingFallback />}>
             <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">

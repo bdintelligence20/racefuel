@@ -36,52 +36,48 @@ function useCurrentStep(): { activeIndex: number; doneThrough: number } {
   return { activeIndex, doneThrough };
 }
 
-export function FlowStepIndicator({ className = '' }: { className?: string }) {
+export function FlowStepIndicator({ className = '', embedded = false }: { className?: string; embedded?: boolean }) {
   const { activeIndex, doneThrough } = useCurrentStep();
 
+  const body = (
+    <div className="flex items-center gap-2 min-w-0">
+      {/* Dots only — labels would truncate at phone widths, so the current
+          step's name lives in the single line on the right instead. */}
+      <ol className="flex items-center gap-1">
+        {STEPS.map((step: StepName, i) => {
+          const isDone = i <= doneThrough;
+          const isActive = i === activeIndex;
+          return (
+            <li key={step} className="flex items-center" aria-current={isActive ? 'step' : undefined}>
+              <span
+                title={step}
+                className={`flex items-center justify-center w-4 h-4 rounded-full text-[9px] font-display font-bold transition-colors ${
+                  isDone
+                    ? 'bg-accent text-white'
+                    : isActive
+                      ? 'bg-warm text-white ring-2 ring-warm/30'
+                      : 'bg-surfaceHighlight text-text-muted border border-[var(--color-border)]'
+                }`}
+              >
+                {isDone ? <Check className="w-2.5 h-2.5" /> : i + 1}
+              </span>
+              {i < STEPS.length - 1 && (
+                <span className={`h-px w-2 transition-colors ${i < doneThrough ? 'bg-accent/50' : 'bg-[var(--color-border)]'}`} aria-hidden />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      <span className="text-[11px] font-display font-bold text-text-primary truncate">{STEPS[activeIndex]}</span>
+    </div>
+  );
+
+  // `embedded` drops the standalone bar chrome so it can sit inline in the nav.
+  if (embedded) return body;
+
   return (
-    <nav
-      aria-label="Plan progress"
-      className={`w-full bg-surface/95 backdrop-blur border-b border-[var(--color-border)] px-3 py-1.5 ${className}`}
-    >
-      <div className="max-w-md mx-auto flex items-center justify-between gap-3">
-        {/* Dots only — labels would truncate at phone widths, so the current
-            step's name lives in the single line on the right instead. */}
-        <ol className="flex items-center gap-1.5">
-          {STEPS.map((step: StepName, i) => {
-            const isDone = i <= doneThrough;
-            const isActive = i === activeIndex;
-            return (
-              <li key={step} className="flex items-center" aria-current={isActive ? 'step' : undefined}>
-                <span
-                  title={step}
-                  className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-display font-bold transition-colors ${
-                    isDone
-                      ? 'bg-accent text-white'
-                      : isActive
-                        ? 'bg-warm text-white ring-2 ring-warm/30'
-                        : 'bg-surfaceHighlight text-text-muted border border-[var(--color-border)]'
-                  }`}
-                >
-                  {isDone ? <Check className="w-3 h-3" /> : i + 1}
-                </span>
-                {i < STEPS.length - 1 && (
-                  <span
-                    className={`h-px w-3 transition-colors ${i < doneThrough ? 'bg-accent/50' : 'bg-[var(--color-border)]'}`}
-                    aria-hidden
-                  />
-                )}
-              </li>
-            );
-          })}
-        </ol>
-        <div className="text-right leading-tight flex-shrink-0">
-          <div className="text-[9px] font-display uppercase tracking-wider text-text-muted">
-            Step {activeIndex + 1} of {STEPS.length}
-          </div>
-          <div className="text-[12px] font-display font-bold text-text-primary">{STEPS[activeIndex]}</div>
-        </div>
-      </div>
+    <nav aria-label="Plan progress" className={`w-full bg-surface/95 backdrop-blur border-b border-[var(--color-border)] px-3 py-1.5 ${className}`}>
+      <div className="max-w-md mx-auto">{body}</div>
     </nav>
   );
 }
