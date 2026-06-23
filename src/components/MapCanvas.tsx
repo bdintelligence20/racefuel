@@ -820,8 +820,13 @@ export function MapCanvas() {
             </div>
 
             {/* Tap hint — replaces the old "Drop to add" hover overlay with a
-                plain, always-legible cue for the click-to-add gesture. */}
-            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                plain, always-legible cue for the click-to-add gesture. Shown
+                persistently while the route has no fuel yet (so the manual
+                "build it yourself" gesture is discoverable on touch, where
+                hover doesn't exist); fades to hover-only once fuel is placed. */}
+            <div className={`absolute bottom-2 left-1/2 -translate-x-1/2 pointer-events-none transition-opacity ${
+              routeData.nutritionPoints.length === 0 ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+            }`}>
               <span className="text-warm font-display text-[10px] font-semibold bg-surface/90 px-2.5 py-1 rounded-md border border-warm/20 whitespace-nowrap">
                 Tap the profile to add fuel
               </span>

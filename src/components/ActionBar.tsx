@@ -1,24 +1,46 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Download, Undo2, Redo2, Info, Share2, Zap, Trash2, ShoppingCart, MoreHorizontal, Watch, X, ArrowRight } from 'lucide-react';
+import { Download, Undo2, Redo2, Info, Share2, Zap, Trash2, ShoppingCart, MoreHorizontal, Watch, X, ArrowRight, MapPin } from 'lucide-react';
 import { ExportModal } from './export/ExportModal';
 import { FlyoverExportModal } from './export/FlyoverExportModal';
 import { ScorePopover } from './ScorePopover';
 import { CartModal } from './CartModal';
+import { ProductPickerModal } from './ProductPickerModal';
 import { InfoTip } from './ui/InfoTip';
 import { getActiveDurationHours } from '../services/route/timeFormat';
 
+/** Pick the midpoint of the largest unfueled stretch — so each manually-added
+ *  point lands in open space instead of stacking on the last one. */
+function largestGapKm(pointKms: number[], totalKm: number): number {
+  const bounds = [0, ...[...pointKms].sort((a, b) => a - b), totalKm];
+  let bestGap = -1;
+  let bestMid = totalKm / 2;
+  for (let i = 0; i < bounds.length - 1; i++) {
+    const g = bounds[i + 1] - bounds[i];
+    if (g > bestGap) { bestGap = g; bestMid = (bounds[i] + bounds[i + 1]) / 2; }
+  }
+  return Math.round(bestMid * 10) / 10;
+}
+
 export function ActionBar() {
-  const { routeData, planValidation, canUndo, canRedo, undo, redo, autoGeneratePlan, resetRoute } = useApp();
+  const { routeData, planValidation, canUndo, canRedo, undo, redo, autoGeneratePlan, resetRoute, addNutritionPoint } = useApp();
   const [exportOpen, setExportOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Manual fuel placement from a button (vs tapping the route). Holds the km
+  // to place at while the picker is open.
+  const [manualKm, setManualKm] = useState<number | null>(null);
 
   if (!routeData.loaded) return null;
 
   const hasPlan = routeData.nutritionPoints.length > 0;
+
+  const openManualAdd = () => {
+    setMenuOpen(false);
+    setManualKm(largestGapKm(routeData.nutritionPoints.map((p) => p.distanceKm), routeData.distanceKm));
+  };
 
   // Mobile shows ONE momentum action, not a 7-button toolkit. The label is the
   // next step in the journey: build the plan, then send it to the watch. Buy,
@@ -94,23 +116,36 @@ export function ActionBar() {
 
         {/* MOBILE actions — one primary momentum button + an overflow sheet.
             Replaces the old 7-icon strip that made the screen feel like a
-            toolkit. */}
-        <div className="sm:hidden flex items-center gap-2">
-          <button
-            onClick={primary.onClick}
-            className="flex-1 h-12 rounded-xl bg-accent text-white font-display font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(61,33,82,0.15)]"
-          >
-            {primary.icon}
-            {primary.label}
-            <ArrowRight className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setMenuOpen(true)}
-            aria-label="More actions"
-            className="w-12 h-12 flex-shrink-0 rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-secondary flex items-center justify-center active:scale-95 transition-all"
-          >
-            <MoreHorizontal className="w-5 h-5" />
-          </button>
+            toolkit. When there's no plan yet, an explicit secondary choice
+            makes clear you don't have to auto-generate — you can build it
+            yourself by adding fuel (here or by tapping the route). */}
+        <div className="sm:hidden flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={primary.onClick}
+              className="flex-1 h-12 rounded-xl bg-accent text-white font-display font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(61,33,82,0.15)]"
+            >
+              {primary.icon}
+              {primary.label}
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setMenuOpen(true)}
+              aria-label="More actions"
+              className="w-12 h-12 flex-shrink-0 rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-secondary flex items-center justify-center active:scale-95 transition-all"
+            >
+              <MoreHorizontal className="w-5 h-5" />
+            </button>
+          </div>
+          {!hasPlan && (
+            <button
+              onClick={openManualAdd}
+              className="w-full py-1.5 text-[12px] font-display font-semibold text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center gap-1.5"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              Prefer to build it yourself? Add fuel manually
+            </button>
+          )}
         </div>
 
         {/* Desktop actions row (sm+).
@@ -199,6 +234,8 @@ export function ActionBar() {
           <div className="relative w-full bg-surface border-t border-[var(--color-border)] rounded-t-2xl p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-center pt-1 pb-2"><div className="w-10 h-1 rounded-full bg-[var(--color-border)]" /></div>
             <div className="grid grid-cols-3 gap-2">
+              <SheetItem icon={<MapPin className="w-5 h-5" />} label="Add fuel" onClick={openManualAdd} />
+              <SheetItem icon={<Zap className="w-5 h-5 fill-current" />} label="Auto plan" onClick={() => { setMenuOpen(false); autoGeneratePlan(); }} />
               {hasPlan && <SheetItem icon={<ShoppingCart className="w-5 h-5" />} label="Buy fuel" onClick={() => { setMenuOpen(false); setCartOpen(true); }} />}
               {hasPlan && <SheetItem icon={<Share2 className="w-5 h-5" />} label="Share" onClick={() => { setMenuOpen(false); setShareOpen(true); }} />}
               {hasPlan && <SheetItem icon={<Download className="w-5 h-5" />} label="Export" onClick={() => { setMenuOpen(false); setExportOpen(true); }} />}
@@ -212,6 +249,17 @@ export function ActionBar() {
           </div>
         </div>
       )}
+
+      {/* Manual fuel placement — pick a product, it drops into the largest open
+          stretch of the route; drag the marker or tap the route to fine-tune.
+          This is the "build it yourself, no auto-gen" path. */}
+      <ProductPickerModal
+        isOpen={manualKm !== null}
+        distanceKm={manualKm ?? 0}
+        elevation={null}
+        onClose={() => setManualKm(null)}
+        onSelectProduct={(product) => { if (manualKm !== null) addNutritionPoint(product, manualKm); }}
+      />
 
       <ExportModal
         isOpen={exportOpen}
