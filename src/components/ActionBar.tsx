@@ -5,6 +5,7 @@ import { ExportModal } from './export/ExportModal';
 import { FlyoverExportModal } from './export/FlyoverExportModal';
 import { ScorePopover } from './ScorePopover';
 import { CartModal } from './CartModal';
+import { InfoTip } from './ui/InfoTip';
 import { getActiveDurationHours } from '../services/route/timeFormat';
 
 export function ActionBar() {
@@ -39,12 +40,15 @@ export function ActionBar() {
         <div className="flex items-start gap-2 overflow-x-auto no-scrollbar">
           <div className="flex items-start gap-x-5 sm:gap-x-6 lg:gap-x-8 flex-shrink-0">
             {[
-              { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-text-primary', hint: 'Route distance · number of fuel points placed' },
-              { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : carbsPerHour > 90 ? 'text-terrain-rust' : 'text-warm', hint: 'Grams of carbohydrate per hour. Evidence target: 60–90 g/h for efforts over 2 hours.' },
-              { label: 'Total', value: totalCarbs + 'g', color: 'text-warm', hint: 'Total grams of carbs across all placements.' },
+              { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-text-primary', hint: 'Route distance · number of fuel points placed', tip: false },
+              { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : carbsPerHour > 90 ? 'text-terrain-rust' : 'text-warm', hint: 'How many grams of carbohydrate the plan gives you each hour. For efforts over two hours, 60–90 g/h is the sweet spot.', tip: true },
+              { label: 'Total', value: totalCarbs + 'g', color: 'text-warm', hint: 'Total grams of carbs across every fuel point in the plan.', tip: false },
             ].map((stat) => (
               <div key={stat.label} className="flex-shrink-0" title={stat.hint}>
-                <div className="text-[9px] text-text-muted uppercase tracking-wider font-display">{stat.label}</div>
+                <div className="text-[9px] text-text-muted uppercase tracking-wider font-display flex items-center gap-1">
+                  {stat.label}
+                  {stat.tip && <InfoTip label={stat.label} text={stat.hint} />}
+                </div>
                 <div className={`text-sm font-display font-bold tabular-nums ${stat.color}`}>{stat.value}</div>
               </div>
             ))}
@@ -154,7 +158,11 @@ export function ActionBar() {
         </div>
       </div>
 
-      <ExportModal isOpen={exportOpen} onClose={() => setExportOpen(false)} />
+      <ExportModal
+        isOpen={exportOpen}
+        onClose={() => setExportOpen(false)}
+        onBuyProducts={() => { setExportOpen(false); setCartOpen(true); }}
+      />
       <FlyoverExportModal isOpen={shareOpen} onClose={() => setShareOpen(false)} />
       <CartModal isOpen={cartOpen} onClose={() => setCartOpen(false)} />
     </>

@@ -16,12 +16,12 @@ export function EffortEditor({ value, onSave, onClose }: Props) {
   const label = effort <= 3 ? 'Easy' : effort <= 6 ? 'Moderate' : effort <= 8 ? 'Hard' : 'Max';
   const description =
     effort <= 3
-      ? 'Conversational pace. Glycogen handles most of it; fuel light.'
+      ? "Easy enough to chat the whole way. Your body has most of the fuel it needs, so you'll eat lightly."
       : effort <= 6
-      ? 'Steady training effort. Spec-tier fueling.'
+      ? 'A steady training pace you could hold for a long time. Standard fuelling.'
       : effort <= 8
-      ? 'Race pace. Higher carb target; caffeine on.'
-      : 'All-out. Upper gut-tolerance territory.';
+      ? 'Race pace — working hard. More carbs per hour, and caffeine comes in.'
+      : 'All-out. The most fuel your stomach can comfortably take.';
 
   return (
     <ChipEditor

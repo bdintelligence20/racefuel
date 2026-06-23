@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { Activity, Calendar, Mountain, ArrowRight, Loader2, X, RefreshCw, Search, ArrowUpDown, Route } from 'lucide-react';
+import { Activity, Calendar, Mountain, ArrowRight, Loader2, X, RefreshCw, Search, ArrowUpDown, Route, Upload, AlertCircle } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { StravaActivitySummary, StravaRouteSummary, ACTIVITY_TYPE_LABELS, formatDistance, formatDuration, formatDate } from '../../services/strava';
 
@@ -316,15 +316,14 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
                 <p className="text-text-secondary font-display text-sm">Loading saved routes...</p>
               </div>
             ) : filteredRoutes.length === 0 ? (
-              <div className="text-center py-12">
-                <Route className="w-12 h-12 text-text-muted mx-auto mb-4" />
-                <p className="text-text-secondary">
-                  {stravaRoutes.length === 0 ? 'No saved routes' : 'No matching routes'}
-                </p>
-                <p className="text-text-muted text-sm mt-1">
-                  {stravaRoutes.length === 0 ? 'Build a route on Strava and come back!' : 'Try adjusting your filters'}
-                </p>
-              </div>
+              <StravaEmptyState
+                kind="routes"
+                error={strava.error}
+                filtered={stravaRoutes.length > 0}
+                onRetry={fetchStravaRoutes}
+                onSwitchTab={() => setTab('activities')}
+                onUploadGpx={onClose}
+              />
             ) : (
               <div className="space-y-2">
                 {filteredRoutes.map((route) => {
@@ -383,15 +382,14 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
               <p className="text-text-secondary font-display text-sm">Loading activities...</p>
             </div>
           ) : filteredActivities.length === 0 ? (
-            <div className="text-center py-12">
-              <Activity className="w-12 h-12 text-text-muted mx-auto mb-4" />
-              <p className="text-text-secondary">
-                {stravaActivities.length === 0 ? 'No activities found' : 'No matching activities'}
-              </p>
-              <p className="text-text-muted text-sm mt-1">
-                {stravaActivities.length === 0 ? 'Record an activity and come back!' : 'Try adjusting your filters'}
-              </p>
-            </div>
+            <StravaEmptyState
+              kind="activities"
+              error={strava.error}
+              filtered={stravaActivities.length > 0}
+              onRetry={fetchStravaActivities}
+              onSwitchTab={() => setTab('routes')}
+              onUploadGpx={onClose}
+            />
           ) : (
             <div className="space-y-2">
               {filteredActivities.map((activity) => (
@@ -467,6 +465,93 @@ export function StravaActivityList({ onClose }: StravaActivityListProps) {
             )}
           </span>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Self-explaining empty state — the brief's "empty states must explain
+ * themselves, never show a blank list". Distinguishes three cases the old
+ * "No activities found" copy conflated:
+ *  - error: the fetch failed (expired token, API hiccup) — say so, offer retry.
+ *  - filtered: there ARE items, the filters hid them all.
+ *  - genuinely empty: explain what this tab is for, and point to the two other
+ *    ways in (the sibling tab, or a GPX upload — equals, not fallbacks).
+ */
+function StravaEmptyState({
+  kind,
+  error,
+  filtered,
+  onRetry,
+  onSwitchTab,
+  onUploadGpx,
+}: {
+  kind: 'activities' | 'routes';
+  error?: string | null;
+  filtered: boolean;
+  onRetry: () => void;
+  onSwitchTab: () => void;
+  onUploadGpx: () => void;
+}) {
+  const isActivities = kind === 'activities';
+  const Icon = isActivities ? Activity : Route;
+  const sibling = isActivities ? 'Saved Routes' : 'Activities';
+
+  const btn = 'inline-flex items-center justify-center gap-2 px-4 py-2 text-xs font-display font-bold uppercase tracking-wider transition-all';
+
+  if (error) {
+    return (
+      <div className="text-center py-12 px-4">
+        <AlertCircle className="w-12 h-12 text-warm mx-auto mb-4" />
+        <p className="text-text-primary font-bold">We couldn't load your Strava {kind}</p>
+        <p className="text-text-muted text-sm mt-1 max-w-sm mx-auto">{error}</p>
+        <p className="text-text-muted text-xs mt-2 max-w-sm mx-auto">
+          This is usually a Strava sign-in that's expired. Try again, or import a route another way.
+        </p>
+        <div className="flex items-center justify-center gap-2 mt-5 flex-wrap">
+          <button onClick={onRetry} className={`${btn} bg-[#FC4C02]/10 border border-[#FC4C02]/50 text-[#FC4C02] hover:bg-[#FC4C02] hover:text-white`}>
+            <RefreshCw className="w-3.5 h-3.5" /> Try again
+          </button>
+          <button onClick={onUploadGpx} className={`${btn} border border-[var(--color-border)] text-text-secondary hover:text-text-primary hover:border-accent/40`}>
+            <Upload className="w-3.5 h-3.5" /> Upload a GPX instead
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (filtered) {
+    return (
+      <div className="text-center py-12 px-4">
+        <Icon className="w-12 h-12 text-text-muted mx-auto mb-4" />
+        <p className="text-text-secondary">No matching {kind}</p>
+        <p className="text-text-muted text-sm mt-1">Try adjusting your filters above.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="text-center py-12 px-4">
+      <Icon className="w-12 h-12 text-text-muted mx-auto mb-4" />
+      <p className="text-text-primary font-bold">
+        {isActivities ? 'No activities here yet' : 'No saved routes here yet'}
+      </p>
+      <p className="text-text-muted text-sm mt-1 max-w-sm mx-auto">
+        {isActivities
+          ? 'This is where your recorded runs and rides show up. Planning a race you haven’t done yet? Check Saved Routes — or upload the course as a GPX file.'
+          : 'This is for routes you’ve built on Strava but not ridden. Looking for a run or ride you actually recorded? Check Activities — or upload a GPX file.'}
+      </p>
+      <div className="flex items-center justify-center gap-2 mt-5 flex-wrap">
+        <button onClick={onRetry} className={`${btn} border border-[var(--color-border)] text-text-secondary hover:text-text-primary hover:border-accent/40`}>
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh
+        </button>
+        <button onClick={onSwitchTab} className={`${btn} bg-[#FC4C02]/10 border border-[#FC4C02]/50 text-[#FC4C02] hover:bg-[#FC4C02] hover:text-white`}>
+          Check {sibling} <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+        <button onClick={onUploadGpx} className={`${btn} border border-[var(--color-border)] text-text-secondary hover:text-text-primary hover:border-accent/40`}>
+          <Upload className="w-3.5 h-3.5" /> Upload a GPX
+        </button>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useModalBehavior } from '../../hooks/useModalBehavior';
-import { X, FileText, Table, MapPin, Download, Image, Share2, Video } from 'lucide-react';
+import { X, FileText, Table, MapPin, Download, Image, Share2, Video, Watch, Check, ArrowRight, ShoppingCart, ChevronDown } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 import { useMap } from '../../context/MapContext';
 import { downloadGpx } from '../../services/export/gpxExporter';
@@ -15,6 +15,9 @@ import { toast } from 'sonner';
 interface ExportModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Wired by ActionBar to close this modal and open the cart — the brief's
+   *  "after export, the next obvious step is buy your products". */
+  onBuyProducts?: () => void;
 }
 
 interface ExportFormat {
@@ -26,15 +29,29 @@ interface ExportFormat {
   color: string;
 }
 
-export function ExportModal({ isOpen, onClose }: ExportModalProps) {
+export function ExportModal({ isOpen, onClose, onBuyProducts }: ExportModalProps) {
   const { routeData } = useApp();
   const map = useMap();
   const [shareOpen, setShareOpen] = useState(false);
   const [flyoverOpen, setFlyoverOpen] = useState(false);
+  const [sentToWatch, setSentToWatch] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   useModalBehavior(isOpen, onClose);
 
+  // Reset the success state each time the sheet reopens.
+  useEffect(() => {
+    if (isOpen) { setSentToWatch(false); setMoreOpen(false); }
+  }, [isOpen]);
 
   if (!isOpen) return null;
+
+  // One tap to the watch: a GPX course carrying the fuel points as waypoints is
+  // exactly what Garmin and Wahoo ingest as on-course cues. We frame it as
+  // "send to your watch" because that's what it is to the athlete, then confirm.
+  const sendToWatch = () => {
+    downloadGpx(routeData);
+    setSentToWatch(true);
+  };
 
   const formats: ExportFormat[] = [
     {
@@ -126,14 +143,14 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--color-border)] flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0 flex-1">
             <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-              <Download className="w-4 h-4 text-accent" />
+              <Watch className="w-4 h-4 text-accent" />
             </div>
             <div className="min-w-0 flex-1">
               <h2 className="text-base font-display font-bold text-text-primary leading-tight">
-                Export Plan
+                {sentToWatch ? 'Plan sent' : 'Export to watch'}
               </h2>
               <div className="text-xs text-text-muted font-display truncate">
-                {routeData.nutritionPoints.length} nutrition points
+                {routeData.nutritionPoints.length} fuel cues
               </div>
             </div>
           </div>
@@ -146,39 +163,96 @@ export function ExportModal({ isOpen, onClose }: ExportModalProps) {
           </button>
         </div>
 
-        {/* Route summary */}
-        <div className="px-4 py-3 bg-surfaceHighlight border-b border-[var(--color-border)] flex-shrink-0">
-          <div className="text-sm font-display font-bold text-text-primary truncate">{routeData.name || 'Untitled route'}</div>
-          <div className="text-xs text-text-muted font-display mt-0.5 tabular-nums">
-            {routeData.distanceKm.toFixed(1)}km · {routeData.elevationGain}m · {routeData.estimatedTime}
-          </div>
-        </div>
-
-        {/* Format options — scrollable on mobile */}
-        <div className="flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4 space-y-2 sm:space-y-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-          {formats.map((format) => {
-            const Icon = format.icon;
-            return (
+        <div className="flex-1 overflow-y-auto overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          {sentToWatch ? (
+            /* Success — clear confirmation, then point at the obvious next step. */
+            <div className="text-center py-4">
+              <div className="mx-auto w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-4">
+                <Check className="w-8 h-8 text-accent" />
+              </div>
+              <h3 className="text-lg font-display font-bold text-text-primary mb-1">Your plan is on the way to your watch</h3>
+              <p className="text-sm text-text-secondary max-w-xs mx-auto mb-2">
+                Open the file on your watch app to load the course — your watch will cue you at each fuel point.
+              </p>
+              <p className="text-[11px] text-text-muted max-w-xs mx-auto mb-6">
+                Garmin: Connect → Courses. Wahoo: Routes. Apple Watch: any GPX-compatible app.
+              </p>
+              {onBuyProducts && (
+                <button
+                  onClick={onBuyProducts}
+                  className="w-full py-4 bg-accent hover:bg-accent-light text-white font-display font-bold uppercase tracking-wider flex items-center justify-center gap-2 rounded-xl transition-colors"
+                >
+                  <ShoppingCart className="w-4 h-4" /> Get your nutrition <ArrowRight className="w-4 h-4" />
+                </button>
+              )}
               <button
-                key={format.id}
-                onClick={format.action}
-                className="w-full flex items-center gap-3 p-3 sm:p-4 bg-surfaceHighlight border border-[var(--color-border)] rounded-xl hover:border-accent/40 hover:bg-accent/[0.03] active:scale-[0.99] transition-all text-left"
+                onClick={onClose}
+                className="w-full py-3 mt-1 text-text-muted hover:text-text-primary font-display text-sm transition-colors"
               >
-                <div className={`w-10 h-10 rounded-lg bg-surface flex items-center justify-center flex-shrink-0 ${format.color}`}>
-                  <Icon className="w-5 h-5" />
+                Done
+              </button>
+            </div>
+          ) : (
+            <>
+              {/* Route summary */}
+              <div className="px-3 py-2.5 bg-surfaceHighlight border border-[var(--color-border)] rounded-xl mb-3">
+                <div className="text-sm font-display font-bold text-text-primary truncate">{routeData.name || 'Untitled route'}</div>
+                <div className="text-xs text-text-muted font-display mt-0.5 tabular-nums">
+                  {routeData.distanceKm.toFixed(1)}km · {routeData.elevationGain}m · {routeData.estimatedTime}
+                </div>
+              </div>
+
+              {/* Primary action — one tap to the watch. */}
+              <button
+                onClick={sendToWatch}
+                className="w-full flex items-center gap-3 p-4 bg-accent hover:bg-accent-light text-white rounded-xl active:scale-[0.99] transition-all text-left shadow-[0_0_20px_rgba(61,33,82,0.15)]"
+              >
+                <div className="w-11 h-11 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
+                  <Watch className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-display font-bold text-text-primary leading-tight">
-                    {format.name}
-                  </div>
-                  <div className="text-xs text-text-secondary mt-0.5 leading-snug line-clamp-2 sm:line-clamp-none">
-                    {format.description}
+                  <div className="text-base font-display font-bold leading-tight">Send to your watch</div>
+                  <div className="text-xs text-white/80 mt-0.5 leading-snug">
+                    One tap. Your watch cues you when to fuel. Works with Garmin, Wahoo, Apple Watch.
                   </div>
                 </div>
-                <Download className="w-4 h-4 text-text-muted flex-shrink-0" />
+                <ArrowRight className="w-5 h-5 flex-shrink-0" />
               </button>
-            );
-          })}
+
+              {/* Everything else, out of the way (secondary layer). */}
+              <button
+                onClick={() => setMoreOpen((v) => !v)}
+                className="w-full flex items-center justify-center gap-1.5 py-3 mt-3 text-text-muted hover:text-text-primary font-display text-xs uppercase tracking-wider transition-colors"
+              >
+                More formats (PDF, CSV, image, video)
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${moreOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {moreOpen && (
+                <div className="space-y-2">
+                  {formats.filter((f) => f.id !== 'gpx').map((format) => {
+                    const Icon = format.icon;
+                    return (
+                      <button
+                        key={format.id}
+                        onClick={format.action}
+                        className="w-full flex items-center gap-3 p-3 bg-surfaceHighlight border border-[var(--color-border)] rounded-xl hover:border-accent/40 hover:bg-accent/[0.03] active:scale-[0.99] transition-all text-left"
+                      >
+                        <div className={`w-10 h-10 rounded-lg bg-surface flex items-center justify-center flex-shrink-0 ${format.color}`}>
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-display font-bold text-text-primary leading-tight">{format.name}</div>
+                          <div className="text-xs text-text-secondary mt-0.5 leading-snug line-clamp-2">{format.description}</div>
+                        </div>
+                        <Download className="w-4 h-4 text-text-muted flex-shrink-0" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 

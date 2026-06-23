@@ -2,7 +2,8 @@ import { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { GpxDropZone } from './GpxDropZone';
 import { AutoGenerateButton } from './AutoGenerateButton';
 import { MapView } from './MapView';
-import { useMap } from '../context/MapContext';
+import { useMap, useRouteHover } from '../context/MapContext';
+import { ProductPickerModal } from './ProductPickerModal';
 import { Navigation, Trash2, ChevronUp, ChevronDown, Clock, Calendar, Gauge, Activity, X, Settings2, Ruler, Mountain } from 'lucide-react';
 import { EstimatedTimeEditor } from './EstimatedTimeEditor';
 import { EffortEditor } from './EffortEditor';
@@ -48,9 +49,18 @@ const chipValueClass =
 
 function ElevationProfile() {
   const { routeData, routeAnalysis, addNutritionPoint, moveNutritionPoint, removeNutritionPoint } = useApp();
+  const { setHoverKm } = useRouteHover();
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ x: number; km: number; elev: number } | null>(null);
   const [draggingPointId, setDraggingPointId] = useState<string | null>(null);
+  // Tap-to-add: clicking a spot on the profile opens the same product picker
+  // the map uses, at that km. This is the consistent click-and-select pattern
+  // the brief asked for, replacing the old "drop to add" hover hint that users
+  // had to discover. null = closed.
+  const [pickerKm, setPickerKm] = useState<number | null>(null);
+  // Suppress the click that fires immediately after a marker drag ends, so
+  // releasing a dragged point doesn't also open the picker.
+  const justDraggedRef = useRef(false);
 
   const { pathD, areaD, elevations, cumulativeKm, totalKm, minElev, maxElev } = useMemo(() => {
     const gpsPath = routeData.gpsPath;
@@ -195,6 +205,10 @@ function ElevationProfile() {
     // tracks the visible curve across non-uniformly sampled GPX.
     const elev = elevAtKm(km);
     setHover({ x: x * 1000, km, elev });
+    // Mirror the hovered position onto the map (Anina's "show me where 12km is
+    // on the route" link). Only while not dragging a point, to avoid the
+    // highlight fighting the drag.
+    if (!draggingPointId) setHoverKm(km);
 
     // Handle dragging a nutrition point
     if (draggingPointId) {
@@ -202,26 +216,38 @@ function ElevationProfile() {
       if (e.cancelable) e.preventDefault();
       moveNutritionPoint(draggingPointId, km);
     }
-  }, [elevations.length, routeData.distanceKm, draggingPointId, moveNutritionPoint, elevAtKm]);
+  }, [elevations.length, routeData.distanceKm, draggingPointId, moveNutritionPoint, elevAtKm, setHoverKm]);
 
   const handlePointerLeave = useCallback(() => {
     setHover(null);
-  }, []);
+    setHoverKm(null);
+  }, [setHoverKm]);
+
+  // A plain tap/click on the profile background opens the product picker at
+  // that km — same modal, same gesture as the map. Skipped right after a drag.
+  const handleElevationClick = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
+    if (justDraggedRef.current) { justDraggedRef.current = false; return; }
+    if (draggingPointId) return;
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    setPickerKm(x * routeData.distanceKm);
+  }, [draggingPointId, routeData.distanceKm]);
 
   // While a drag is active, listen on the window so the user can pan past
   // the chart edges without dropping the marker. Touch devices in particular
   // can wander out of the SVG mid-drag and we don't want that to abort.
   useEffect(() => {
     if (!draggingPointId) return;
-    const onUp = () => setDraggingPointId(null);
-    const onCancel = () => setDraggingPointId(null);
+    const onUp = () => { justDraggedRef.current = true; setDraggingPointId(null); setHoverKm(null); };
+    const onCancel = () => { justDraggedRef.current = true; setDraggingPointId(null); setHoverKm(null); };
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onCancel);
     return () => {
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onCancel);
     };
-  }, [draggingPointId]);
+  }, [draggingPointId, setHoverKm]);
 
   const handleElevationDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -268,9 +294,10 @@ function ElevationProfile() {
           ref={svgRef}
           viewBox="0 0 1000 150"
           preserveAspectRatio="none"
-          className={`w-full h-full ${draggingPointId ? 'cursor-grabbing' : 'cursor-crosshair'}`}
+          className={`w-full h-full ${draggingPointId ? 'cursor-grabbing' : 'cursor-pointer'}`}
           onPointerMove={handlePointerMove}
           onPointerLeave={handlePointerLeave}
+          onClick={handleElevationClick}
           style={{ touchAction: draggingPointId ? 'none' : undefined }}
         >
           <defs>
@@ -395,6 +422,17 @@ function ElevationProfile() {
           </div>
         </div>
       )}
+
+      {/* Tap-to-add picker — same modal the map opens, at the tapped km. */}
+      <ProductPickerModal
+        isOpen={pickerKm !== null}
+        distanceKm={pickerKm ?? 0}
+        elevation={pickerKm !== null ? elevAtKm(pickerKm) : null}
+        onClose={() => setPickerKm(null)}
+        onSelectProduct={(product) => {
+          if (pickerKm !== null) addNutritionPoint(product, pickerKm);
+        }}
+      />
     </div>
   );
 }
@@ -773,7 +811,7 @@ export function MapCanvas() {
           <>
             <ElevationProfile />
 
-            <div className="absolute bottom-2 left-6 right-6 flex justify-between text-[10px] font-display font-medium text-text-muted">
+            <div className="absolute bottom-2 left-6 right-6 flex justify-between text-[10px] font-display font-medium text-text-muted pointer-events-none">
               <span>0km</span>
               <span>{(routeData.distanceKm * 0.25).toFixed(0)}km</span>
               <span>{(routeData.distanceKm * 0.5).toFixed(0)}km</span>
@@ -781,9 +819,11 @@ export function MapCanvas() {
               <span>{routeData.distanceKm.toFixed(0)}km</span>
             </div>
 
-            <div className="absolute inset-0 bg-warm/5 border-2 border-dashed border-warm/20 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity flex items-center justify-center rounded-lg m-1">
-              <span className="text-warm font-display text-[10px] font-semibold bg-surface/90 px-2.5 py-1 rounded-md">
-                Drop to add
+            {/* Tap hint — replaces the old "Drop to add" hover overlay with a
+                plain, always-legible cue for the click-to-add gesture. */}
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+              <span className="text-warm font-display text-[10px] font-semibold bg-surface/90 px-2.5 py-1 rounded-md border border-warm/20 whitespace-nowrap">
+                Tap the profile to add fuel
               </span>
             </div>
           </>

@@ -173,8 +173,23 @@ function selectProduct(
   const fuelPool = rawPool.filter((p) => isFuelCandidate(p, allowDrinks));
   if (fuelPool.length === 0) return null;
 
-  const budgeted = fuelPool.filter((p) => p.carbs <= maxCarbsPerPoint);
-  const basePool = budgeted.length > 0 ? budgeted : fuelPool;
+  // Auto-gen builds a plan the athlete can actually buy, so by default it
+  // draws only from deliverable (Fuel Lab) products. The seed brands the brief
+  // added — Maurten, Tailwind, USN, Biogen — are plannable but bring-your-own;
+  // they enter the auto-plan only when the athlete explicitly asks for them
+  // (a preferred brand, or hand-picked preferred products). Otherwise they're
+  // reserved for manual swaps in Adjust, and the cart stays pre-fillable.
+  const usingExplicitPicks = !!(preferredProducts && preferredProducts.length > 0);
+  const brandPrefSet = preferredBrands && preferredBrands.length > 0
+    ? new Set(preferredBrands.map((b) => b.toLowerCase()))
+    : null;
+  const deliverableScoped = usingExplicitPicks
+    ? fuelPool
+    : fuelPool.filter((p) => p.deliverable !== false || (brandPrefSet?.has(p.brand.toLowerCase()) ?? false));
+  const effectivePool = deliverableScoped.length > 0 ? deliverableScoped : fuelPool;
+
+  const budgeted = effectivePool.filter((p) => p.carbs <= maxCarbsPerPoint);
+  const basePool = budgeted.length > 0 ? budgeted : effectivePool;
 
   // Brand preference is a HARD filter when the user has set one — picking
   // "Gu" should not leak Maurten gels into the plan. But fall back to the

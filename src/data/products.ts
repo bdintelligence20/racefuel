@@ -1,5 +1,19 @@
 import { useState, useEffect } from 'react';
 import { ProductProps, ProductCategory } from '../components/NutritionCard';
+import { SEED_BRAND_PRODUCTS } from './seedBrands';
+
+/**
+ * Single source of truth for "will this arrive at the athlete's door?".
+ * A product is deliverable when Fuel Lab stocks it (flag not false) AND we
+ * have a Shopify variant to actually buy. Everything else — seed brands,
+ * custom products, the rare feed SKU with no variant — is "bring your own":
+ * plannable and exportable to the watch, but the athlete sources it. Use this
+ * everywhere instead of reading `.deliverable` directly so the cart and the
+ * badges never disagree.
+ */
+export function isDeliverable(p: Pick<ProductProps, 'deliverable' | 'variantId'>): boolean {
+  return p.deliverable !== false && p.variantId != null;
+}
 
 const FEED_URL = '/products-feed.xml';
 
@@ -187,6 +201,10 @@ function parseProductsFromXml(xml: string): ProductProps[] {
       category,
       servingsPerPack,
       variantId,
+      // Feed products are Fuel Lab SKUs → deliverable by default. The parser
+      // honours an explicit <deliverable>false</deliverable> if the feed ever
+      // carries one (e.g. a temporarily out-of-stock line) without a code change.
+      deliverable: text('deliverable') !== 'false',
     });
   });
 
@@ -196,7 +214,7 @@ function parseProductsFromXml(xml: string): ProductProps[] {
 // Shared state + listeners for React reactivity
 let _products: ProductProps[] = [];
 let _customProducts: ProductProps[] = readCustomProductsFromStorage();
-let _combined: ProductProps[] = _customProducts.slice();
+let _combined: ProductProps[] = [...SEED_BRAND_PRODUCTS, ..._customProducts];
 const _listeners: Set<() => void> = new Set();
 let _loaded = false;
 
@@ -213,7 +231,18 @@ function readCustomProductsFromStorage(): ProductProps[] {
 }
 
 function recomputeCombined() {
-  _combined = [..._products, ..._customProducts];
+  // Order: live Fuel Lab feed (deliverable) first, then the seed brands the
+  // athlete can plan around but we don't stock, then the athlete's own custom
+  // additions. Pickers render in this order, so deliverable products lead.
+  //
+  // Brand-dedup: if the live feed already carries a seed brand (e.g. Fuel Lab
+  // starts stocking Cadence or Maurten on Shopify), drop the placeholder seed
+  // so the real, buyable SKUs win — no duplicate cards, no rework. This is the
+  // brief's "a product flips to deliverable the day Fuel Lab stocks it" made
+  // automatic at the data layer.
+  const feedBrands = new Set(_products.map((p) => p.brand.toLowerCase()));
+  const seeds = SEED_BRAND_PRODUCTS.filter((s) => !feedBrands.has(s.brand.toLowerCase()));
+  _combined = [..._products, ...seeds, ..._customProducts];
 }
 
 function notify() {

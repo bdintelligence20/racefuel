@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Activity, User, Wind, Zap, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings, ShieldCheck } from 'lucide-react';
+import { Activity, User, Wind, Zap, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings, ShieldCheck, Users } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { useCoachStore } from '../services/coach/coachStore';
 import { useAuth } from '../context/AuthContext';
 import { useAdminGate } from '../hooks/useAdminGate';
 import { EditableStatRow } from './EditableStatRow';
@@ -308,6 +309,9 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] border-t border-[var(--color-border)] space-y-2">
+        {/* Athlete ⇄ Coach mode switch — both journeys live in one account. */}
+        <ModeSwitch />
+
         {/* User info */}
         {user && (
           <div className="flex items-center gap-2">
@@ -360,5 +364,24 @@ export function Sidebar() {
         onClose={() => setEventSearchOpen(false)}
       />
     </aside>
+  );
+}
+
+/** Athlete ⇄ Coach switch. One account, two journeys — toggling flips the
+ *  whole app surface between the planning flow and the coach roster. */
+function ModeSwitch() {
+  const { mode, setUserMode, setActiveAthlete } = useCoachStore();
+  const toCoach = mode !== 'coach';
+  return (
+    <button
+      onClick={() => {
+        if (toCoach) setUserMode('coach');
+        else { setActiveAthlete(null); setUserMode('athlete'); }
+      }}
+      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-accent/[0.06] border border-accent/20 text-accent hover:bg-accent/[0.1] transition-colors text-[11px] font-display font-bold uppercase tracking-wider"
+    >
+      <Users className="w-3.5 h-3.5" />
+      {toCoach ? 'Switch to coach mode' : 'Back to my own planning'}
+    </button>
   );
 }

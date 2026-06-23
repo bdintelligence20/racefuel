@@ -162,7 +162,7 @@ export function NutritionPanel() {
           </span>
           <span className="text-lg font-display font-bold text-text-primary">
             {carbsPerHour}g{' '}
-            <span className="text-xs text-text-muted">CHO/hr</span>
+            <span className="text-xs text-text-muted">carbs/hr</span>
           </span>
         </div>
         <div className="w-full h-2 bg-surfaceHighlight rounded-full overflow-hidden relative border border-[var(--color-border)]">

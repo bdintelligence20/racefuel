@@ -9,6 +9,10 @@ import { Sidebar } from './components/Sidebar';
 import { NutritionPanel } from './components/NutritionPanel';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ActionBar } from './components/ActionBar';
+import { FlowStepIndicator } from './components/FlowStepIndicator';
+import { CoachDashboard } from './components/coach/CoachDashboard';
+import { CoachPlanningBanner } from './components/coach/CoachPlanningBanner';
+import { useCoachStore } from './services/coach/coachStore';
 import { LandingPage } from './components/LandingPage';
 import { AutoGenProgress } from './components/AutoGenProgress';
 import { PlanStrategyModal } from './components/PlanStrategyModal';
@@ -70,7 +74,34 @@ function MobileNav({
 
 function AppContent() {
   const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan } = useApp();
+  const { mode } = useCoachStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Coach mode swaps the whole surface for the athlete roster — the parallel
+  // primary journey. The athlete planning flow is untouched underneath; the
+  // coach drops back into it (with a "planning for X" banner) to build a plan.
+  if (mode === 'coach') {
+    return (
+      <div className="w-full bg-background overflow-hidden font-sans" style={{ height: 'calc(100dvh - var(--banner-h, 0px))' }}>
+        <CoachDashboard />
+        <Toaster
+          position="bottom-center"
+          toastOptions={{
+            style: {
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text-primary)',
+              fontFamily: '"Montserrat", sans-serif',
+              fontSize: '13px',
+              borderRadius: '12px',
+              boxShadow: '0 4px 20px rgba(61, 33, 82, 0.08)',
+            },
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex w-full bg-background overflow-hidden font-sans" style={{ height: 'calc(100dvh - var(--banner-h, 0px))' }}>
       <MobileNav
@@ -111,6 +142,16 @@ function AppContent() {
           (fuel strip), product details (tap markers / strip cards), and
           kit access (View Kit in ActionBar). */}
       <div className="flex-1 min-w-0 flex flex-col relative overflow-x-hidden pt-mobile-nav lg:pt-0 pb-mobile-action-bar lg:pb-0">
+        {/* Coach context banner — only when a coach is building for an athlete. */}
+        <div className="flex-shrink-0">
+          <CoachPlanningBanner />
+        </div>
+        {/* Mobile primary-flow step indicator — persistent "where am I / what's
+            next" cue. Mobile only (lg:hidden); desktop has the full sidebar +
+            action bar for orientation. */}
+        <div className="lg:hidden flex-shrink-0">
+          <FlowStepIndicator />
+        </div>
         <ErrorBoundary>
           <Suspense fallback={<MapLoadingFallback />}>
             <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">

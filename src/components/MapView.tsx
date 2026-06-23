@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { useApp } from '../context/AppContext';
-import { useMapRegistration } from '../context/MapContext';
+import { useMapRegistration, useRouteHover } from '../context/MapContext';
 import { ProductProps } from './NutritionCard';
 import { ProductPickerModal } from './ProductPickerModal';
 import { RouteDrawingToolbar } from './RouteDrawingToolbar';
@@ -39,7 +39,9 @@ export type RouteColorMode = 'distance' | 'elevation';
 export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingApi; colorMode?: RouteColorMode }) {
   const { routeData, addNutritionPoint, removeNutritionPoint, moveNutritionPoint, loadSavedRoute } = useApp();
   const registerMap = useMapRegistration();
+  const { hoverKm } = useRouteHover();
   const startMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const hoverMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markersRef = useRef<mapboxgl.Marker[]>([]);
@@ -60,6 +62,27 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
     }
     return null;
   }, [routeData.gpsPath]);
+
+  // Elevation→map link: when the user points at a km on the elevation profile,
+  // drop a pulsing dot at the matching spot on the route. This is the other
+  // half of "two views of the same data should always be connected".
+  useEffect(() => {
+    if (!map.current || !mapReady || !gpsPath || gpsPath.length === 0 || hoverKm == null) {
+      hoverMarkerRef.current?.remove();
+      hoverMarkerRef.current = null;
+      return;
+    }
+    const cumulative = cumulativeDistancesKm(gpsPath);
+    const pos = gpsPositionAtKm(gpsPath, cumulative, hoverKm);
+    if (!hoverMarkerRef.current) {
+      const el = document.createElement('div');
+      el.style.cssText =
+        'width:16px;height:16px;border-radius:50%;background:#F5A020;border:3px solid #fff;box-shadow:0 0 0 2px rgba(245,160,32,0.5),0 1px 4px rgba(0,0,0,0.3);pointer-events:none;';
+      hoverMarkerRef.current = new mapboxgl.Marker({ element: el }).setLngLat([pos.lng, pos.lat]).addTo(map.current);
+    } else {
+      hoverMarkerRef.current.setLngLat([pos.lng, pos.lat]);
+    }
+  }, [hoverKm, mapReady, gpsPath]);
 
   // Initialize map
   useEffect(() => {

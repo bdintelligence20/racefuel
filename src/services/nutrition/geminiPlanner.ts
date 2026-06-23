@@ -469,8 +469,25 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
     : products;
   // Include drinks only if the athlete explicitly opted in via category prefs.
   const optedIntoDrinks = !!input.preferredCategories?.includes('drink');
-  const candidates = toFuelCandidates(sourceCatalog, optedIntoDrinks);
-  if (candidates.length === 0) return null;
+  const allCandidates = toFuelCandidates(sourceCatalog, optedIntoDrinks);
+  if (allCandidates.length === 0) return null;
+  // Default the auto-plan to deliverable (Fuel Lab) products so the cart can
+  // pre-fill. The seed bring-your-own brands (Maurten, USN…) only reach the
+  // agent when the athlete hand-picked products or named the brand as a
+  // preference — handled by the brand filter just below; here we just scope the
+  // baseline pool unless explicit picks are in play.
+  const usingExplicitPicks = !!input.preferredProductIds;
+  const preferredBrandLower = profile.preferredBrands && profile.preferredBrands.length > 0
+    ? new Set(profile.preferredBrands.map((b) => b.toLowerCase()))
+    : null;
+  const candidates = usingExplicitPicks
+    ? allCandidates
+    : (() => {
+        const scoped = allCandidates.filter(
+          (p) => p.deliverable !== false || (preferredBrandLower?.has(p.brand.toLowerCase()) ?? false),
+        );
+        return scoped.length > 0 ? scoped : allCandidates;
+      })();
 
   // Brand preference is a HARD filter. If the user picks "Gu", the agent
   // should not see Maurten in its catalog — the soft bias kept leaking

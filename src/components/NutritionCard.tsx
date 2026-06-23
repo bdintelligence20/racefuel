@@ -23,6 +23,15 @@ export interface ProductProps {
   /** Shopify variant ID of the first variant — used to build createCheckout
    *  lineItems when the athlete buys this product through the cart. */
   variantId?: number;
+  /** Whether Fuel Lab stocks this product and can ship it to the athlete's
+   *  door as part of the plan. Products the athlete uses but we don't sell
+   *  (Maurten, Tailwind, USN, Biogen …) are `false` — fully plannable, and
+   *  they still export to the watch as cues, but at checkout they're listed as
+   *  "you're supplying these yourself" rather than going in the cart. Absent
+   *  is treated as deliverable (every feed product is a Fuel Lab SKU). This is
+   *  a per-product flag, not a hardcoded brand assumption: a product flips to
+   *  deliverable the day Fuel Lab starts stocking it, with no rework. */
+  deliverable?: boolean;
 }
 export function NutritionCard({
   name,

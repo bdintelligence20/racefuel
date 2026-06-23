@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
-import { Loader2, ShoppingBag, X, AlertCircle, ArrowRight, Tag } from 'lucide-react';
+import { Loader2, ShoppingBag, X, AlertCircle, ArrowRight, Tag, Home } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../data/products';
@@ -135,23 +135,30 @@ export function CheckoutModal({ isOpen, onClose, appliedCoupon = null }: Checkou
   const effectiveShipping = freeShipping ? 0 : baseShipping.amountZAR;
   const total = Math.max(0, subtotal - couponOff + effectiveShipping);
 
-  // Items that couldn't be matched to a variantId — surface clearly so the
-  // athlete knows what's about to be left out instead of a silent failure.
-  const unmatched = useMemo(() => {
-    const unmatchedItems: Array<{ name: string; quantity: number }> = [];
+  // Two reasons a plan product isn't in the cart, kept distinct so we don't
+  // alarm the athlete about the normal case:
+  //  - bringYourOwn: a real product Fuel Lab doesn't stock (deliverable:false).
+  //    Expected — listed calmly as "you're supplying these yourself".
+  //  - unmatched: a deliverable product we somehow can't map to a variant.
+  //    A genuine data gap — surfaced as a "heads up" so it's not silent.
+  const { bringYourOwn, unmatched } = useMemo(() => {
+    const bring: Array<{ name: string; quantity: number }> = [];
+    const missing: Array<{ name: string; quantity: number }> = [];
     const productById = new Map(products.map((p) => [p.id, p]));
     const seen = new Set<string>();
     const collect = (productId: string, qty: number) => {
       const p = productById.get(productId);
       if (!p) return;
-      if (p.variantId) return;
+      if (p.variantId && p.deliverable !== false) return; // in the cart
       if (seen.has(p.id)) return;
       seen.add(p.id);
-      unmatchedItems.push({ name: `${p.brand} ${p.name}`.trim(), quantity: qty });
+      const entry = { name: `${p.brand} ${p.name}`.trim(), quantity: qty };
+      if (p.deliverable === false) bring.push(entry);
+      else missing.push(entry);
     };
     for (const point of routeData.nutritionPoints) collect(point.product.id, 1);
     for (const e of cartExtras) collect(e.productId, e.quantity);
-    return unmatchedItems;
+    return { bringYourOwn: bring, unmatched: missing };
   }, [routeData.nutritionPoints, cartExtras, products]);
 
   if (!isOpen) return null;
@@ -255,6 +262,23 @@ export function CheckoutModal({ isOpen, onClose, appliedCoupon = null }: Checkou
 
         {/* Body */}
         <form onSubmit={onSubmit} className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-3">
+          {bringYourOwn.length > 0 && (
+            <div className="text-[11px] text-text-secondary bg-surfaceHighlight border border-[var(--color-border)] rounded-lg p-2.5">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Home className="w-3 h-3 text-text-muted" />
+                <span className="font-display font-bold uppercase tracking-wider text-[10px] text-text-muted">You're supplying these yourself</span>
+              </div>
+              <div className="text-text-muted">
+                In your plan and on your watch, but Fuel Lab doesn't stock {bringYourOwn.length === 1 ? 'it' : 'them'} — bring your own:
+              </div>
+              <ul className="list-disc list-inside mt-1">
+                {bringYourOwn.map((u) => (
+                  <li key={u.name}>{u.name}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {unmatched.length > 0 && (
             <div className="text-[11px] text-warm bg-warm/[0.08] border border-warm/30 rounded-lg p-2.5">
               <div className="font-display font-bold uppercase tracking-wider text-[10px] mb-1">Heads up</div>

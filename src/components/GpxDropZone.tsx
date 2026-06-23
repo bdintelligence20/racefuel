@@ -5,7 +5,7 @@ import { StravaActivityList } from './strava/StravaActivityList';
 import { toast } from 'sonner';
 
 export function GpxDropZone({ onDrawRoute }: { onDrawRoute?: () => void }) {
-  const { loadRoute, strava } = useApp();
+  const { loadRoute, strava, connectStrava } = useApp();
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showStravaModal, setShowStravaModal] = useState(false);
@@ -127,17 +127,19 @@ export function GpxDropZone({ onDrawRoute }: { onDrawRoute?: () => void }) {
                   <div className="flex-1 h-px bg-[var(--color-border)]" />
                 </div>
 
-                {/* Action buttons */}
+                {/* Action buttons. Strava sits beside GPX upload and manual
+                    entry as an equal, not a fallback — and is offered even when
+                    not yet connected (tapping it starts the connect flow), so a
+                    brand-new user isn't stuck if Strava is how they think. */}
                 <div className="flex flex-col gap-2 w-full">
-                  {strava.isConnected && (
-                    <button
-                      onClick={() => setShowStravaModal(true)}
-                      className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-[#FC4C02] text-white font-display font-semibold text-sm active:scale-[0.98] transition-all"
-                    >
-                      <Activity className="w-4 h-4" />
-                      Import from Strava
-                    </button>
-                  )}
+                  <button
+                    onClick={() => (strava.isConnected ? setShowStravaModal(true) : connectStrava())}
+                    disabled={strava.isLoading}
+                    className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-[#FC4C02] text-white font-display font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-60"
+                  >
+                    <Activity className="w-4 h-4" />
+                    {strava.isLoading ? 'Connecting…' : strava.isConnected ? 'Import from Strava' : 'Connect Strava'}
+                  </button>
 
                   <div className="flex gap-2">
                     <button

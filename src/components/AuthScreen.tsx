@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { ArrowRight, Mail, Lock, User } from 'lucide-react';
+import { ArrowRight, Mail, Lock, User, Users } from 'lucide-react';
+import { setUserMode, type UserMode } from '../services/coach/coachStore';
 
 export function AuthScreen() {
   const { signInGoogle, signInEmail, signUpEmail, resetPassword, error, clearError, loading } = useAuth();
@@ -8,6 +9,9 @@ export function AuthScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  // Brief Step 0: on sign-up, one question — plan for yourself, or coach
+  // others? Sets athlete vs coach mode. Default athlete.
+  const [role, setRole] = useState<UserMode>('athlete');
   const [submitting, setSubmitting] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
@@ -17,6 +21,7 @@ export function AuthScreen() {
     try {
       if (mode === 'signup') {
         await signUpEmail(email, password, name);
+        setUserMode(role);
       } else if (mode === 'reset') {
         await resetPassword(email);
         setResetSent(true);
@@ -40,6 +45,8 @@ export function AuthScreen() {
     setSubmitting(true);
     try {
       await signInGoogle();
+      // Honour the picked role when the user is signing up via Google too.
+      if (mode === 'signup') setUserMode(role);
     } finally {
       setSubmitting(false);
     }
@@ -101,6 +108,38 @@ export function AuthScreen() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-3">
+            {mode === 'signup' && (
+              <div>
+                <p className="text-xs font-display font-bold text-text-secondary uppercase tracking-wider mb-2">
+                  What brings you here?
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { value: 'athlete', label: 'Plan for myself', icon: User },
+                    { value: 'coach', label: 'Coach others', icon: Users },
+                  ] as const).map((opt) => {
+                    const Icon = opt.icon;
+                    const active = role === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setRole(opt.value)}
+                        className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border text-center transition-all ${
+                          active
+                            ? 'border-accent bg-accent/[0.06] text-text-primary'
+                            : 'border-[var(--color-border)] bg-surfaceHighlight text-text-secondary hover:border-accent/40'
+                        }`}
+                      >
+                        <Icon className={`w-5 h-5 ${active ? 'text-accent' : 'text-text-muted'}`} />
+                        <span className="text-xs font-display font-semibold">{opt.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-text-muted mt-1.5">You can add the other later in settings.</p>
+              </div>
+            )}
             {mode === 'signup' && (
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />

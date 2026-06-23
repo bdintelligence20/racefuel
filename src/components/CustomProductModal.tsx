@@ -73,6 +73,7 @@ export async function hydrateCustomProductsFromCloud(): Promise<ProductProps[] |
       color: (p.color as ProductProps['color']) ?? 'white',
       image: p.image ?? '',
       servingsPerPack: p.servingsPerPack,
+      deliverable: false,
     }));
     persistCustomProducts(mapped);
     return mapped;
@@ -140,6 +141,9 @@ export function CustomProductModal({ isOpen, onClose, onAdd }: CustomProductModa
       priceZAR: parseFloat(price) || 0,
       category,
       color,
+      // A product the athlete adds by hand isn't in Fuel Lab's catalogue, so
+      // it's bring-your-own: plannable and exportable, never in the cart.
+      deliverable: false,
       image: `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%23333" width="100" height="100" rx="10"/><text x="50" y="45" text-anchor="middle" fill="white" font-size="10" font-weight="bold">${encodeURIComponent(brand.trim().substring(0, 6).toUpperCase())}</text><text x="50" y="65" text-anchor="middle" fill="%23999" font-size="8">${encodeURIComponent(name.trim().substring(0, 8))}</text></svg>`,
     };
 

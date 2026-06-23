@@ -4,7 +4,8 @@ import { Search, X } from 'lucide-react';
 import { type ProductCategory, type ProductProps } from './NutritionCard';
 import { useApp } from '../context/AppContext';
 import { useMap } from '../context/MapContext';
-import { useProducts } from '../data/products';
+import { useProducts, isDeliverable } from '../data/products';
+import { DeliveryBadge } from './DeliveryBadge';
 import { ProductDetailModal } from './ProductDetailModal';
 import useEmblaCarousel from 'embla-carousel-react';
 
@@ -324,7 +325,12 @@ export function MobileNutritionStrip() {
                       className="absolute top-0 left-0 right-0 h-1"
                       style={{ background: p.color }}
                     />
-                    <div className="text-[8.5px] font-display font-bold uppercase tracking-wider truncate w-full text-text-muted">
+                    {/* Delivery indicator — top-right dot so the athlete sees
+                        at a glance whether a card ships or is bring-your-own. */}
+                    <span className="absolute top-1.5 right-1.5">
+                      <DeliveryBadge deliverable={isDeliverable(p)} variant="dot" />
+                    </span>
+                    <div className="text-[8.5px] font-display font-bold uppercase tracking-wider truncate w-[calc(100%-14px)] text-text-muted">
                       {p.brand}
                     </div>
                     <div className="text-[11.5px] font-display font-semibold text-text-primary leading-tight mt-0.5 truncate w-full">
@@ -335,7 +341,7 @@ export function MobileNutritionStrip() {
                       <span className="text-[9px] text-text-muted font-display uppercase tracking-wider">g carbs</span>
                     </div>
                     <div className="text-[9px] text-text-muted font-display tabular-nums">
-                      {p.calories} kcal · R{p.priceZAR.toFixed(0)}
+                      {isDeliverable(p) ? `${p.calories} kcal · R${p.priceZAR.toFixed(0)}` : `${p.calories} kcal · bring your own`}
                     </div>
                   </div>
                 );

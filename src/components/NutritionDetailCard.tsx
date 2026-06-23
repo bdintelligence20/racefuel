@@ -1,5 +1,7 @@
 import { Trash2, X } from 'lucide-react';
 import { ProductProps } from './NutritionCard';
+import { DeliveryBadge } from './DeliveryBadge';
+import { isDeliverable } from '../data/products';
 
 interface NutritionDetailCardProps {
   product: ProductProps;
@@ -48,10 +50,13 @@ export function NutritionDetailCard({
         <div className="text-sm font-display font-bold text-text-primary mb-1.5 leading-tight">
           {product.name}
         </div>
+        <div className="mb-2">
+          <DeliveryBadge deliverable={isDeliverable(product)} />
+        </div>
         <div className="flex flex-wrap gap-x-2 gap-y-1 text-[11px] font-display mb-2">
           <span className="text-accent font-semibold">{product.carbs}g CHO</span>
           <span className="text-text-secondary">@ {distanceKm.toFixed(1)}km</span>
-          {product.priceZAR ? (
+          {isDeliverable(product) && product.priceZAR ? (
             <span className="text-warm">R{product.priceZAR.toFixed(2)}</span>
           ) : null}
         </div>

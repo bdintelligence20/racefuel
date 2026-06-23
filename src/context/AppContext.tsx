@@ -632,6 +632,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!strava.isConnected) return;
 
     setStravaActivitiesLoading(true);
+    setStrava((prev) => ({ ...prev, error: null }));
     try {
       const activities = await getActivities(1, 30);
       setStravaActivities(activities);
@@ -671,6 +672,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const fetchStravaRoutes = useCallback(async () => {
     if (!strava.isConnected) return;
     setStravaRoutesLoading(true);
+    setStrava((prev) => ({ ...prev, error: null }));
     try {
       const routes = await getStravaRoutes(1, 30);
       setStravaRoutes(routes);

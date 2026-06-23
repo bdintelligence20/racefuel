@@ -1,9 +1,12 @@
 import { useState, useMemo } from 'react';
+import { toast } from 'sonner';
 import { useModalBehavior } from '../hooks/useModalBehavior';
 import { createPortal } from 'react-dom';
-import { X, Search, MapPin, Zap } from 'lucide-react';
+import { X, Search, MapPin, Zap, Plus } from 'lucide-react';
 import { ProductProps, ProductCategory } from './NutritionCard';
-import { useProducts, searchProducts } from '../data/products';
+import { useProducts, searchProducts, isDeliverable } from '../data/products';
+import { DeliveryBadge } from './DeliveryBadge';
+import { submitSiteFeedback } from '../services/firebase/siteFeedback';
 
 interface ProductPickerModalProps {
   isOpen: boolean;
@@ -24,7 +27,20 @@ export function ProductPickerModal({
 }: ProductPickerModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
+  const [requested, setRequested] = useState<string | null>(null);
   const products = useProducts();
+
+  // Turn a search dead-end into a "what should we stock next" signal. Logged to
+  // the same siteFeedback collection admin already reads, tagged so it filters.
+  const requestProduct = (q: string) => {
+    const term = q.trim();
+    if (!term) return;
+    setRequested(term);
+    submitSiteFeedback({ message: `[product request] ${term}` }).catch(() => {
+      /* best-effort: the thank-you stands even if the write fails */
+    });
+    toast.success(`Thanks — we'll look at adding "${term}".`);
+  };
 
   const filteredProducts = useMemo(() => {
     let result = searchQuery ? searchProducts(searchQuery) : products;
@@ -127,8 +143,8 @@ export function ProductPickerModal({
         {/* Product list — SINGLE column on mobile (not grid-cols-2) */}
         <div className="flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
           {filteredProducts.length === 0 ? (
-            <div className="text-center py-12 text-text-muted text-sm font-display">
-              No products match your search
+            <div className="text-center py-10 px-4 text-text-muted text-sm font-display">
+              <p>No products match "{searchQuery}".</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -155,8 +171,11 @@ export function ProductPickerModal({
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="text-[10px] font-display text-text-muted uppercase tracking-wider truncate">
-                      {product.brand}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="text-[10px] font-display text-text-muted uppercase tracking-wider truncate">
+                        {product.brand}
+                      </span>
+                      <DeliveryBadge deliverable={isDeliverable(product)} className="flex-shrink-0" />
                     </div>
                     <div className="text-sm font-display font-bold text-text-primary truncate leading-tight">
                       {product.name}
@@ -166,14 +185,38 @@ export function ProductPickerModal({
                         <Zap className="w-3 h-3" />
                         {product.carbs}g
                       </span>
-                      <span className="text-[11px] font-display text-text-muted">·</span>
-                      <span className="text-[11px] font-display text-text-muted tabular-nums">
-                        R{product.priceZAR}
-                      </span>
+                      {isDeliverable(product) && (
+                        <>
+                          <span className="text-[11px] font-display text-text-muted">·</span>
+                          <span className="text-[11px] font-display text-text-muted tabular-nums">
+                            R{product.priceZAR}
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </button>
               ))}
+            </div>
+          )}
+
+          {/* Dead-end → data signal. The brief: don't leave a beginner staring
+              at an empty result — let them tell us what to stock next. */}
+          {searchQuery.trim() && (
+            <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
+              {requested === searchQuery.trim() ? (
+                <p className="text-center text-xs font-display text-text-muted py-2">
+                  Thanks — we'll look at adding "{requested}".
+                </p>
+              ) : (
+                <button
+                  onClick={() => requestProduct(searchQuery)}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-[var(--color-border)] text-text-secondary hover:text-text-primary hover:border-accent/40 hover:bg-accent/[0.03] transition-all text-sm font-display"
+                >
+                  <Plus className="w-4 h-4" />
+                  Can't find it? Tell us and we'll look at adding it
+                </button>
+              )}
             </div>
           )}
         </div>

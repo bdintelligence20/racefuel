@@ -5,7 +5,8 @@ import { useApp, NutritionPoint } from '../context/AppContext';
 import { ProductProps } from './NutritionCard';
 import { calculatePlanCost } from '../services/nutrition/costCalculator';
 import { calculateShipping } from '../services/shipping/shippingRate';
-import { useProducts } from '../data/products';
+import { useProducts, isDeliverable } from '../data/products';
+import { DeliveryBadge } from './DeliveryBadge';
 import { CheckoutModal } from './CheckoutModal';
 import { validateCoupon, type ValidateCouponResult } from '../services/firebase/admin';
 
@@ -65,10 +66,23 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
     return Array.from(grouped.values());
   }, [routeData.nutritionPoints]);
 
+  // The plan is one thing; the purchase is another. Deliverable items go in the
+  // cart and the totals; "bring your own" (Maurten, USN, custom adds…) stay in
+  // the plan and on the watch but are listed separately as the athlete's to
+  // supply. Splitting here keeps cost/shipping/checkout honest — you only pay
+  // for what Fuel Lab actually ships.
+  const deliverableItems = useMemo(() => cartItems.filter((i) => isDeliverable(i.product)), [cartItems]);
+  const bringYourOwnItems = useMemo(() => cartItems.filter((i) => !isDeliverable(i.product)), [cartItems]);
+  const deliverablePoints = useMemo(
+    () => routeData.nutritionPoints.filter((p) => isDeliverable(p.product)),
+    [routeData.nutritionPoints]
+  );
+
   // Two totals: runCost = per-serving equivalent of what gets consumed on the
   // run, totalCost = full-pack price (what the athlete actually pays at
   // checkout). The difference is the tub-pricing inflation feedback flagged.
-  const cost = useMemo(() => calculatePlanCost(routeData.nutritionPoints), [routeData.nutritionPoints]);
+  // Both are deliverable-only — bring-your-own never adds to what you pay.
+  const cost = useMemo(() => calculatePlanCost(deliverablePoints), [deliverablePoints]);
   const runCost = cost.runCostZAR;
   // Backups are extras the athlete adds at checkout — not on the route, not
   // in the planning algorithm. Cost adds onto the buy total only.
@@ -111,10 +125,11 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
       ? products.filter((p) => p.name.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q))
       : products;
     // Keep only items not already in the route OR extras, capped to 8 to
-    // keep the dropdown light.
+    // keep the dropdown light. Backups are things you *buy*, so only offer
+    // deliverable products here — bring-your-own can't be added to the cart.
     const onRoute = new Set(routeData.nutritionPoints.map((n) => n.product.id));
     const inExtras = new Set(cartExtras.map((e) => e.productId));
-    return filtered.filter((p) => !onRoute.has(p.id) && !inExtras.has(p.id)).slice(0, 8);
+    return filtered.filter((p) => isDeliverable(p) && !onRoute.has(p.id) && !inExtras.has(p.id)).slice(0, 8);
   }, [extrasQuery, products, routeData.nutritionPoints, cartExtras]);
 
   // Drink mixes are excluded from auto-gen because per-pack pricing
@@ -124,7 +139,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
     const onRoute = new Set(routeData.nutritionPoints.map((n) => n.product.id));
     const inExtras = new Set(cartExtras.map((e) => e.productId));
     return products
-      .filter((p) => p.category === 'drink' && p.carbs > 0)
+      .filter((p) => p.category === 'drink' && p.carbs > 0 && isDeliverable(p))
       .filter((p) => !onRoute.has(p.id) && !inExtras.has(p.id))
       .sort((a, b) => (b.sodium ?? 0) - (a.sodium ?? 0))
       .slice(0, 3);
@@ -211,7 +226,7 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              {cartItems.map((item) => (
+              {deliverableItems.map((item) => (
                 <div
                   key={item.product.id}
                   className="flex gap-3 p-3 bg-surfaceHighlight border border-[var(--color-border)] rounded-lg"
@@ -227,8 +242,11 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
 
                   {/* Product Info */}
                   <div className="flex-1 min-w-0">
-                    <div className="text-[10px] text-text-muted uppercase">
-                      {item.product.brand}
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-text-muted uppercase">
+                        {item.product.brand}
+                      </span>
+                      <DeliveryBadge deliverable />
                     </div>
                     <div className="text-sm font-bold text-text-primary truncate">
                       {item.product.name}
@@ -275,6 +293,69 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
                   </div>
                 </div>
               ))}
+
+              {/* Bring your own — real products in the plan that Fuel Lab
+                  doesn't stock. They stay on the route and export to the watch
+                  as cues, but the athlete supplies them, so they're listed
+                  here, out of the cart and out of the totals. */}
+              {bringYourOwnItems.length > 0 && (
+                <div className="pt-2 border-t border-[var(--color-border)]">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="text-[10px] text-text-muted uppercase tracking-wider">You're supplying these yourself</span>
+                    <DeliveryBadge deliverable={false} />
+                  </div>
+                  <div className="space-y-2">
+                    {bringYourOwnItems.map((item) => (
+                      <div
+                        key={item.product.id}
+                        className="flex gap-3 p-3 bg-surfaceHighlight border border-dashed border-[var(--color-border)] rounded-lg"
+                      >
+                        <div className="w-12 h-12 flex-shrink-0 bg-surface rounded overflow-hidden flex items-center justify-center">
+                          {item.product.image ? (
+                            <img src={item.product.image} alt={item.product.name} className="w-full h-full object-contain" />
+                          ) : (
+                            <span className="text-text-muted text-sm font-display">{item.product.name.charAt(0)}</span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[10px] text-text-muted uppercase">{item.product.brand}</div>
+                          <div className="text-sm font-bold text-text-primary truncate">{item.product.name}</div>
+                          <div className="text-xs text-text-secondary">{item.product.carbs}g carbs &middot; {item.product.calories} cal</div>
+                        </div>
+                        <div className="flex flex-col items-end justify-between">
+                          <span className="text-[10px] text-text-muted uppercase tracking-wider font-display">×{item.quantity}</span>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => removeOne(item)}
+                              className="p-1 hover:bg-accent/[0.08] text-text-muted hover:text-text-primary transition-colors"
+                              title="Remove one"
+                              aria-label="Remove one"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => addOne(item)}
+                              className="p-1 hover:bg-accent/[0.08] text-text-muted hover:text-accent transition-colors"
+                              title="Add one"
+                              aria-label="Add one"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => removeAll(item)}
+                              className="p-1 hover:bg-red-500/20 text-text-muted hover:text-red-400 transition-colors"
+                              title="Remove all"
+                              aria-label="Remove all"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Backups (extras not on the route) */}
               {extrasResolved.length > 0 && (
@@ -524,15 +605,28 @@ export function CartModal({ isOpen, onClose }: CartModalProps) {
               )}
             </div>
 
-            {/* Checkout — opens the real Stitch-hosted Shopify checkout
-                via the createCheckout Cloud Function. */}
-            <button
-              className="w-full py-4 bg-accent text-white text-sm font-bold uppercase tracking-wider rounded-xl hover:bg-accent-light transition-colors flex items-center justify-center gap-2"
-              onClick={() => setCheckoutOpen(true)}
-            >
-              <ShoppingCart className="w-4 h-4" />
-              Checkout - R{grandTotal.toFixed(2)}
-            </button>
+            {/* Checkout — opens the real Stitch-hosted Shopify checkout via
+                the createCheckout Cloud Function. Only enabled when there's
+                something deliverable to buy; a plan built entirely from
+                bring-your-own products has nothing to ship. */}
+            {deliverableItems.length > 0 || extrasResolved.length > 0 ? (
+              <button
+                className="w-full py-4 bg-accent text-white text-sm font-bold uppercase tracking-wider rounded-xl hover:bg-accent-light transition-colors flex items-center justify-center gap-2"
+                onClick={() => setCheckoutOpen(true)}
+              >
+                <ShoppingCart className="w-4 h-4" />
+                Checkout - R{grandTotal.toFixed(2)}
+              </button>
+            ) : (
+              <div className="w-full py-3 rounded-xl border border-dashed border-[var(--color-border)] text-center">
+                <p className="text-xs font-display text-text-secondary">
+                  Nothing to deliver — you're supplying everything in this plan yourself.
+                </p>
+                <p className="text-[10px] text-text-muted mt-0.5">
+                  It still exports to your watch as cues.
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
