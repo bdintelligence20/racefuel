@@ -29,7 +29,43 @@ import { ProductProps } from '../components/NutritionCard';
  * the moment it lands in the feed. This is the STARTING list, not the final one
  * — expect it to grow from the "Can't find it? Tell us" requests.
  */
-export const SEED_BRAND_PRODUCTS: ProductProps[] = [
+/** Map a product's brand-colour token to a hex for the generated tile. */
+function colorHex(c: ProductProps['color']): string {
+  return ({
+    orange: '#E8671A', green: '#4B7F52', blue: '#2D6CB5',
+    red: '#C0392B', yellow: '#E0A526', white: '#8A7E86',
+  } as Record<string, string>)[c] ?? '#8A7E86';
+}
+
+function xmlEscape(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Branded placeholder tile for a seed product. These are bring-your-own
+ * reference products we don't sell, so there's no Fuel Lab product photo to
+ * pull — and hotlinking the brands' own images would be fragile and rights-
+ * murky. Instead we render a clean, on-brand SVG (brand name on a coloured
+ * band, product name below) as a data URI, the same self-contained approach
+ * the app already uses for user-created custom products. Looks finished,
+ * works offline, never 404s.
+ */
+function makeSeedImage(brand: string, name: string, color: ProductProps['color']): string {
+  const hex = colorHex(color);
+  const b = xmlEscape(brand.toUpperCase());
+  const n = xmlEscape(name.length > 22 ? name.slice(0, 21) + '…' : name);
+  const svg =
+    `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>` +
+    `<rect width='100' height='100' rx='14' fill='#FFF7EE'/>` +
+    `<path d='M0 14 a14 14 0 0 1 14 -14 h72 a14 14 0 0 1 14 14 v16 h-100 z' fill='${hex}'/>` +
+    `<text x='50' y='21' text-anchor='middle' fill='#ffffff' font-family='Arial, sans-serif' font-size='10' font-weight='700'>${b}</text>` +
+    `<text x='50' y='58' text-anchor='middle' fill='#3D2152' font-family='Arial, sans-serif' font-size='8.5' font-weight='700'>${n}</text>` +
+    `<text x='50' y='80' text-anchor='middle' fill='#A0929E' font-family='Arial, sans-serif' font-size='6.5' letter-spacing='0.5'>BRING YOUR OWN</text>` +
+    `</svg>`;
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+const RAW_SEED_PRODUCTS: ProductProps[] = [
   // ── Maurten ── hydrogel; gels are sodium-free, drink mixes carry sodium. Carbs exact.
   { id: 'seed-maurten-gel-100',          brand: 'Maurten', name: 'GEL 100',            calories: 100, carbs: 25, sodium: 0,   caffeine: 0,   color: 'orange', priceZAR: 0, image: '', category: 'gel',   servingsPerPack: 1, deliverable: false },
   { id: 'seed-maurten-gel-100-caf',      brand: 'Maurten', name: 'GEL 100 CAF 100',    calories: 100, carbs: 25, sodium: 0,   caffeine: 100, color: 'orange', priceZAR: 0, image: '', category: 'gel',   servingsPerPack: 1, deliverable: false },
@@ -70,3 +106,10 @@ export const SEED_BRAND_PRODUCTS: ProductProps[] = [
   { id: 'seed-cadence-bar-redberry',   brand: 'Cadence', name: 'CarboFuel Bar (Red Berry)', calories: 170, carbs: 30, sodium: 50,  caffeine: 0,   color: 'red', priceZAR: 0, image: '', category: 'bar',   servingsPerPack: 1, deliverable: false },
   { id: 'seed-cadence-bar-choc',       brand: 'Cadence', name: 'CarboFuel Bar (Salted Choc Caramel)', calories: 170, carbs: 30, sodium: 50, caffeine: 0, color: 'red', priceZAR: 0, image: '', category: 'bar', servingsPerPack: 1, deliverable: false },
 ];
+
+// Inject a branded image tile into every seed product so they render finished
+// in the pickers instead of a bare initial.
+export const SEED_BRAND_PRODUCTS: ProductProps[] = RAW_SEED_PRODUCTS.map((p) => ({
+  ...p,
+  image: makeSeedImage(p.brand, p.name, p.color),
+}));
