@@ -1,25 +1,36 @@
 import { useEffect, useState } from 'react';
 import { nanoid } from 'nanoid';
+import { getPreference, setPreference, deletePreference } from '../../persistence/db';
+import type { RouteData, UserProfile } from '../../context/AppContext';
 
 /**
- * Coach mode store — the brief's second user type (coaches & nutritionists)
- * as a parallel primary journey alongside the athlete flow.
+ * Coach mode store — the second user type (coaches & nutritionists) as a
+ * parallel primary journey alongside the athlete flow.
  *
- * SCOPE NOTE (honest): this is the single-device, local-first spine. It fully
- * implements the coach-facing experience — a role toggle, an athlete roster
- * with status, add-by-email, build-for-athlete context, and per-athlete notes/
- * messages — persisted to localStorage following the same pattern the rest of
- * the app uses before its Firestore mirror. The genuinely cross-account pieces
- * (email invites that land in another user's inbox, a shared plan appearing in
- * a *different* athlete's signed-in app, real-time two-way messaging) require a
- * Firestore schema + security rules + a Cloud Function for invites. Those are
- * deliberately left as the backend integration step rather than faked, because
- * a stubbed "shared!" that doesn't actually deliver would be dishonest. The
- * data model here is shaped to back onto Firestore with no UI rework.
+ * Local-first, same pattern as the rest of the app: the roster, per-athlete
+ * plan summaries, and private notes live in localStorage; full plan snapshots
+ * (RouteData JSON, which can be large) live in IndexedDB via Dexie. The
+ * genuinely cross-account piece — a shared plan landing in the athlete's own
+ * signed-in app — is real and lives in services/coach/sharedPlans.ts backed
+ * by the `sharedPlans` Firestore collection.
  */
 
 export type UserMode = 'athlete' | 'coach';
 export type PlanStatus = 'not-started' | 'draft' | 'shared' | 'completed';
+
+/** Compact, display-ready summary of an athlete's saved plan snapshot.
+ *  Kept on the roster record so the dashboard renders without touching
+ *  IndexedDB; the full RouteData snapshot is stored separately. */
+export interface AthletePlanSummary {
+  routeName: string;
+  distanceKm: number;
+  points: number;
+  totalCarbs: number;
+  carbsPerHour: number;
+  /** Plan score 0–100 when validation ran, else undefined. */
+  score?: number;
+  updatedISO: string;
+}
 
 export interface CoachAthlete {
   id: string;
@@ -31,14 +42,17 @@ export interface CoachAthlete {
   /** Body weight — loaded into the planner when the coach builds for them. */
   weightKg?: number;
   planStatus: PlanStatus;
+  planSummary?: AthletePlanSummary;
+  /** When the plan was last delivered to the athlete's account. */
+  sharedAtISO?: string;
   /** ISO timestamp of the last time the coach touched this athlete. */
   lastActivityISO?: string;
 }
 
-export interface CoachMessage {
+/** A private coach note about an athlete. Only the coach ever sees these. */
+export interface CoachNote {
   id: string;
   athleteId: string;
-  from: 'coach' | 'athlete';
   text: string;
   atISO: string;
 }
@@ -47,13 +61,15 @@ interface CoachState {
   mode: UserMode;
   athletes: CoachAthlete[];
   activeAthleteId: string | null;
-  messages: CoachMessage[];
+  notes: CoachNote[];
 }
 
 const MODE_KEY = 'fuelcue_user_mode';
 const ATHLETES_KEY = 'fuelcue_coach_athletes';
-const MESSAGES_KEY = 'fuelcue_coach_messages';
+const NOTES_KEY = 'fuelcue_coach_notes';
+const LEGACY_MESSAGES_KEY = 'fuelcue_coach_messages';
 const ACTIVE_KEY = 'fuelcue_coach_active_athlete';
+const SELF_PROFILE_KEY = 'fuelcue_coach_self_profile';
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -64,11 +80,24 @@ function read<T>(key: string, fallback: T): T {
   }
 }
 
+/** One-time migration: the earlier build stored a faux two-way message thread.
+ *  Coach-authored entries carry over as private notes; the rest is dropped. */
+function readNotes(): CoachNote[] {
+  const existing = read<CoachNote[] | null>(NOTES_KEY, null);
+  if (existing) return existing;
+  const legacy = read<Array<{ id: string; athleteId: string; from: string; text: string; atISO: string }>>(LEGACY_MESSAGES_KEY, []);
+  const migrated = legacy
+    .filter((m) => m.from === 'coach')
+    .map((m) => ({ id: m.id, athleteId: m.athleteId, text: m.text, atISO: m.atISO }));
+  try { localStorage.removeItem(LEGACY_MESSAGES_KEY); } catch { /* fine */ }
+  return migrated;
+}
+
 let _state: CoachState = {
   mode: (typeof localStorage !== 'undefined' && (localStorage.getItem(MODE_KEY) as UserMode)) || 'athlete',
   athletes: read<CoachAthlete[]>(ATHLETES_KEY, []),
   activeAthleteId: (typeof localStorage !== 'undefined' && localStorage.getItem(ACTIVE_KEY)) || null,
-  messages: read<CoachMessage[]>(MESSAGES_KEY, []),
+  notes: typeof localStorage !== 'undefined' ? readNotes() : [],
 };
 
 const _listeners = new Set<() => void>();
@@ -77,7 +106,7 @@ function persist() {
   try {
     localStorage.setItem(MODE_KEY, _state.mode);
     localStorage.setItem(ATHLETES_KEY, JSON.stringify(_state.athletes));
-    localStorage.setItem(MESSAGES_KEY, JSON.stringify(_state.messages));
+    localStorage.setItem(NOTES_KEY, JSON.stringify(_state.notes));
     if (_state.activeAthleteId) localStorage.setItem(ACTIVE_KEY, _state.activeAthleteId);
     else localStorage.removeItem(ACTIVE_KEY);
   } catch { /* storage full / disabled — in-memory still works for the session */ }
@@ -100,7 +129,7 @@ export function addAthlete(input: { name: string; email: string; eventName?: str
   const athlete: CoachAthlete = {
     id: `ath-${nanoid(8)}`,
     name: input.name.trim(),
-    email: input.email.trim(),
+    email: input.email.trim().toLowerCase(),
     eventName: input.eventName?.trim() || undefined,
     eventDate: input.eventDate || undefined,
     weightKg: input.weightKg,
@@ -118,20 +147,75 @@ export function updateAthlete(id: string, patch: Partial<CoachAthlete>) {
 export function removeAthlete(id: string) {
   set({
     athletes: _state.athletes.filter((a) => a.id !== id),
-    messages: _state.messages.filter((m) => m.athleteId !== id),
+    notes: _state.notes.filter((n) => n.athleteId !== id),
     activeAthleteId: _state.activeAthleteId === id ? null : _state.activeAthleteId,
   });
+  void deletePreference(snapshotKey(id)).catch(() => { /* nothing saved yet */ });
 }
 
 export function setActiveAthlete(id: string | null) { set({ activeAthleteId: id }); }
 
 export function setPlanStatus(id: string, status: PlanStatus) { updateAthlete(id, { planStatus: status }); }
 
-export function addMessage(athleteId: string, from: 'coach' | 'athlete', text: string) {
+export function addNote(athleteId: string, text: string) {
   const t = text.trim();
   if (!t) return;
-  const msg: CoachMessage = { id: `msg-${nanoid(8)}`, athleteId, from, text: t, atISO: nowISO() };
-  set({ messages: [..._state.messages, msg] });
+  const note: CoachNote = { id: `note-${nanoid(8)}`, athleteId, text: t, atISO: nowISO() };
+  set({ notes: [..._state.notes, note] });
+}
+
+export function removeNote(id: string) {
+  set({ notes: _state.notes.filter((n) => n.id !== id) });
+}
+
+// ── plan snapshots (IndexedDB — RouteData JSON is too big for localStorage) ──
+
+function snapshotKey(athleteId: string): string {
+  return `coach_plan_${athleteId}`;
+}
+const SELF_PLAN_KEY = 'coach_self_plan';
+
+export async function saveAthleteSnapshot(athleteId: string, route: RouteData): Promise<void> {
+  await setPreference(snapshotKey(athleteId), JSON.stringify(route));
+}
+
+export async function loadAthleteSnapshot(athleteId: string): Promise<RouteData | null> {
+  const raw = await getPreference(snapshotKey(athleteId));
+  if (!raw) return null;
+  try { return JSON.parse(raw) as RouteData; } catch { return null; }
+}
+
+/** Stash / restore the coach's own in-progress plan around athlete sessions. */
+export async function stashSelfPlan(route: RouteData): Promise<void> {
+  await setPreference(SELF_PLAN_KEY, JSON.stringify(route));
+}
+
+export async function popSelfPlan(): Promise<RouteData | null> {
+  const raw = await getPreference(SELF_PLAN_KEY);
+  await deletePreference(SELF_PLAN_KEY).catch(() => { /* fine */ });
+  if (!raw) return null;
+  try { return JSON.parse(raw) as RouteData; } catch { return null; }
+}
+
+/** Stash / restore the coach's own profile around athlete sessions, so
+ *  loading an athlete's weight into the planner never overwrites the
+ *  coach's own settings for good. localStorage — profiles are tiny. */
+export function stashSelfProfile(profile: UserProfile): void {
+  try { localStorage.setItem(SELF_PROFILE_KEY, JSON.stringify(profile)); } catch { /* fine */ }
+}
+
+export function popSelfProfile(): UserProfile | null {
+  try {
+    const raw = localStorage.getItem(SELF_PROFILE_KEY);
+    localStorage.removeItem(SELF_PROFILE_KEY);
+    return raw ? (JSON.parse(raw) as UserProfile) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function hasSelfStash(): boolean {
+  try { return localStorage.getItem(SELF_PROFILE_KEY) !== null; } catch { return false; }
 }
 
 // ── hook ──────────────────────────────────────────────────
@@ -147,19 +231,20 @@ export function useCoachStore() {
     athletes: _state.athletes,
     activeAthleteId: _state.activeAthleteId,
     activeAthlete: _state.athletes.find((a) => a.id === _state.activeAthleteId) ?? null,
-    messages: _state.messages,
+    notes: _state.notes,
     setUserMode,
     addAthlete,
     updateAthlete,
     removeAthlete,
     setActiveAthlete,
     setPlanStatus,
-    addMessage,
+    addNote,
+    removeNote,
   };
 }
 
 export const PLAN_STATUS_LABELS: Record<PlanStatus, string> = {
-  'not-started': 'Not started',
+  'not-started': 'No plan yet',
   draft: 'Draft',
   shared: 'Shared',
   completed: 'Completed',

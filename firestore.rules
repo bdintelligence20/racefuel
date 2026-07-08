@@ -55,9 +55,45 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Coach → athlete plan delivery. A coach creates a doc addressed to an
+    // athlete's email; only the sending coach and the addressed athlete
+    // (matched on the verified token email) can read or delete it. No
+    // client updates — a re-share is a new doc.
+    match /sharedPlans/{docId} {
+      allow create: if request.auth != null
+                    && request.resource.data.coachUid == request.auth.uid
+                    && isValidSharedPlan(request.resource.data);
+      allow read, delete: if request.auth != null
+                          && (resource.data.coachUid == request.auth.uid
+                              || (request.auth.token.email != null
+                                  && resource.data.athleteEmail == request.auth.token.email.lower()));
+      allow update: if false;
+    }
+
     // Default deny everything else.
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    function isValidSharedPlan(d) {
+      return d.keys().hasOnly(
+               ['coachUid', 'coachName', 'coachEmail', 'athleteEmail', 'athleteName',
+                'routeName', 'distanceKm', 'elevationGain', 'estimatedTime',
+                'points', 'totalCarbs', 'routeDataJson', 'createdAt']
+             )
+             && d.coachName is string    && d.coachName.size() <= 200
+             && d.coachEmail is string   && d.coachEmail.size() <= 200
+             && d.athleteEmail is string && d.athleteEmail.size() > 0 && d.athleteEmail.size() <= 200
+             && d.athleteEmail == d.athleteEmail.lower()
+             && d.athleteName is string  && d.athleteName.size() <= 200
+             && d.routeName is string    && d.routeName.size() <= 300
+             && d.distanceKm is number
+             && d.elevationGain is number
+             && d.estimatedTime is string && d.estimatedTime.size() <= 20
+             && d.points is int && d.points >= 0
+             && d.totalCarbs is number
+             && d.routeDataJson is string && d.routeDataJson.size() <= 950000
+             && d.createdAt == request.time;
     }
 
     function isValidSiteFeedback(d) {

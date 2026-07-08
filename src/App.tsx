@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { Toaster } from 'sonner';
 import { AppProvider, useApp } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -12,6 +12,7 @@ import { ActionBar } from './components/ActionBar';
 import { FlowStepIndicator } from './components/FlowStepIndicator';
 import { CoachDashboard } from './components/coach/CoachDashboard';
 import { CoachPlanningBanner } from './components/coach/CoachPlanningBanner';
+import { SharedPlanInbox } from './components/coach/SharedPlanInbox';
 import { useCoachStore } from './services/coach/coachStore';
 import { LandingPage } from './components/LandingPage';
 import { AutoGenProgress } from './components/AutoGenProgress';
@@ -80,6 +81,26 @@ function AppContent() {
   const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan, routeData } = useApp();
   const { mode } = useCoachStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const actionBarRef = useRef<HTMLDivElement>(null);
+
+  // The mobile ActionBar's height varies by state (stats row appears with a
+  // plan, the manual-add hint only without one). Publish the measured height
+  // as --action-bar-h so the map column reserves exactly that much space —
+  // no dead band, no covered elevation strip — and toasts stack above it.
+  useEffect(() => {
+    const el = actionBarRef.current;
+    if (!el) return;
+    const apply = () => {
+      document.documentElement.style.setProperty('--action-bar-h', `${el.offsetHeight}px`);
+    };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty('--action-bar-h');
+    };
+  }, [mode]);
 
   // Coach mode swaps the whole surface for the athlete roster — the parallel
   // primary journey. The athlete planning flow is untouched underneath; the
@@ -136,7 +157,7 @@ function AppContent() {
           (lg+) has its own ActionBar copy inside the Map column. Hidden
           while the sidebar drawer is open so its z-40 doesn't cover the
           sidebar's footer (sign-out / theme / reset). */}
-      <div className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 safe-bottom-zero pointer-events-auto ${sidebarOpen ? 'hidden' : ''}`}>
+      <div ref={actionBarRef} className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-auto ${sidebarOpen ? 'hidden' : ''}`}>
         <ActionBar />
       </div>
 
@@ -147,9 +168,13 @@ function AppContent() {
           (fuel strip), product details (tap markers / strip cards), and
           kit access (View Kit in ActionBar). */}
       <div className="flex-1 min-w-0 flex flex-col relative overflow-x-hidden pt-mobile-nav lg:pt-0 pb-mobile-action-bar lg:pb-0">
-        {/* Coach context banner — only when a coach is building for an athlete. */}
+        {/* Coach context banner — only when a coach is building for an athlete.
+            Inbox banner — only when someone's coach has sent them a plan.
+            Mutually exclusive by construction (inbox hides in athlete-context
+            coaching sessions), so at most one strip renders here. */}
         <div className="flex-shrink-0">
           <CoachPlanningBanner />
+          <SharedPlanInbox />
         </div>
         {/* Step indicator now lives inline in the top nav (MobileNav), so the
             old standalone band here is gone — one less stacked bar. */}
@@ -194,6 +219,10 @@ function AppContent() {
 
       <Toaster
         position="bottom-center"
+        // Stack toasts above the fixed mobile ActionBar — "Plan applied"
+        // shouldn't cover "Export to watch" at the exact moment that
+        // becomes the next step.
+        mobileOffset={{ bottom: 'calc(var(--action-bar-h, 0px) + 12px)' }}
         toastOptions={{
           style: {
             background: 'var(--color-surface)',
@@ -203,7 +232,6 @@ function AppContent() {
             fontSize: '13px',
             borderRadius: '12px',
             boxShadow: '0 4px 20px rgba(61, 33, 82, 0.08)',
-            paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
           },
         }}
       />

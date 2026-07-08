@@ -24,8 +24,6 @@ export function AddAthleteModal({ isOpen, onClose }: { isOpen: boolean; onClose:
       eventDate: eventDate || undefined,
       weightKg: weight ? Number(weight) : undefined,
     });
-    // Honest about the boundary: the roster entry is real and local; the email
-    // invite that links a separate fuelcue account is the backend step.
     toast.success(`${name.trim()} added to your roster`);
     setName(''); setEmail(''); setEventName(''); setEventDate(''); setWeight('');
     onClose();
@@ -73,7 +71,7 @@ export function AddAthleteModal({ isOpen, onClose }: { isOpen: boolean; onClose:
             </div>
           </div>
           <p className="text-[11px] text-text-muted">
-            They'll get an invite to fuelcue and link to you once they sign up. (Invite email is the backend step — the roster entry works now.)
+            Plans you send land in the fuelcue account with this email — they'll see them as soon as they sign in.
           </p>
           <button type="submit" className="w-full py-3 bg-accent text-white font-display font-bold uppercase tracking-wider rounded-xl hover:bg-accent-light transition-colors flex items-center justify-center gap-2">
             <UserPlus className="w-4 h-4" /> Add to roster

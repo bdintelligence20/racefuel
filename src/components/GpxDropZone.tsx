@@ -46,7 +46,9 @@ export function GpxDropZone({ onDrawRoute }: { onDrawRoute?: () => void }) {
   const loadDemoRoute = () => {
     setIsLoading(true);
     setTimeout(() => {
-      const mockFile = new File([''], 'Col_du_Galibier.gpx', {
+      // Empty file → the parser falls through to AppContext's synthetic demo
+      // route (a Cape Town loop), which takes its display name from this file.
+      const mockFile = new File([''], 'Cape Town Loop.gpx', {
         type: 'application/gpx+xml',
       });
       loadRoute(mockFile);

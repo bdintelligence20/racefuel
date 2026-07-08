@@ -125,10 +125,12 @@
 
   /* Reserve space at the bottom of mobile columns for the fixed
      ActionBar so its content doesn't sit on top of the elevation panel
-     / nutrition panel. Tuned to closely match the actual bar height
-     (stats row + actions row + py-3 padding) without leaving a big gap. */
+     / nutrition panel. --action-bar-h is the bar's measured height
+     (set by a ResizeObserver in App.tsx, safe-area padding included),
+     so the reserved space tracks the bar exactly across its states —
+     stats row present or not — with the old tuned constant as fallback. */
   .pb-mobile-action-bar {
-    padding-bottom: calc(6.75rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--action-bar-h, calc(6.75rem + env(safe-area-inset-bottom, 0px)));
   }
 
   /* Prevent scroll chaining into the body when the user scrolls inside a modal. */

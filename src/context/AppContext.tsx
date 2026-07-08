@@ -765,8 +765,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         source: 'gpx',
       });
     } catch (err) {
+      // The Try Demo button sends an intentionally empty file — that's the
+      // one case that should fall through to the synthetic demo route. A
+      // real file that fails to parse gets an honest error, not fake data
+      // wearing the user's route name.
+      if (file.size === 0) {
+        loadDemoRoute(file.name.replace(/\.(gpx|tcx)$/i, ''));
+        return;
+      }
       console.error('Failed to parse route file:', err);
-      loadDemoRoute(file.name.replace(/\.(gpx|tcx)$/i, ''));
+      toast.error("Couldn't read that file", {
+        description: 'Export it again as GPX or TCX and retry.',
+      });
     }
   };
 
