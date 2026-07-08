@@ -132,9 +132,10 @@ export function ActionBar() {
             <button
               onClick={() => setMenuOpen(true)}
               aria-label="More actions"
-              className="w-12 h-12 flex-shrink-0 rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-secondary flex items-center justify-center active:scale-95 transition-all"
+              className="w-14 h-12 flex-shrink-0 rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-secondary flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-all"
             >
-              <MoreHorizontal className="w-5 h-5" />
+              <MoreHorizontal className="w-4 h-4" />
+              <span className="text-[9px] font-display font-semibold uppercase tracking-wider">More</span>
             </button>
           </div>
           {!hasPlan && (
