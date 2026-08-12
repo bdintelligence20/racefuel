@@ -1,5 +1,6 @@
 import { RouteData } from '../../context/AppContext';
 import { downloadFile } from './downloadFile';
+import { getActiveDurationHours } from '../route/timeFormat';
 
 function escapeCsv(val: string): string {
   if (val.includes(',') || val.includes('"') || val.includes('\n')) {
@@ -9,7 +10,7 @@ function escapeCsv(val: string): string {
 }
 
 export function generateCsv(routeData: RouteData): string {
-  const { nutritionPoints, distanceKm, estimatedTime } = routeData;
+  const { nutritionPoints, distanceKm } = routeData;
   const sorted = [...nutritionPoints].sort((a, b) => a.distanceKm - b.distanceKm);
 
   const headers = [
@@ -27,9 +28,9 @@ export function generateCsv(routeData: RouteData): string {
 
   const lines: string[] = [headers.join(',')];
 
-  // Parse total time for time estimates
-  const timeParts = (estimatedTime || '3:00:00').split(':').map(Number);
-  const totalHours = timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600;
+  // User-edited duration wins over the auto-estimate — keeps the exported
+  // time column consistent with the plan panel.
+  const totalHours = getActiveDurationHours(routeData, 3);
   const avgSpeed = distanceKm / totalHours;
 
   let totalCarbs = 0;

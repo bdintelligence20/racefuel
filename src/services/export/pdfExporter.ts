@@ -2,17 +2,19 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { RouteData } from '../../context/AppContext';
 import { downloadFile } from './downloadFile';
+import { getActiveDurationHours } from '../route/timeFormat';
 
 export function downloadPdf(routeData: RouteData): void {
-  const { name, distanceKm, elevationGain, estimatedTime, nutritionPoints } = routeData;
+  const { name, distanceKm, elevationGain, nutritionPoints } = routeData;
   const sorted = [...nutritionPoints].sort((a, b) => a.distanceKm - b.distanceKm);
 
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  // Parse time for estimates
-  const timeParts = (estimatedTime || '3:00:00').split(':').map(Number);
-  const totalHours = timeParts[0] + (timeParts[1] || 0) / 60 + (timeParts[2] || 0) / 3600;
+  // The user-edited duration wins over the auto-estimate — same rule as the
+  // plan panel, so exported carbs/hr and timeline match what's on screen.
+  const activeTime = routeData.userEstimatedTime ?? routeData.estimatedTime;
+  const totalHours = getActiveDurationHours(routeData, 3);
   const avgSpeed = distanceKm / totalHours;
 
   // === HEADER ===
@@ -44,7 +46,7 @@ export function downloadPdf(routeData: RouteData): void {
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
   doc.text(
-    `${distanceKm.toFixed(1)}km  |  ${elevationGain}m gain  |  Est. ${estimatedTime}`,
+    `${distanceKm.toFixed(1)}km  |  ${elevationGain}m gain  |  Est. ${activeTime}`,
     14, y
   );
 
