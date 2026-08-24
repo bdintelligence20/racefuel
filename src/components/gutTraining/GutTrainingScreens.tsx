@@ -1,8 +1,8 @@
 /**
- * Gut Training v2 (beta) — the screens.
+ * Gut Training v2 (beta), the screens.
  *
  * Consumer-app voice (think Runna): warm, direct coaching copy, no clinical
- * "step 1 of 8" / "SET UP" section labels on screen — progress is a quiet bar,
+ * "step 1 of 8" / "SET UP" section labels on screen, progress is a quiet bar,
  * not a heading. Dumb components; all state + persistence live in
  * GutTrainingFlowV2.tsx.
  *
@@ -26,14 +26,14 @@ import {
   DISCIPLINE_LABELS, type RaceDiscipline, type UpcomingRace,
 } from '../../data/saRaces';
 import type { RaceWeather } from '../../services/weather/weatherService';
-import { WATCH_DEVICES, type WatchDevice } from '../../data/watchDevices';
+import { WATCH_DEVICES, preferredFuelFormat, type WatchDevice } from '../../data/watchDevices';
 
 /* ------------------------------ shared bits ------------------------------ */
 
 function ScreenShell({ title, subtitle, progress, children, footer }: {
   title: string;
   subtitle?: string;
-  /** 0–1 setup progress; renders a quiet bar. Omit on the recurring loop. */
+  /** 0 to 1 setup progress; renders a quiet bar. Omit on the recurring loop. */
   progress?: number;
   children: ReactNode;
   footer: ReactNode;
@@ -161,7 +161,7 @@ function WeatherPanel({ weather, loading }: { weather: RaceWeather | null; loadi
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-1.5">
           <Thermometer className="w-4 h-4 text-text-muted" />
-          <span className="text-sm font-display font-bold text-text-primary">{weather.tempMin}–{weather.tempMax}°C</span>
+          <span className="text-sm font-display font-bold text-text-primary">{weather.tempMin}, {weather.tempMax}°C</span>
         </div>
         <div className="flex items-center gap-1.5">
           <Droplets className="w-4 h-4 text-text-muted" />
@@ -174,7 +174,7 @@ function WeatherPanel({ weather, loading }: { weather: RaceWeather | null; loadi
       </div>
       {hot && (
         <p className="text-[11px] text-text-secondary mt-2 leading-relaxed">
-          Warm day likely — keep your carbs up and lift fluid + sodium. Fuelling actually protects your gut in the heat, so don't back off the plan.
+          Warm day likely, keep your carbs up and lift fluid + sodium. Fuelling actually protects your gut in the heat, so don't back off the plan.
         </p>
       )}
     </TintedPanel>
@@ -207,7 +207,7 @@ function TargetPanel({ suggestion, targetGPerHour, onChangeTarget, edited }: {
       {suggestion && (
         <p className="text-[11px] text-text-secondary mt-2 leading-relaxed">
           {edited && targetGPerHour !== suggestion.targetGPerHour
-            ? `We suggested ${suggestion.targetGPerHour} g/hr for a ${formatEffort(suggestion.durationHours)} effort — this is yours to set.`
+            ? `We suggested ${suggestion.targetGPerHour} g/hr for a ${formatEffort(suggestion.durationHours)} effort, this is yours to set.`
             : `A starting point for a ${formatEffort(suggestion.durationHours)} effort. Change it to whatever your gut knows it can handle.`}
         </p>
       )}
@@ -218,7 +218,7 @@ function TargetPanel({ suggestion, targetGPerHour, onChangeTarget, edited }: {
           </button>
           {whyOpen && (
             <p className="text-[10px] text-text-muted mt-1.5 leading-relaxed">
-              {suggestion.rationale} Based on current sports-nutrition consensus — 60–90 g/hr for 2 hr+ efforts, up to 120 g/hr with a trained gut (Costa 2025; Jeukendrup 2014; Hearris 2022).
+              {suggestion.rationale} Based on current sports-nutrition consensus, 60 to 90 g/hr for 2 hr+ efforts, up to 120 g/hr with a trained gut (Costa 2025; Jeukendrup 2014; Hearris 2022).
             </p>
           )}
         </>
@@ -326,7 +326,7 @@ export function GoalEventScreen(props: {
           type="text"
           value={raceQuery}
           onChange={(e) => onChangeRaceQuery(e.target.value)}
-          placeholder="Search races — Comrades, Cape Epic, Otter…"
+          placeholder="Search races like Comrades, Cape Epic, Otter…"
           className="w-full bg-surface border border-[var(--color-border)] rounded-xl text-text-primary text-sm p-3 pl-9 focus:outline-none focus:border-accent transition-colors"
         />
       </div>
@@ -390,7 +390,7 @@ export function ToleranceScreen({
   return (
     <ScreenShell
       title="Where's your gut right now?"
-      subtitle="Be honest — this is just your starting point, not a test."
+      subtitle="Be honest, this is just your starting point, not a test."
       progress={2 / 3}
       footer={<PrimaryButton onClick={onBuildPlan} loading={saving}>Build my plan</PrimaryButton>}
     >
@@ -446,7 +446,7 @@ export function WeeklySessionScreen({
   return (
     <ScreenShell
       title="This week's long run"
-      subtitle={`Week ${weekNumber} — practise fuelling exactly like race day.`}
+      subtitle={`Week ${weekNumber}, practise fuelling exactly like race day.`}
       footer={
         <>
           <PrimaryButton onClick={onSendToWatch}><Send className="w-4 h-4" /> Send to watch</PrimaryButton>
@@ -542,11 +542,11 @@ export function HandoffScreen({
             <Send className="w-4 h-4" /> Export to {device.brand}
           </PrimaryButton>
           <SecondaryButton onClick={onExportPdf}><FileDown className="w-4 h-4" /> Export as PDF</SecondaryButton>
-          <TextLink onClick={onDone}>I'm back — log this run</TextLink>
+          <TextLink onClick={onDone}>I'm back, log this run</TextLink>
         </>
       }
     >
-      {/* The one place deep plum stays as ground — dark + cream survives sunlight. */}
+      {/* The one place deep plum stays as ground, dark + cream survives sunlight. */}
       <div className="rounded-[28px] bg-accent p-6 flex flex-col items-center text-center gap-1.5 mx-auto max-w-[220px] aspect-square justify-center">
         <div className="text-[9px] text-background/60 uppercase tracking-[0.2em] font-bold">First cue</div>
         <div className="text-2xl font-display font-black text-background uppercase">{nextCueLabel}</div>
@@ -584,7 +584,9 @@ export function HandoffScreen({
         </TintedPanel>
       ) : (
         <p className="text-[11px] text-text-muted leading-relaxed px-1">
-          Exports as a {device.acceptedFormats[0].toUpperCase()} of your fuel cues. Load your race's own route for turn-by-turn — these ride alongside it.
+          {preferredFuelFormat(device) === 'tcx'
+            ? `Exports a timed workout your ${device.brand} follows on the clock, beeping at each fuel cue.`
+            : 'Exports your fuel cues as GPX waypoints. Load your race route for navigation and these sit alongside it.'}
         </p>
       )}
     </ScreenShell>
@@ -611,7 +613,7 @@ export function PostSessionLogScreen({
   return (
     <ScreenShell
       title="How did that sit?"
-      subtitle="Two taps — this is what moves your plan forward."
+      subtitle="Two taps, this is what moves your plan forward."
       footer={<PrimaryButton onClick={onSave} loading={saving}>Save this run</PrimaryButton>}
     >
       <TintedPanel>
@@ -628,7 +630,7 @@ export function PostSessionLogScreen({
           />
           <span className="text-text-muted font-display text-sm">g · {rate} g/hr</span>
         </div>
-        <p className="text-[10px] text-text-muted mt-1.5">Straight off your watch — tweak it if it's off. You were aiming for {sessionTargetGPerHour} g/hr.</p>
+        <p className="text-[10px] text-text-muted mt-1.5">Straight off your watch, tweak it if it's off. You were aiming for {sessionTargetGPerHour} g/hr.</p>
       </TintedPanel>
 
       <div>
@@ -670,7 +672,7 @@ export function MilestoneScreen({ stats, program, onSeeRaceDayPlan }: {
         <div className="w-14 h-14 rounded-full bg-accent flex items-center justify-center">
           <Check className="w-7 h-7 text-background" />
         </div>
-        <div className="text-xs font-display font-bold text-text-secondary uppercase tracking-wider">You did it — your gut's ready</div>
+        <div className="text-xs font-display font-bold text-text-secondary uppercase tracking-wider">You did it, your gut's ready</div>
         <div className="text-5xl font-display font-black text-accent">{stats.gPerHour} g/hr</div>
         <p className="text-sm text-text-secondary">up from {program.startGPerHour} g/hr in {stats.weeksElapsed} weeks</p>
 
@@ -705,7 +707,7 @@ export function RaceDayScreen({ plan, onSendToWatch, onExportPdf, onShareWithCre
   const maxGrams = Math.max(...plan.segments.map((s) => s.grams), 1);
   return (
     <ScreenShell
-      title={`${plan.event.name} — your game plan`}
+      title={`Your ${plan.event.name} game plan`}
       subtitle={`${plan.event.distanceKm} km · hold ${plan.targetGPerHour} g/hr`}
       footer={
         <>
@@ -726,7 +728,7 @@ export function RaceDayScreen({ plan, onSendToWatch, onExportPdf, onShareWithCre
       <div className="rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border)] overflow-hidden">
         {plan.segments.map((seg, i) => (
           <div key={i} className="flex items-center justify-between px-3 py-2 text-sm">
-            <span className="text-text-secondary">{seg.fromKm}–{seg.toKm} km</span>
+            <span className="text-text-secondary">{seg.fromKm}, {seg.toKm} km</span>
             <span className="font-display font-semibold text-text-primary">{seg.grams}g</span>
           </div>
         ))}
@@ -761,7 +763,7 @@ export function AlertsScreen({ alerts, watchAlert, onBack }: {
   return (
     <ScreenShell
       title="Worth a quick look"
-      subtitle="Nothing's broken — just a nudge so race day goes well."
+      subtitle="Nothing's broken, just a nudge so race day goes well."
       footer={<PrimaryButton onClick={onBack}>Got it</PrimaryButton>}
     >
       <div className="space-y-3">

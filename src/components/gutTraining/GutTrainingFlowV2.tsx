@@ -1,16 +1,16 @@
 /**
- * Gut Training v2 (beta) — orchestrator.
+ * Gut Training v2 (beta), orchestrator.
  *
  * Full-screen takeover (not a centered modal like v1). Opened from Sidebar
  * once VITE_GUT_TRAINING_V2 is on; reaching this and completing setup IS the
  * opt-in (see gutTrainingV2Program's `optedInAt`, the admin-visible record).
  *
- * Setup: pick an SA race (or enter one manually) → the app's carb engine
- * suggests a race-day g/hr the athlete can edit → tolerance → build. Then the
- * weekly loop (session → handoff → log) repeats to the milestone → race day.
+ * Setup: pick an SA race (or enter one manually) to the app's carb engine
+ * suggests a race-day g/hr the athlete can edit to tolerance to build. Then the
+ * weekly loop (session to handoff to log) repeats to the milestone to race day.
  *
  * Handoff exports are real files (GPX fuel cues matched to the chosen device,
- * or a PDF) via the shared downloadFile helper — but there's no over-the-air
+ * or a PDF) via the shared downloadFile helper, but there's no over-the-air
  * device integration; the athlete loads the file through their device's app.
  */
 import { useEffect, useMemo, useState } from 'react';
@@ -59,9 +59,9 @@ type ScreenId =
   | 'post-session-log' | 'milestone' | 'race-day' | 'alerts';
 
 const outcomeCopy: Record<'advance' | 'hold' | 'back-off', (g: number) => string> = {
-  advance: (g) => `Love it — we'll nudge you up to ${g} g/hr next week.`,
+  advance: (g) => `Love it, we'll nudge you up to ${g} g/hr next week.`,
   hold: (g) => `We'll hold ${g} g/hr next week and let it settle.`,
-  'back-off': (g) => `No stress — we'll ease back to ${g} g/hr next week.`,
+  'back-off': (g) => `No stress, we'll ease back to ${g} g/hr next week.`,
 };
 
 interface GutTrainingFlowV2Props {
@@ -144,7 +144,7 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     if (eventDate) setWeeksToEvent(weeksBetween(eventDate));
   }, [eventDate]);
 
-  // Engine suggestion — recompute as the race/manual inputs change.
+  // Engine suggestion, recompute as the race/manual inputs change.
   const suggestion = useMemo<CarbSuggestion | null>(() => {
     if (distanceKm <= 0) return null;
     return suggestCarbTarget({ distanceKm, discipline, elevationGainM, terrain, gutTolerance });
@@ -155,7 +155,7 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     if (suggestion && !targetEdited) setTargetGPerHour(suggestion.targetGPerHour);
   }, [suggestion, targetEdited]);
 
-  // Race-day weather — only when we have coordinates (a picked race) + a date.
+  // Race-day weather, only when we have coordinates (a picked race) + a date.
   useEffect(() => {
     if (lat === undefined || lng === undefined || !eventDate) {
       setWeather(null);
@@ -262,7 +262,7 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       const { loadHint } = await exportFuelCuesToDevice(
         program, sessionCues(prescription), `Week ${prescription.weekNumber} session`, deviceId,
       );
-      setExportedHint(`Done — ${loadHint}`);
+      setExportedHint(loadHint);
       toast.success(`Sent to ${deviceById(deviceId).brand}`);
     } catch {
       toast.error('Export failed');
@@ -276,8 +276,8 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     setExporting(true);
     try {
       const plan = buildRaceDayPlan(program, sport);
-      const { loadHint } = await exportFuelCuesToDevice(program, raceDayCues(plan), 'Race day', deviceId);
-      toast.success(`Sent to ${deviceById(deviceId).brand} — ${loadHint}`);
+      const { loadHint } = await exportFuelCuesToDevice(program, raceDayCues(program, plan), 'Race day', deviceId);
+      toast.success(`Sent to ${deviceById(deviceId).brand}. ${loadHint}`);
     } catch {
       toast.error('Export failed');
     } finally {
@@ -304,7 +304,7 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       setExportedHint(null);
 
       if (updated.status === 'completed') {
-        toast.success(`That's it — you're tolerating ${updated.targetGPerHour} g/hr!`);
+        toast.success(`That's it, you're tolerating ${updated.targetGPerHour} g/hr!`);
         setScreen('milestone');
         return;
       }
@@ -352,7 +352,7 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     const { program: preview, session } = recordSessionV2(program, {
       actualGPerHour, durationMinutes, gutComfort: toGutComfort(gutResponse),
     });
-    if (preview.status === 'completed') return `That would do it — you'd be race-ready at ${preview.currentGPerHour} g/hr.`;
+    if (preview.status === 'completed') return `That would do it, you'd be race-ready at ${preview.currentGPerHour} g/hr.`;
     return outcomeCopy[session.outcome](preview.currentGPerHour);
   })();
 
@@ -490,12 +490,12 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
             onExportPdf={() => downloadRaceDayPdf(program, buildRaceDayPlan(program, sport))}
             onShareWithCrew={async () => {
               const plan = buildRaceDayPlan(program, sport);
-              const text = `${program.event.name} fuel plan — hold ${program.currentGPerHour} g/hr, ${plan.totalGrams}g on course.`;
+              const text = `${program.event.name} fuel plan, hold ${program.currentGPerHour} g/hr, ${plan.totalGrams}g on course.`;
               if (navigator.share) {
                 try { await navigator.share({ title: `${program.event.name} fuel plan`, text }); } catch { /* cancelled */ }
               } else if (navigator.clipboard) {
                 await navigator.clipboard.writeText(text);
-                toast.success('Copied — paste it to your crew');
+                toast.success('Copied, paste it to your crew');
               }
             }}
           />

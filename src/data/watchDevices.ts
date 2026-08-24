@@ -1,15 +1,15 @@
 /**
- * Watch / head-unit catalog — Gut Training v2 beta handoff.
+ * Watch / head-unit catalog, Gut Training v2 beta handoff.
  *
  * Lets an athlete pick where the plan goes, and drives the export format so
  * we only ever hand a device a file it actually accepts. Every device here
  * imports GPX courses/waypoints (via its companion app), which is why GPX is
  * the common-denominator export we generate client-side. FIT is Garmin-native
  * and not something we can reliably build in the browser, so where a device
- * lists 'fit' it's informational only — `preferredExportFormat` picks the
+ * lists 'fit' it's informational only, `preferredExportFormat` picks the
  * best format we can actually produce for that device (always GPX today).
  *
- * NOT device integration — see the flow: nothing is pushed over the air. We
+ * NOT device integration, see the flow: nothing is pushed over the air. We
  * generate a file the athlete loads through the device's own app.
  */
 
@@ -23,7 +23,7 @@ export interface WatchDevice {
   kind: 'watch' | 'bike-computer';
   /** Formats the device's app can import for courses / waypoints. */
   acceptedFormats: ExportFormat[];
-  /** How the athlete gets the file onto it — shown as a hint on handoff. */
+  /** How the athlete gets the file onto it, shown as a hint on handoff. */
   loadHint: string;
 }
 
@@ -34,7 +34,7 @@ export const WATCH_DEVICES: WatchDevice[] = [
     model: 'Forerunner / Fenix / Epix',
     kind: 'watch',
     acceptedFormats: ['gpx', 'fit', 'tcx'],
-    loadHint: 'Garmin Connect → Training → Courses → Import, then send to device.',
+    loadHint: 'Garmin Connect to Training to Courses to Import, then send to device.',
   },
   {
     id: 'garmin-edge',
@@ -42,7 +42,7 @@ export const WATCH_DEVICES: WatchDevice[] = [
     model: 'Edge (bike computer)',
     kind: 'bike-computer',
     acceptedFormats: ['gpx', 'fit', 'tcx'],
-    loadHint: 'Garmin Connect → Courses → Import, then sync to your Edge.',
+    loadHint: 'Garmin Connect to Courses to Import, then sync to your Edge.',
   },
   {
     id: 'wahoo',
@@ -50,7 +50,7 @@ export const WATCH_DEVICES: WatchDevice[] = [
     model: 'ELEMNT / BOLT / ROAM',
     kind: 'bike-computer',
     acceptedFormats: ['gpx', 'fit', 'tcx'],
-    loadHint: 'Wahoo app → Routes → add the .gpx, then it syncs to your ELEMNT.',
+    loadHint: 'Wahoo app to Routes to add the .gpx, then it syncs to your ELEMNT.',
   },
   {
     id: 'coros',
@@ -58,7 +58,7 @@ export const WATCH_DEVICES: WatchDevice[] = [
     model: 'Pace / Apex / Vertix',
     kind: 'watch',
     acceptedFormats: ['gpx', 'fit'],
-    loadHint: 'Coros app → Navigation → Import Route, then sync to your watch.',
+    loadHint: 'Coros app to Navigation to Import Route, then sync to your watch.',
   },
   {
     id: 'suunto',
@@ -66,7 +66,7 @@ export const WATCH_DEVICES: WatchDevice[] = [
     model: 'Race / Vertical / 9',
     kind: 'watch',
     acceptedFormats: ['gpx'],
-    loadHint: 'Suunto app → Add route (.gpx), then sync to your watch.',
+    loadHint: 'Suunto app to Add route (.gpx), then sync to your watch.',
   },
   {
     id: 'polar',
@@ -82,7 +82,7 @@ export const WATCH_DEVICES: WatchDevice[] = [
     model: 'Karoo',
     kind: 'bike-computer',
     acceptedFormats: ['gpx', 'tcx'],
-    loadHint: 'Hammerhead dashboard → Routes → Upload the .gpx, then sync.',
+    loadHint: 'Hammerhead dashboard to Routes to Upload the .gpx, then sync.',
   },
   {
     id: 'apple-watch',
@@ -110,7 +110,19 @@ export function deviceById(id: string | undefined): WatchDevice {
 
 /** The best format we can actually generate for a device. We produce GPX
  *  today (browser-side FIT authoring isn't reliable), and every device
- *  accepts GPX — so this returns 'gpx' unless a device somehow excludes it. */
+ *  accepts GPX, so this returns 'gpx' unless a device somehow excludes it. */
 export function preferredExportFormat(device: WatchDevice): ExportFormat {
+  return device.acceptedFormats.includes('gpx') ? 'gpx' : device.acceptedFormats[0];
+}
+
+/**
+ * The best format for *time-based fuelling cues*. A TCX workout is made of
+ * timed steps, so the device beeps at each cue on the clock, which is what we
+ * actually want here. We prefer it when the device accepts it, and fall back
+ * to a GPX of the cues (placed as POIs) for devices that only take GPX.
+ * FIT would be the native ideal but we can't author it reliably in-browser.
+ */
+export function preferredFuelFormat(device: WatchDevice): ExportFormat {
+  if (device.acceptedFormats.includes('tcx')) return 'tcx';
   return device.acceptedFormats.includes('gpx') ? 'gpx' : device.acceptedFormats[0];
 }

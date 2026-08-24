@@ -1,10 +1,9 @@
 /**
- * South African race catalog — Gut Training v2 beta.
+ * South African race catalog, Gut Training v2 beta.
  *
  * A curated seed dataset of marquee SA road/trail runs and road/MTB/gravel
  * races, so an athlete can pick their goal event instead of typing it in.
- * There is no comprehensive free SA race API, so this is hand-maintained —
- * structured deliberately so it can later migrate to an admin-managed
+ * There is no comprehensive free SA race API, so this is hand-maintained,  * structured deliberately so it can later migrate to an admin-managed
  * Firestore collection without changing the picker's shape.
  *
  * Dates drift year to year (Comrades, Two Oceans, and the stage races move),
@@ -14,7 +13,7 @@
  * average when far out). `distanceKm` for stage races is one representative
  * stage, flagged with `stage: true` and explained in `notes`.
  *
- * NOT exhaustive — a solid curated starting set to expand over time.
+ * NOT exhaustive, a solid curated starting set to expand over time.
  */
 
 export type RaceDiscipline = 'road-run' | 'trail-run' | 'road-cycle' | 'mtb' | 'gravel';
@@ -33,9 +32,9 @@ export interface SARace {
   province: string;
   lat: number;
   lng: number;
-  /** Typical calendar month (1–12). */
+  /** Typical calendar month (1 to 12). */
   month: number;
-  /** Approximate day-of-month — the flow keeps the exact date editable. */
+  /** Approximate day-of-month, the flow keeps the exact date editable. */
   day: number;
   /** Multi-day stage race; distanceKm is one representative stage. */
   stage?: boolean;
@@ -81,22 +80,22 @@ export const SA_RACES: SARace[] = [
   // ── Road cycling ──
   { id: 'cape-town-cycle-tour', name: 'Cape Town Cycle Tour', discipline: 'road-cycle', distanceKm: 109, elevationGainM: 1100, terrain: 'hilly', location: 'Cape Town', province: 'WC', lat: -33.9, lng: 18.42, month: 3, day: 8 },
   { id: 'ride-joburg', name: '947 Ride Joburg', discipline: 'road-cycle', distanceKm: 94, elevationGainM: 900, terrain: 'rolling', location: 'Johannesburg', province: 'GP', lat: -26.14, lng: 28.05, month: 11, day: 16 },
-  { id: 'amashova', name: 'Amashova Durban Classic', discipline: 'road-cycle', distanceKm: 106, elevationGainM: 950, terrain: 'hilly', location: 'Pietermaritzburg → Durban', province: 'KZN', lat: -29.7, lng: 30.7, month: 10, day: 19 },
+  { id: 'amashova', name: 'Amashova Durban Classic', discipline: 'road-cycle', distanceKm: 106, elevationGainM: 950, terrain: 'hilly', location: 'Pietermaritzburg to Durban', province: 'KZN', lat: -29.7, lng: 30.7, month: 10, day: 19 },
   { id: 'tour-durban', name: 'Tour Durban', discipline: 'road-cycle', distanceKm: 105, elevationGainM: 1000, terrain: 'hilly', location: 'Durban', province: 'KZN', lat: -29.858, lng: 31.021, month: 6, day: 22 },
 
   // ── MTB ──
-  { id: 'cape-epic-stage', name: 'Absa Cape Epic (single stage)', discipline: 'mtb', distanceKm: 100, elevationGainM: 2200, terrain: 'mountainous', location: 'Western Cape', province: 'WC', lat: -33.6, lng: 19.0, month: 3, day: 15, stage: true, notes: '8-day stage race — this is one representative queen stage. Fuel per stage.' },
-  { id: 'sani2c', name: 'sani2c', discipline: 'mtb', distanceKm: 88, elevationGainM: 1500, terrain: 'hilly', location: 'Underberg → Scottburgh', province: 'KZN', lat: -29.78, lng: 29.49, month: 5, day: 14, stage: true, notes: '3-day stage race — this is one representative stage. Fuel per stage.' },
-  { id: 'wines2whales', name: 'FNB Wines2Whales', discipline: 'mtb', distanceKm: 75, elevationGainM: 1600, terrain: 'hilly', location: 'Elgin → Onrus', province: 'WC', lat: -34.16, lng: 19.02, month: 11, day: 1, stage: true, notes: '3-day stage race — this is one representative stage. Fuel per stage.' },
-  { id: 'attakwas', name: 'Momentum Attakwas Extreme', discipline: 'mtb', distanceKm: 121, elevationGainM: 2600, terrain: 'mountainous', location: 'Oudtshoorn → Great Brak River', province: 'WC', lat: -33.9, lng: 22.1, month: 1, day: 18 },
-  { id: 'tankwa-trek', name: 'Momentum Tankwa Trek (single stage)', discipline: 'mtb', distanceKm: 95, elevationGainM: 2000, terrain: 'mountainous', location: 'Ceres, Koue Bokkeveld', province: 'WC', lat: -33.1, lng: 19.6, month: 2, day: 7, stage: true, notes: '3-day stage race — this is one representative stage. Fuel per stage.' },
-  { id: 'berg-and-bush', name: 'Berg & Bush (single stage)', discipline: 'mtb', distanceKm: 82, elevationGainM: 1300, terrain: 'hilly', location: 'Winterton, Drakensberg', province: 'KZN', lat: -28.82, lng: 29.53, month: 10, day: 16, stage: true, notes: 'Multi-day stage race — this is one representative stage. Fuel per stage.' },
+  { id: 'cape-epic-stage', name: 'Absa Cape Epic (single stage)', discipline: 'mtb', distanceKm: 100, elevationGainM: 2200, terrain: 'mountainous', location: 'Western Cape', province: 'WC', lat: -33.6, lng: 19.0, month: 3, day: 15, stage: true, notes: '8-day stage race, this is one representative queen stage. Fuel per stage.' },
+  { id: 'sani2c', name: 'sani2c', discipline: 'mtb', distanceKm: 88, elevationGainM: 1500, terrain: 'hilly', location: 'Underberg to Scottburgh', province: 'KZN', lat: -29.78, lng: 29.49, month: 5, day: 14, stage: true, notes: '3-day stage race, this is one representative stage. Fuel per stage.' },
+  { id: 'wines2whales', name: 'FNB Wines2Whales', discipline: 'mtb', distanceKm: 75, elevationGainM: 1600, terrain: 'hilly', location: 'Elgin to Onrus', province: 'WC', lat: -34.16, lng: 19.02, month: 11, day: 1, stage: true, notes: '3-day stage race, this is one representative stage. Fuel per stage.' },
+  { id: 'attakwas', name: 'Momentum Attakwas Extreme', discipline: 'mtb', distanceKm: 121, elevationGainM: 2600, terrain: 'mountainous', location: 'Oudtshoorn to Great Brak River', province: 'WC', lat: -33.9, lng: 22.1, month: 1, day: 18 },
+  { id: 'tankwa-trek', name: 'Momentum Tankwa Trek (single stage)', discipline: 'mtb', distanceKm: 95, elevationGainM: 2000, terrain: 'mountainous', location: 'Ceres, Koue Bokkeveld', province: 'WC', lat: -33.1, lng: 19.6, month: 2, day: 7, stage: true, notes: '3-day stage race, this is one representative stage. Fuel per stage.' },
+  { id: 'berg-and-bush', name: 'Berg & Bush (single stage)', discipline: 'mtb', distanceKm: 82, elevationGainM: 1300, terrain: 'hilly', location: 'Winterton, Drakensberg', province: 'KZN', lat: -28.82, lng: 29.53, month: 10, day: 16, stage: true, notes: 'Multi-day stage race, this is one representative stage. Fuel per stage.' },
 
   // ── Gravel & ultra-distance ──
-  { id: 'the-munga', name: 'The Munga', discipline: 'gravel', distanceKm: 1000, elevationGainM: 7000, terrain: 'rolling', location: 'Bloemfontein → Wellington', province: 'FS', lat: -29.085, lng: 26.159, month: 11, day: 26, notes: 'Non-stop ~1000 km ultra with a 120-hour cutoff — fuel over multiple days.' },
-  { id: 'trans-baviaans', name: 'Trans Baviaans', discipline: 'gravel', distanceKm: 230, elevationGainM: 3300, terrain: 'mountainous', location: 'Willowmore → Jeffreys Bay', province: 'EC', lat: -33.29, lng: 23.49, month: 8, day: 23, notes: 'Single-push 230 km through the Baviaanskloof.' },
-  { id: 'karoo-to-coast', name: 'Momentum Karoo to Coast', discipline: 'gravel', distanceKm: 100, elevationGainM: 1600, terrain: 'hilly', location: 'Uniondale → Knysna', province: 'WC', lat: -33.66, lng: 23.13, month: 9, day: 28 },
-  { id: 'gravel-burn-stage', name: 'Gravel Burn (single stage)', discipline: 'gravel', distanceKm: 130, elevationGainM: 1800, terrain: 'hilly', location: 'Karoo, Western Cape', province: 'WC', lat: -33.0, lng: 22.0, month: 10, day: 5, stage: true, notes: 'Multi-day gravel stage race — this is one representative stage. Fuel per stage.' },
+  { id: 'the-munga', name: 'The Munga', discipline: 'gravel', distanceKm: 1000, elevationGainM: 7000, terrain: 'rolling', location: 'Bloemfontein to Wellington', province: 'FS', lat: -29.085, lng: 26.159, month: 11, day: 26, notes: 'Non-stop ~1000 km ultra with a 120-hour cutoff, fuel over multiple days.' },
+  { id: 'trans-baviaans', name: 'Trans Baviaans', discipline: 'gravel', distanceKm: 230, elevationGainM: 3300, terrain: 'mountainous', location: 'Willowmore to Jeffreys Bay', province: 'EC', lat: -33.29, lng: 23.49, month: 8, day: 23, notes: 'Single-push 230 km through the Baviaanskloof.' },
+  { id: 'karoo-to-coast', name: 'Momentum Karoo to Coast', discipline: 'gravel', distanceKm: 100, elevationGainM: 1600, terrain: 'hilly', location: 'Uniondale to Knysna', province: 'WC', lat: -33.66, lng: 23.13, month: 9, day: 28 },
+  { id: 'gravel-burn-stage', name: 'Gravel Burn (single stage)', discipline: 'gravel', distanceKm: 130, elevationGainM: 1800, terrain: 'hilly', location: 'Karoo, Western Cape', province: 'WC', lat: -33.0, lng: 22.0, month: 10, day: 5, stage: true, notes: 'Multi-day gravel stage race, this is one representative stage. Fuel per stage.' },
   { id: 'around-the-pot', name: 'Around the Pot Gravel', discipline: 'gravel', distanceKm: 120, elevationGainM: 1400, terrain: 'rolling', location: 'Tulbagh', province: 'WC', lat: -33.28, lng: 19.14, month: 5, day: 3 },
 ];
 
