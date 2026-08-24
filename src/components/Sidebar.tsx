@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, User, Wind, Zap, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings, ShieldCheck, Users } from 'lucide-react';
+import { Activity, User, Wind, Zap, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings, ShieldCheck, Users, TrendingUp } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useCoachStore } from '../services/coach/coachStore';
 import { useCoachPlanning } from '../services/coach/useCoachPlanning';
@@ -9,6 +9,7 @@ import { EditableStatRow } from './EditableStatRow';
 import { SavedPlansModal } from './SavedPlansModal';
 import { HistoryView } from './HistoryView';
 import { EventSearchModal } from './EventSearchModal';
+import { GutTrainingPanel } from './GutTrainingPanel';
 import { ThemeToggle } from './ThemeToggle';
 import { NutritionStatsCard } from './NutritionStatsCard';
 import { saveOrUpdatePlan } from '../persistence/db';
@@ -22,6 +23,7 @@ export function Sidebar() {
   const [savedPlansOpen, setSavedPlansOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [eventSearchOpen, setEventSearchOpen] = useState(false);
+  const [gutTrainingOpen, setGutTrainingOpen] = useState(false);
 
   return (
     <aside className="w-[min(18rem,85vw)] bg-surface border-r border-[var(--color-border)] flex flex-col h-full z-30 safe-left">
@@ -286,6 +288,7 @@ export function Sidebar() {
           { onClick: () => setSavedPlansOpen(true), icon: FolderOpen, label: 'Saved Plans' },
           { onClick: () => setHistoryOpen(true), icon: History, label: 'History' },
           { onClick: () => setEventSearchOpen(true), icon: Cloud, label: 'Race Weather' },
+          { onClick: () => setGutTrainingOpen(true), icon: TrendingUp, label: 'Gut Training' },
         ].map(({ onClick, icon: Icon, label }) => (
           <button
             key={label}
@@ -363,6 +366,10 @@ export function Sidebar() {
       <EventSearchModal
         isOpen={eventSearchOpen}
         onClose={() => setEventSearchOpen(false)}
+      />
+      <GutTrainingPanel
+        isOpen={gutTrainingOpen}
+        onClose={() => setGutTrainingOpen(false)}
       />
     </aside>
   );

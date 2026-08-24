@@ -222,6 +222,70 @@ export async function deleteFeedback(feedbackId: string): Promise<void> {
   await deleteDoc(userDoc(`feedback/${feedbackId}`));
 }
 
+// ── Gut Training (beta) — single "current" program + a growing session log ──
+
+export interface FirestoreGutTrainingProgram {
+  startGPerHour: number;
+  targetGPerHour: number;
+  currentGPerHour: number;
+  stepGPerHour: number;
+  status: 'active' | 'completed' | 'paused';
+  updatedAt?: Timestamp;
+}
+
+export async function saveGutTrainingProgram(program: Omit<FirestoreGutTrainingProgram, 'updatedAt'>): Promise<void> {
+  await setDoc(userDoc('gutTrainingProgram/data'), {
+    ...program,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+/** Firestore rejects `undefined` field values (see saveProfile above) — strip
+ *  them so an unset `notes` doesn't throw on write. */
+function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  const cleaned: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) cleaned[k] = v;
+  }
+  return cleaned as Partial<T>;
+}
+
+export async function loadGutTrainingProgram(): Promise<FirestoreGutTrainingProgram | null> {
+  const snap = await getDoc(userDoc('gutTrainingProgram/data'));
+  return snap.exists() ? (snap.data() as FirestoreGutTrainingProgram) : null;
+}
+
+export async function clearGutTrainingProgram(): Promise<void> {
+  try {
+    await deleteDoc(userDoc('gutTrainingProgram/data'));
+  } catch {
+    // doc may not exist
+  }
+}
+
+export interface FirestoreGutTrainingSession {
+  id?: string;
+  sessionTargetGPerHour: number;
+  actualGPerHour: number;
+  durationMinutes: number;
+  gutComfort: 'none' | 'mild' | 'moderate' | 'severe';
+  outcome: 'advance' | 'hold' | 'back-off';
+  notes?: string;
+  createdAt?: Timestamp;
+}
+
+export async function addGutTrainingSession(session: Omit<FirestoreGutTrainingSession, 'id' | 'createdAt'>): Promise<string> {
+  const ref = doc(userCollection('gutTrainingSessions'));
+  await setDoc(ref, { ...stripUndefined(session), createdAt: serverTimestamp() });
+  return ref.id;
+}
+
+export async function getAllGutTrainingSessions(): Promise<(FirestoreGutTrainingSession & { id: string })[]> {
+  const q = query(userCollection('gutTrainingSessions'), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as FirestoreGutTrainingSession & { id: string }));
+}
+
 // ── Custom products (user-created products not in the main feed) ──
 
 export interface FirestoreCustomProduct {
