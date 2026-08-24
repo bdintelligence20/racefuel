@@ -1,51 +1,56 @@
 /**
- * Gut Training v2 (beta) — the 8 presentational screens from the v2 concept
- * design (Aug 2026): goal event, current tolerance, weekly session
- * prescription, watch handoff, post-session log, trained milestone, race
- * day plan, and alert states. Dumb components — all state and persistence
- * live in GutTrainingFlowV2.tsx.
+ * Gut Training v2 (beta) — the screens.
  *
- * Design rules followed throughout: cream is the surface everywhere; plum
- * is type plus one primary (filled) button per screen; target/route values
- * read as a tinted plum panel, not a saturated block; selection is a thin
- * plum outline, not a fill; alert tones (amber/brick) appear only on the
- * alert screen and the watch alert tile — never decoratively.
+ * Consumer-app voice (think Runna): warm, direct coaching copy, no clinical
+ * "step 1 of 8" / "SET UP" section labels on screen — progress is a quiet bar,
+ * not a heading. Dumb components; all state + persistence live in
+ * GutTrainingFlowV2.tsx.
+ *
+ * Design language: cream is the surface everywhere; plum is type plus one
+ * primary (filled) button per screen; target/route values read as a tinted
+ * plum panel, not a saturated block; selection is a thin plum outline;
+ * alert tones (amber/brick) appear only on alerts and the watch alert tile.
  */
-import type { ReactNode } from 'react';
-import { Check, ChevronRight, Watch as WatchIcon, Send, Share2 } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import {
+  Check, Search, Watch as WatchIcon, Send, Share2, FileDown, MapPin,
+  Calendar, Thermometer, Droplets, Wind, ChevronDown, Pencil, Ruler,
+} from 'lucide-react';
 import { NumberField } from '../ui/NumberField';
 import {
-  GUT_HISTORY_TAGS,
-  type GutHistoryTag,
-  type GutResponseV2,
-  type RealismCheck,
-  type SessionPrescription,
-  type MilestoneStats,
-  type RaceDayPlan,
-  type GutTrainingAlert,
-  type GutTrainingV2Program,
+  GUT_HISTORY_TAGS, type GutHistoryTag, type GutResponseV2, type RealismCheck,
+  type SessionPrescription, type MilestoneStats, type RaceDayPlan,
+  type GutTrainingAlert, type GutTrainingV2Program, type CarbSuggestion,
 } from '../../services/nutrition/gutTrainingV2';
+import {
+  DISCIPLINE_LABELS, type RaceDiscipline, type UpcomingRace,
+} from '../../data/saRaces';
+import type { RaceWeather } from '../../services/weather/weatherService';
+import { WATCH_DEVICES, type WatchDevice } from '../../data/watchDevices';
 
 /* ------------------------------ shared bits ------------------------------ */
 
-function Kicker({ children }: { children: ReactNode }) {
-  return <div className="text-[10px] text-accent uppercase tracking-[0.18em] font-bold mb-1">{children}</div>;
-}
-
-function ScreenShell({ kicker, title, subtitle, children, footer }: {
-  kicker: string;
+function ScreenShell({ title, subtitle, progress, children, footer }: {
   title: string;
   subtitle?: string;
+  /** 0–1 setup progress; renders a quiet bar. Omit on the recurring loop. */
+  progress?: number;
   children: ReactNode;
   footer: ReactNode;
 }) {
   return (
     <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-y-auto overscroll-contain px-5 pt-2 pb-6 space-y-5">
+      {progress !== undefined && (
+        <div className="px-5 pt-1">
+          <div className="h-1 rounded-full bg-surfaceHighlight overflow-hidden">
+            <div className="h-full bg-accent transition-all" style={{ width: `${Math.round(progress * 100)}%` }} />
+          </div>
+        </div>
+      )}
+      <div className="flex-1 overflow-y-auto overscroll-contain px-5 pt-4 pb-6 space-y-5">
         <div>
-          <Kicker>{kicker}</Kicker>
-          <h1 className="text-xl font-display font-black text-text-primary leading-tight">{title}</h1>
-          {subtitle && <p className="text-xs text-text-secondary mt-1">{subtitle}</p>}
+          <h1 className="text-2xl font-display font-black text-text-primary leading-tight tracking-tight">{title}</h1>
+          {subtitle && <p className="text-sm text-text-secondary mt-1.5">{subtitle}</p>}
         </div>
         {children}
       </div>
@@ -57,10 +62,7 @@ function ScreenShell({ kicker, title, subtitle, children, footer }: {
 }
 
 function PrimaryButton({ children, onClick, disabled, loading }: {
-  children: ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  loading?: boolean;
+  children: ReactNode; onClick: () => void; disabled?: boolean; loading?: boolean;
 }) {
   return (
     <button
@@ -68,7 +70,7 @@ function PrimaryButton({ children, onClick, disabled, loading }: {
       disabled={disabled || loading}
       className="w-full py-3.5 bg-accent text-background text-sm font-display font-bold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center justify-center gap-1.5"
     >
-      {loading ? 'Working…' : children}
+      {loading ? 'One sec…' : children}
     </button>
   );
 }
@@ -78,20 +80,26 @@ function SecondaryButton({ children, onClick, disabled }: { children: ReactNode;
     <button
       onClick={onClick}
       disabled={disabled}
-      className="w-full py-3 border border-accent/30 text-accent text-sm font-display font-semibold rounded-xl hover:bg-accent/[0.06] transition-colors disabled:opacity-40"
+      className="w-full py-3 border border-accent/30 text-accent text-sm font-display font-semibold rounded-xl hover:bg-accent/[0.06] transition-colors disabled:opacity-40 flex items-center justify-center gap-1.5"
     >
       {children}
     </button>
   );
 }
 
-/** Target/route values read as a tinted plum panel, per the design note —
- *  never a saturated block. */
-function TintedPanel({ children }: { children: ReactNode }) {
-  return <div className="rounded-2xl bg-surfaceHighlight p-4">{children}</div>;
+function TextLink({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+  return (
+    <button onClick={onClick} className="w-full py-2 text-xs font-display font-semibold text-text-muted hover:text-text-primary transition-colors">
+      {children}
+    </button>
+  );
 }
 
-/** Thin plum outline for selection — never a fill — per the design note. */
+/** Target/route values read as a tinted plum panel, per the design note. */
+function TintedPanel({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <div className={`rounded-2xl bg-surfaceHighlight p-4 ${className}`}>{children}</div>;
+}
+
 function OutlineChip({ label, selected, onClick }: { label: string; selected: boolean; onClick: () => void }) {
   return (
     <button
@@ -113,67 +121,257 @@ function fieldInputClass() {
   return 'w-full bg-surface border border-[var(--color-border)] rounded-lg text-text-primary text-base font-display p-3 focus:outline-none focus:border-accent transition-colors';
 }
 
-/* ---------------------------- 1 · goal event ------------------------------ */
+function formatEffort(hours: number): string {
+  if (hours < 1) return `${Math.round(hours * 60)} min`;
+  const h = Math.floor(hours);
+  const m = Math.round((hours - h) * 60);
+  return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
+}
 
-export function GoalEventScreen({
-  eventName, onChangeName, eventDate, onChangeDate, distanceKm, onChangeDistance, targetGPerHour, onNext,
-}: {
-  eventName: string; onChangeName: (v: string) => void;
-  eventDate: string; onChangeDate: (v: string) => void;
-  distanceKm: number; onChangeDistance: (v: number) => void;
-  targetGPerHour: number; onNext: () => void;
-}) {
-  const canProceed = eventName.trim().length > 0 && eventDate.length > 0 && distanceKm > 0;
+function formatRaceDate(d: Date): string {
+  return d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/* ------------------------- weather + target panels ------------------------ */
+
+function WeatherPanel({ weather, loading }: { weather: RaceWeather | null; loading: boolean }) {
+  if (loading) {
+    return (
+      <TintedPanel>
+        <div className="flex items-center gap-2 text-xs text-text-muted">
+          <div className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+          Checking race-day conditions…
+        </div>
+      </TintedPanel>
+    );
+  }
+  if (!weather || Number.isNaN(weather.tempMax)) return null;
+
+  const hot = weather.tempMax >= 26;
   return (
-    <ScreenShell
-      kicker="1 · SET UP"
-      title="Your goal event"
-      footer={<PrimaryButton onClick={onNext} disabled={!canProceed}>Next</PrimaryButton>}
-    >
+    <TintedPanel>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[10px] text-text-muted uppercase tracking-wider">
+          {weather.source === 'forecast' ? 'Race-day forecast' : 'Typical for race week'}
+        </span>
+        <span className="text-[9px] font-display font-bold text-accent px-1.5 py-0.5 rounded-full bg-accent/10 uppercase tracking-wider">
+          {weather.source === 'forecast' ? 'Forecast' : `${weather.yearsAveraged ?? 3}-yr avg`}
+        </span>
+      </div>
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-1.5">
+          <Thermometer className="w-4 h-4 text-text-muted" />
+          <span className="text-sm font-display font-bold text-text-primary">{weather.tempMin}–{weather.tempMax}°C</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Droplets className="w-4 h-4 text-text-muted" />
+          <span className="text-sm font-display text-text-secondary">{weather.humidity}%</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Wind className="w-4 h-4 text-text-muted" />
+          <span className="text-sm font-display text-text-secondary">{weather.windSpeed} km/h</span>
+        </div>
+      </div>
+      {hot && (
+        <p className="text-[11px] text-text-secondary mt-2 leading-relaxed">
+          Warm day likely — keep your carbs up and lift fluid + sodium. Fuelling actually protects your gut in the heat, so don't back off the plan.
+        </p>
+      )}
+    </TintedPanel>
+  );
+}
+
+function TargetPanel({ suggestion, targetGPerHour, onChangeTarget, edited }: {
+  suggestion: CarbSuggestion | null;
+  targetGPerHour: number;
+  onChangeTarget: (n: number) => void;
+  edited: boolean;
+}) {
+  const [whyOpen, setWhyOpen] = useState(false);
+  return (
+    <TintedPanel>
+      <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">Your race-day fuelling</div>
+      <div className="flex items-baseline gap-2">
+        <NumberField
+          value={targetGPerHour}
+          onChange={onChangeTarget}
+          min={20}
+          max={120}
+          ariaLabel="Race-day carbs per hour"
+          commitOnBlur
+          className="w-24 bg-surface border border-[var(--color-border)] rounded-lg text-accent text-3xl font-display font-black p-2 focus:outline-none focus:border-accent transition-colors"
+        />
+        <span className="text-text-muted font-display text-sm">g/hr</span>
+        <Pencil className="w-3.5 h-3.5 text-text-muted ml-auto self-center" />
+      </div>
+      {suggestion && (
+        <p className="text-[11px] text-text-secondary mt-2 leading-relaxed">
+          {edited && targetGPerHour !== suggestion.targetGPerHour
+            ? `We suggested ${suggestion.targetGPerHour} g/hr for a ${formatEffort(suggestion.durationHours)} effort — this is yours to set.`
+            : `A starting point for a ${formatEffort(suggestion.durationHours)} effort. Change it to whatever your gut knows it can handle.`}
+        </p>
+      )}
+      {suggestion && (
+        <>
+          <button onClick={() => setWhyOpen((v) => !v)} className="mt-2 flex items-center gap-1 text-[10px] font-display font-semibold text-accent">
+            Why this number <ChevronDown className={`w-3 h-3 transition-transform ${whyOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {whyOpen && (
+            <p className="text-[10px] text-text-muted mt-1.5 leading-relaxed">
+              {suggestion.rationale} Based on current sports-nutrition consensus — 60–90 g/hr for 2 hr+ efforts, up to 120 g/hr with a trained gut (Costa 2025; Jeukendrup 2014; Hearris 2022).
+            </p>
+          )}
+        </>
+      )}
+    </TintedPanel>
+  );
+}
+
+/* --------------------------- 1 · goal event ------------------------------ */
+
+const DISCIPLINE_ORDER: RaceDiscipline[] = ['road-run', 'trail-run', 'road-cycle', 'mtb', 'gravel'];
+
+export function GoalEventScreen(props: {
+  raceQuery: string;
+  onChangeRaceQuery: (v: string) => void;
+  raceResults: UpcomingRace[];
+  selectedRace: UpcomingRace | null;
+  onSelectRace: (r: UpcomingRace) => void;
+  onClearRace: () => void;
+  manualMode: boolean;
+  onToggleManual: () => void;
+  eventName: string;
+  onChangeName: (v: string) => void;
+  eventDate: string;
+  onChangeDate: (v: string) => void;
+  distanceKm: number;
+  onChangeDistance: (v: number) => void;
+  discipline: RaceDiscipline;
+  onChangeDiscipline: (d: RaceDiscipline) => void;
+  weather: RaceWeather | null;
+  weatherLoading: boolean;
+  suggestion: CarbSuggestion | null;
+  targetGPerHour: number;
+  onChangeTarget: (n: number) => void;
+  targetEdited: boolean;
+  canProceed: boolean;
+  onNext: () => void;
+}) {
+  const {
+    raceQuery, onChangeRaceQuery, raceResults, selectedRace, onSelectRace, onClearRace,
+    manualMode, onToggleManual, eventName, onChangeName, eventDate, onChangeDate,
+    distanceKm, onChangeDistance, discipline, onChangeDiscipline,
+    weather, weatherLoading, suggestion, targetGPerHour, onChangeTarget, targetEdited,
+    canProceed, onNext,
+  } = props;
+
+  const body = selectedRace ? (
+    // ── A race is chosen: show it, weather, and the editable target ──
+    <>
+      <TintedPanel className="!bg-accent/[0.06]">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <div className="text-base font-display font-black text-text-primary leading-snug">{selectedRace.name}</div>
+            <div className="text-xs text-text-secondary mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+              <span>{DISCIPLINE_LABELS[selectedRace.discipline]}</span>
+              <span className="text-text-muted">·</span>
+              <span className="inline-flex items-center gap-1"><Ruler className="w-3 h-3" />{selectedRace.distanceKm} km</span>
+              <span className="text-text-muted">·</span>
+              <span className="inline-flex items-center gap-1"><Calendar className="w-3 h-3" />{formatRaceDate(selectedRace.date)}</span>
+            </div>
+            <div className="text-[11px] text-text-muted mt-1 inline-flex items-center gap-1"><MapPin className="w-3 h-3" />{selectedRace.location}</div>
+          </div>
+        </div>
+      </TintedPanel>
+
+      <WeatherPanel weather={weather} loading={weatherLoading} />
+      <TargetPanel suggestion={suggestion} targetGPerHour={targetGPerHour} onChangeTarget={onChangeTarget} edited={targetEdited} />
+    </>
+  ) : manualMode ? (
+    // ── Manual entry fallback ──
+    <>
       <div>
         <FieldLabel>Event</FieldLabel>
-        <input
-          type="text"
-          value={eventName}
-          onChange={(e) => onChangeName(e.target.value)}
-          placeholder="e.g. Comrades Marathon"
-          className={fieldInputClass()}
-        />
+        <input type="text" value={eventName} onChange={(e) => onChangeName(e.target.value)} placeholder="Your race" className={fieldInputClass()} />
       </div>
       <div className="flex gap-3">
         <div className="flex-1">
           <FieldLabel>Date</FieldLabel>
-          <input
-            type="date"
-            value={eventDate}
-            onChange={(e) => onChangeDate(e.target.value)}
-            className={fieldInputClass()}
-          />
+          <input type="date" value={eventDate} onChange={(e) => onChangeDate(e.target.value)} className={fieldInputClass()} />
         </div>
         <div className="flex-1">
           <FieldLabel>Distance</FieldLabel>
           <div className="flex items-center gap-2">
-            <NumberField
-              value={distanceKm}
-              onChange={onChangeDistance}
-              min={1}
-              max={500}
-              ariaLabel="Event distance in kilometres"
-              commitOnBlur
-              className={fieldInputClass()}
-            />
+            <NumberField value={distanceKm} onChange={onChangeDistance} min={1} max={1000} ariaLabel="Event distance in kilometres" commitOnBlur className={fieldInputClass()} />
             <span className="text-text-muted font-display text-xs">km</span>
           </div>
         </div>
       </div>
+      <div>
+        <FieldLabel>Type</FieldLabel>
+        <div className="flex flex-wrap gap-2">
+          {DISCIPLINE_ORDER.map((d) => (
+            <OutlineChip key={d} label={DISCIPLINE_LABELS[d]} selected={discipline === d} onClick={() => onChangeDiscipline(d)} />
+          ))}
+        </div>
+      </div>
+      <TargetPanel suggestion={suggestion} targetGPerHour={targetGPerHour} onChangeTarget={onChangeTarget} edited={targetEdited} />
+    </>
+  ) : (
+    // ── Default: search the SA race list ──
+    <>
+      <div className="relative">
+        <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+        <input
+          type="text"
+          value={raceQuery}
+          onChange={(e) => onChangeRaceQuery(e.target.value)}
+          placeholder="Search races — Comrades, Cape Epic, Otter…"
+          className="w-full bg-surface border border-[var(--color-border)] rounded-xl text-text-primary text-sm p-3 pl-9 focus:outline-none focus:border-accent transition-colors"
+        />
+      </div>
+      <div className="space-y-1.5 -mx-1">
+        {raceResults.length === 0 ? (
+          <p className="text-xs text-text-muted px-1 py-3">No races match. Try a different search, or add yours manually below.</p>
+        ) : (
+          raceResults.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => onSelectRace(r)}
+              className="w-full text-left px-3 py-2.5 rounded-xl border border-[var(--color-border)] hover:border-accent/40 hover:bg-accent/[0.04] transition-colors"
+            >
+              <div className="text-sm font-display font-semibold text-text-primary leading-snug">{r.name}</div>
+              <div className="text-[11px] text-text-secondary mt-0.5 flex flex-wrap items-center gap-x-1.5">
+                <span>{DISCIPLINE_LABELS[r.discipline]}</span>
+                <span className="text-text-muted">·</span>
+                <span>{r.distanceKm} km</span>
+                <span className="text-text-muted">·</span>
+                <span>{formatRaceDate(r.date)}</span>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    </>
+  );
 
-      {distanceKm > 0 && (
-        <TintedPanel>
-          <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">This route needs</div>
-          <div className="text-3xl font-display font-black text-accent">{targetGPerHour} g/hr</div>
-          <p className="text-[11px] text-text-muted mt-1.5">Derived from the course profile and your expected finish time.</p>
-        </TintedPanel>
-      )}
+  return (
+    <ScreenShell
+      title="What are you training for?"
+      subtitle="Pick your race and we'll shape the whole plan around it."
+      progress={1 / 3}
+      footer={
+        <>
+          <PrimaryButton onClick={onNext} disabled={!canProceed}>Continue</PrimaryButton>
+          {selectedRace ? (
+            <TextLink onClick={onClearRace}>Choose a different race</TextLink>
+          ) : (
+            <TextLink onClick={onToggleManual}>{manualMode ? 'Back to race search' : "Can't find your race? Add it manually"}</TextLink>
+          )}
+        </>
+      }
+    >
+      {body}
     </ScreenShell>
   );
 }
@@ -191,8 +389,9 @@ export function ToleranceScreen({
   const noteTone = realism.level === 'comfortable' ? 'text-text-secondary' : realism.level === 'tight' ? 'text-alert-amber' : 'text-alert-brick';
   return (
     <ScreenShell
-      kicker="1 · SET UP"
-      title="Where you're starting"
+      title="Where's your gut right now?"
+      subtitle="Be honest — this is just your starting point, not a test."
+      progress={2 / 3}
       footer={<PrimaryButton onClick={onBuildPlan} loading={saving}>Build my plan</PrimaryButton>}
     >
       <TintedPanel>
@@ -212,7 +411,7 @@ export function ToleranceScreen({
       </TintedPanel>
 
       <div>
-        <FieldLabel>Gut history</FieldLabel>
+        <FieldLabel>Anything your gut does on long runs?</FieldLabel>
         <div className="flex flex-wrap gap-2">
           {GUT_HISTORY_TAGS.map(({ value, label }) => (
             <OutlineChip key={value} label={label} selected={gutHistory.includes(value)} onClick={() => onToggleHistory(value)} />
@@ -221,54 +420,44 @@ export function ToleranceScreen({
       </div>
 
       <div>
-        <FieldLabel>Weeks to event</FieldLabel>
+        <FieldLabel>Weeks until race day</FieldLabel>
         <div className="flex items-center gap-2">
-          <NumberField
-            value={weeksToEvent}
-            onChange={onChangeWeeks}
-            min={1}
-            max={52}
-            ariaLabel="Weeks to event"
-            commitOnBlur
-            className={`${fieldInputClass()} w-24`}
-          />
+          <NumberField value={weeksToEvent} onChange={onChangeWeeks} min={1} max={52} ariaLabel="Weeks to event" commitOnBlur className={`${fieldInputClass()} w-24`} />
           <span className="text-text-muted font-display text-xs">weeks</span>
         </div>
       </div>
 
-      <p className={`text-xs leading-relaxed ${noteTone}`}>{realism.note}</p>
+      <p className={`text-sm leading-relaxed ${noteTone}`}>{realism.note}</p>
     </ScreenShell>
   );
 }
 
-/* -------------------------- 2 · weekly prescription ------------------------- */
+/* -------------------------- weekly prescription ------------------------- */
 
 export function WeeklySessionScreen({
-  weekNumber, targetGPerHour, durationMinutes, onChangeDuration, prescription, onSendToWatch, onStartInApp,
+  weekNumber, targetGPerHour, durationMinutes, onChangeDuration, prescription, onSendToWatch, onStartInApp, onExportPdf,
 }: {
   weekNumber: number; targetGPerHour: number;
   durationMinutes: number; onChangeDuration: (v: number) => void;
   prescription: SessionPrescription;
-  onSendToWatch: () => void; onStartInApp: () => void;
+  onSendToWatch: () => void; onStartInApp: () => void; onExportPdf: () => void;
 }) {
   const hours = (durationMinutes / 60).toFixed(1).replace(/\.0$/, '');
   return (
     <ScreenShell
-      kicker="2 · EACH WEEK"
-      title="Saturday's session"
-      subtitle={`Week ${weekNumber}`}
+      title="This week's long run"
+      subtitle={`Week ${weekNumber} — practise fuelling exactly like race day.`}
       footer={
         <>
-          <PrimaryButton onClick={onSendToWatch}>
-            <Send className="w-4 h-4" /> Send session plan to watch
-          </PrimaryButton>
+          <PrimaryButton onClick={onSendToWatch}><Send className="w-4 h-4" /> Send to watch</PrimaryButton>
           <SecondaryButton onClick={onStartInApp}>Start in app</SecondaryButton>
+          <TextLink onClick={onExportPdf}>Export as PDF</TextLink>
         </>
       }
     >
       <TintedPanel>
         <div className="flex items-center justify-between gap-2">
-          <div className="text-[10px] text-text-muted uppercase tracking-wider">Long run</div>
+          <div className="text-[10px] text-text-muted uppercase tracking-wider">How long you're out</div>
           <div className="flex items-center gap-1">
             <NumberField
               value={durationMinutes}
@@ -283,11 +472,11 @@ export function WeeklySessionScreen({
             <span className="text-[10px] text-text-muted">min</span>
           </div>
         </div>
-        <div className="text-2xl font-display font-black text-accent mt-1">{hours}hr · hold {targetGPerHour} g/hr</div>
+        <div className="text-2xl font-display font-black text-accent mt-1">{hours} hr · hold {targetGPerHour} g/hr</div>
       </TintedPanel>
 
       <div>
-        <FieldLabel>Suggested intake</FieldLabel>
+        <FieldLabel>Your fuelling for the run</FieldLabel>
         <div className="rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border)] overflow-hidden">
           {prescription.items.map((item, i) => (
             <div key={i} className="flex items-center justify-between px-3 py-2 text-sm">
@@ -298,73 +487,111 @@ export function WeeklySessionScreen({
               <span className="font-display font-semibold text-text-primary">{item.grams}g</span>
             </div>
           ))}
-          <div className="px-3 py-1.5 text-[10px] text-text-muted flex items-center gap-1">
-            <ChevronRight className="w-2.5 h-2.5" /> repeat each hour
-          </div>
         </div>
       </div>
 
       <div className="flex items-center justify-between px-1">
-        <span className="text-xs text-text-secondary">Session total</span>
-        <span className="text-lg font-display font-black text-text-primary">≈{prescription.totalGrams}g</span>
+        <span className="text-xs text-text-secondary">That's about</span>
+        <span className="text-lg font-display font-black text-text-primary">{prescription.totalGrams}g over the run</span>
       </div>
     </ScreenShell>
   );
 }
 
-/* ------------------------------ 2 · handoff -------------------------------- */
+/* ------------------------------ handoff -------------------------------- */
+
+function DevicePickerRow({ device, selected, onSelect }: { device: WatchDevice; selected: boolean; onSelect: () => void }) {
+  return (
+    <button
+      onClick={onSelect}
+      className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors ${
+        selected ? 'border-accent bg-accent/[0.04]' : 'border-[var(--color-border)] hover:border-accent/40'
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-sm font-display font-semibold text-text-primary">{device.brand}</div>
+          <div className="text-[11px] text-text-muted">{device.model}</div>
+        </div>
+        {selected && <Check className="w-4 h-4 text-accent flex-shrink-0" />}
+      </div>
+    </button>
+  );
+}
 
 export function HandoffScreen({
-  nextCueLabel, nextCueTimeLabel, nextCueGrams, targetGPerHour, deviceName, alertsQueuedCount, onChangeDevice, onImBack,
+  device, onSelectDevice, nextCueLabel, nextCueTimeLabel, nextCueGrams, targetGPerHour,
+  cueCount, onExportGpx, onExportPdf, exportedHint, exporting, onDone,
 }: {
+  device: WatchDevice;
+  onSelectDevice: (id: string) => void;
   nextCueLabel: string; nextCueTimeLabel: string; nextCueGrams: number; targetGPerHour: number;
-  deviceName: string; alertsQueuedCount: number;
-  onChangeDevice: () => void; onImBack: () => void;
+  cueCount: number;
+  onExportGpx: () => void; onExportPdf: () => void;
+  exportedHint: string | null; exporting: boolean;
+  onDone: () => void;
 }) {
+  const [changing, setChanging] = useState(false);
   return (
     <ScreenShell
-      kicker="2 · HANDOFF"
-      title="Sent to your watch"
+      title="Ready for your watch"
+      subtitle="We'll build a file your device can follow on the run."
       footer={
         <>
-          <SecondaryButton onClick={onChangeDevice}>Change device</SecondaryButton>
-          <button onClick={onImBack} className="w-full py-2 text-xs text-text-muted hover:text-text-primary transition-colors">
-            I'm back — log this session
-          </button>
+          <PrimaryButton onClick={onExportGpx} loading={exporting}>
+            <Send className="w-4 h-4" /> Export to {device.brand}
+          </PrimaryButton>
+          <SecondaryButton onClick={onExportPdf}><FileDown className="w-4 h-4" /> Export as PDF</SecondaryButton>
+          <TextLink onClick={onDone}>I'm back — log this run</TextLink>
         </>
       }
     >
-      {/* The one place deep plum stays as ground, per the design note — dark
-          ground + cream type is what survives sunlight on a real watch. */}
+      {/* The one place deep plum stays as ground — dark + cream survives sunlight. */}
       <div className="rounded-[28px] bg-accent p-6 flex flex-col items-center text-center gap-1.5 mx-auto max-w-[220px] aspect-square justify-center">
-        <div className="text-[9px] text-background/60 uppercase tracking-[0.2em] font-bold">Next cue</div>
+        <div className="text-[9px] text-background/60 uppercase tracking-[0.2em] font-bold">First cue</div>
         <div className="text-2xl font-display font-black text-background uppercase">{nextCueLabel}</div>
         <div className="text-sm font-display text-background/80">{nextCueTimeLabel}</div>
         <div className="w-3/4 h-1 rounded-full bg-background/20 my-1.5 overflow-hidden">
           <div className="h-full bg-background/70" style={{ width: `${Math.min(100, Math.round((nextCueGrams / targetGPerHour) * 100))}%` }} />
         </div>
-        <div className="text-[10px] text-background/60">{nextCueGrams} in {targetGPerHour} g/hr</div>
+        <div className="text-[10px] text-background/60">{nextCueGrams}g · hold {targetGPerHour} g/hr</div>
       </div>
 
       <div className="rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border)]">
-        <div className="flex items-center justify-between px-3 py-2.5 text-sm">
+        <button onClick={() => setChanging((v) => !v)} className="w-full flex items-center justify-between px-3 py-2.5 text-sm">
           <span className="text-text-muted flex items-center gap-1.5"><WatchIcon className="w-3.5 h-3.5" /> Device</span>
-          <span className="font-display font-semibold text-text-primary">{deviceName}</span>
-        </div>
+          <span className="font-display font-semibold text-text-primary flex items-center gap-1">
+            {device.brand} <ChevronDown className={`w-3.5 h-3.5 text-text-muted transition-transform ${changing ? 'rotate-180' : ''}`} />
+          </span>
+        </button>
         <div className="flex items-center justify-between px-3 py-2.5 text-sm">
-          <span className="text-text-muted">Alerts queued</span>
-          <span className="font-display font-semibold text-text-primary">{alertsQueuedCount} cues</span>
+          <span className="text-text-muted">Cues queued</span>
+          <span className="font-display font-semibold text-text-primary">{cueCount}</span>
         </div>
       </div>
 
-      <p className="text-[11px] text-text-muted leading-relaxed px-1">
-        Buzzes at each cue. Logs what you confirm, so the session writes itself.
-      </p>
+      {changing && (
+        <div className="space-y-1.5">
+          {WATCH_DEVICES.map((d) => (
+            <DevicePickerRow key={d.id} device={d} selected={d.id === device.id} onSelect={() => { onSelectDevice(d.id); setChanging(false); }} />
+          ))}
+        </div>
+      )}
+
+      {exportedHint ? (
+        <TintedPanel>
+          <p className="text-[11px] text-text-secondary leading-relaxed">{exportedHint}</p>
+        </TintedPanel>
+      ) : (
+        <p className="text-[11px] text-text-muted leading-relaxed px-1">
+          Exports as a {device.acceptedFormats[0].toUpperCase()} of your fuel cues. Load your race's own route for turn-by-turn — these ride alongside it.
+        </p>
+      )}
     </ScreenShell>
   );
 }
 
-/* --------------------------- 2 · post-session log --------------------------- */
+/* --------------------------- post-session log --------------------------- */
 
 export function PostSessionLogScreen({
   sessionTargetGPerHour, actualGPerHour, onChangeActual, durationMinutes, gutResponse, onChangeResponse, previewNote, onSave, saving,
@@ -377,15 +604,15 @@ export function PostSessionLogScreen({
 }) {
   const rate = durationMinutes > 0 ? Math.round((actualGPerHour * 60) / durationMinutes) : actualGPerHour;
   const responses: { value: GutResponseV2; label: string; dot: string }[] = [
-    { value: 'clean', label: 'Clean', dot: 'border-2 border-accent' },
-    { value: 'mild', label: 'Mild', dot: 'bg-alert-amber/60' },
+    { value: 'clean', label: 'Felt great', dot: 'border-2 border-accent' },
+    { value: 'mild', label: 'A bit off', dot: 'bg-alert-amber/60' },
     { value: 'rough', label: 'Rough', dot: 'bg-alert-brick' },
   ];
   return (
     <ScreenShell
-      kicker="2 · EACH WEEK"
-      title="How did it sit?"
-      footer={<PrimaryButton onClick={onSave} loading={saving}>Save session</PrimaryButton>}
+      title="How did that sit?"
+      subtitle="Two taps — this is what moves your plan forward."
+      footer={<PrimaryButton onClick={onSave} loading={saving}>Save this run</PrimaryButton>}
     >
       <TintedPanel>
         <div className="text-[10px] text-text-muted uppercase tracking-wider mb-1">You took in</div>
@@ -401,11 +628,11 @@ export function PostSessionLogScreen({
           />
           <span className="text-text-muted font-display text-sm">g · {rate} g/hr</span>
         </div>
-        <p className="text-[10px] text-text-muted mt-1.5">Pulled from your watch, edit if needed. Target was {sessionTargetGPerHour} g/hr.</p>
+        <p className="text-[10px] text-text-muted mt-1.5">Straight off your watch — tweak it if it's off. You were aiming for {sessionTargetGPerHour} g/hr.</p>
       </TintedPanel>
 
       <div>
-        <FieldLabel>Gut response</FieldLabel>
+        <FieldLabel>And your gut?</FieldLabel>
         <div className="flex gap-2">
           {responses.map(({ value, label, dot }) => (
             <button
@@ -429,22 +656,21 @@ export function PostSessionLogScreen({
   );
 }
 
-/* -------------------------------- 3 · trained -------------------------------- */
+/* -------------------------------- milestone -------------------------------- */
 
 export function MilestoneScreen({ stats, program, onSeeRaceDayPlan }: {
   stats: MilestoneStats; program: GutTrainingV2Program; onSeeRaceDayPlan: () => void;
 }) {
   return (
     <ScreenShell
-      kicker="3 · TRAINED"
       title=""
-      footer={<PrimaryButton onClick={onSeeRaceDayPlan}>See race day plan</PrimaryButton>}
+      footer={<PrimaryButton onClick={onSeeRaceDayPlan}>See my race-day plan</PrimaryButton>}
     >
       <div className="flex flex-col items-center text-center gap-3 py-6">
         <div className="w-14 h-14 rounded-full bg-accent flex items-center justify-center">
           <Check className="w-7 h-7 text-background" />
         </div>
-        <div className="text-xs font-display font-bold text-text-secondary uppercase tracking-wider">You're gut trained</div>
+        <div className="text-xs font-display font-bold text-text-secondary uppercase tracking-wider">You did it — your gut's ready</div>
         <div className="text-5xl font-display font-black text-accent">{stats.gPerHour} g/hr</div>
         <p className="text-sm text-text-secondary">up from {program.startGPerHour} g/hr in {stats.weeksElapsed} weeks</p>
 
@@ -455,41 +681,37 @@ export function MilestoneScreen({ stats, program, onSeeRaceDayPlan }: {
           </div>
           <div className="text-center">
             <div className="text-lg font-display font-black text-text-primary">{stats.sessionsCount}</div>
-            <div className="text-[10px] text-text-muted uppercase tracking-wider">sessions</div>
+            <div className="text-[10px] text-text-muted uppercase tracking-wider">runs</div>
           </div>
           <div className="text-center">
             <div className="text-lg font-display font-black text-text-primary">{stats.cleanPercent}%</div>
-            <div className="text-[10px] text-text-muted uppercase tracking-wider">clean</div>
+            <div className="text-[10px] text-text-muted uppercase tracking-wider">felt great</div>
           </div>
         </div>
 
         <p className="text-sm text-text-primary font-medium mt-2 max-w-xs">
-          Your gut can now carry race pace. Ready for {program.event.name}.
+          Your gut can carry race pace now. Bring on {program.event.name}.
         </p>
       </div>
     </ScreenShell>
   );
 }
 
-/* -------------------------------- 4 · race day -------------------------------- */
+/* -------------------------------- race day -------------------------------- */
 
-export function RaceDayScreen({ plan, onSendToWatch, onShareWithCrew }: {
-  plan: RaceDayPlan; onSendToWatch: () => void; onShareWithCrew: () => void;
+export function RaceDayScreen({ plan, onSendToWatch, onExportPdf, onShareWithCrew, exporting }: {
+  plan: RaceDayPlan; onSendToWatch: () => void; onExportPdf: () => void; onShareWithCrew: () => void; exporting: boolean;
 }) {
   const maxGrams = Math.max(...plan.segments.map((s) => s.grams), 1);
   return (
     <ScreenShell
-      kicker="4 · RACE DAY"
-      title={`${plan.event.name} · fuel plan`}
-      subtitle={`${plan.event.distanceKm}km · hold ${plan.targetGPerHour} g/hr`}
+      title={`${plan.event.name} — your game plan`}
+      subtitle={`${plan.event.distanceKm} km · hold ${plan.targetGPerHour} g/hr`}
       footer={
         <>
-          <PrimaryButton onClick={onSendToWatch}>
-            <Send className="w-4 h-4" /> Send race plan to watch
-          </PrimaryButton>
-          <SecondaryButton onClick={onShareWithCrew}>
-            <span className="inline-flex items-center gap-1.5"><Share2 className="w-3.5 h-3.5" /> Share with crew</span>
-          </SecondaryButton>
+          <PrimaryButton onClick={onSendToWatch} loading={exporting}><Send className="w-4 h-4" /> Send to watch</PrimaryButton>
+          <SecondaryButton onClick={onExportPdf}><FileDown className="w-4 h-4" /> Export as PDF</SecondaryButton>
+          <TextLink onClick={onShareWithCrew}><span className="inline-flex items-center gap-1.5"><Share2 className="w-3.5 h-3.5" /> Share with your crew</span></TextLink>
         </>
       }
     >
@@ -504,21 +726,21 @@ export function RaceDayScreen({ plan, onSendToWatch, onShareWithCrew }: {
       <div className="rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border)] overflow-hidden">
         {plan.segments.map((seg, i) => (
           <div key={i} className="flex items-center justify-between px-3 py-2 text-sm">
-            <span className="text-text-secondary">{seg.fromKm} to {seg.toKm}km</span>
+            <span className="text-text-secondary">{seg.fromKm}–{seg.toKm} km</span>
             <span className="font-display font-semibold text-text-primary">{seg.grams}g</span>
           </div>
         ))}
       </div>
 
       <div className="flex items-center justify-between px-1">
-        <span className="text-xs text-text-secondary">Total on course</span>
-        <span className="text-lg font-display font-black text-text-primary">≈{plan.totalGrams}g</span>
+        <span className="text-xs text-text-secondary">On course, all in</span>
+        <span className="text-lg font-display font-black text-text-primary">about {plan.totalGrams}g</span>
       </div>
     </ScreenShell>
   );
 }
 
-/* ------------------------------- alert states -------------------------------- */
+/* ------------------------------- alerts -------------------------------- */
 
 function AlertCard({ alert }: { alert: GutTrainingAlert }) {
   const bg = alert.tone === 'amber' ? 'bg-alert-amberTint' : 'bg-alert-brickTint';
@@ -538,9 +760,9 @@ export function AlertsScreen({ alerts, watchAlert, onBack }: {
 }) {
   return (
     <ScreenShell
-      kicker="ALERT STATES"
-      title="When something is off"
-      footer={<SecondaryButton onClick={onBack}>Back</SecondaryButton>}
+      title="Worth a quick look"
+      subtitle="Nothing's broken — just a nudge so race day goes well."
+      footer={<PrimaryButton onClick={onBack}>Got it</PrimaryButton>}
     >
       <div className="space-y-3">
         {alerts.map((a, i) => <AlertCard key={i} alert={a} />)}
@@ -550,12 +772,12 @@ export function AlertsScreen({ alerts, watchAlert, onBack }: {
         <div className="rounded-[28px] bg-accent p-6 flex flex-col items-center text-center gap-1.5 mx-auto max-w-[220px] aspect-square justify-center">
           <div className="text-[9px] text-alert-amber uppercase tracking-[0.2em] font-bold">{watchAlert.title}</div>
           <div className="text-2xl font-display font-black text-background uppercase">Gel now</div>
-          <div className="text-[10px] text-background/60">{watchAlert.grams} of {watchAlert.targetGPerHour} g/hr</div>
+          <div className="text-[10px] text-background/60">{watchAlert.grams}g of {watchAlert.targetGPerHour} g/hr</div>
         </div>
       )}
 
       <p className="text-[11px] text-text-muted leading-relaxed px-1">
-        Amber for behind plan, brick for needs a decision. Both muted so they sit on screen without shouting.
+        You'll only see these when the plan needs a small change of course.
       </p>
     </ScreenShell>
   );

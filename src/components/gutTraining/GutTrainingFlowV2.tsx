@@ -1,23 +1,17 @@
 /**
  * Gut Training v2 (beta) — orchestrator.
  *
- * Full-screen takeover (not a centered modal like v1's GutTrainingPanel) —
- * the v2 concept design's 8 screens are full mobile pages, not a squeezed
- * dialog. Opened from Sidebar once VITE_GUT_TRAINING_V2 is on; reaching
- * this component at all (via the sidebar's "Gut Training" item) plus
- * completing setup IS the opt-in — see gutTrainingV2Program's `optedInAt`,
- * which functions as the admin-visible opt-in record (adminListGutTrainingV2
- * in functions/src/admin.ts).
+ * Full-screen takeover (not a centered modal like v1). Opened from Sidebar
+ * once VITE_GUT_TRAINING_V2 is on; reaching this and completing setup IS the
+ * opt-in (see gutTrainingV2Program's `optedInAt`, the admin-visible record).
  *
- * State machine: setup (goal-event → tolerance) creates the program, then
- * the weekly loop (weekly-prescription → [handoff] → post-session-log)
- * repeats until the program completes (→ milestone → race-day). Alerts are
- * reachable any time active alerts exist.
+ * Setup: pick an SA race (or enter one manually) → the app's carb engine
+ * suggests a race-day g/hr the athlete can edit → tolerance → build. Then the
+ * weekly loop (session → handoff → log) repeats to the milestone → race day.
  *
- * Watch handoff is a stub — see HandoffScreen's docstring and the flagged
- * assumption called out to the user: no Garmin/BLE/device-pairing
- * integration exists in this repo, so "sent to watch" and "confirm to log"
- * are simulated, not real.
+ * Handoff exports are real files (GPX fuel cues matched to the chosen device,
+ * or a PDF) via the shared downloadFile helper — but there's no over-the-air
+ * device integration; the athlete loads the file through their device's app.
  */
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -36,43 +30,38 @@ import { getCurrentUser } from '../../services/firebase/auth';
 import {
   createProgramV2,
   recordSessionV2,
-  deriveTargetGPerHour,
   buildRealismNote,
   buildSessionPrescription,
   computeMilestoneStats,
   buildRaceDayPlan,
   getActiveAlerts,
+  suggestCarbTarget,
   toGutComfort,
   type GutTrainingV2Program,
   type GutTrainingSession,
   type GutHistoryTag,
   type GutResponseV2,
+  type CarbSuggestion,
 } from '../../services/nutrition/gutTrainingV2';
+import { searchRaces, nextOccurrence, type UpcomingRace, type RaceDiscipline } from '../../data/saRaces';
+import { getRaceWeather, type RaceWeather } from '../../services/weather/weatherService';
+import { deviceById, DEFAULT_DEVICE_ID } from '../../data/watchDevices';
 import {
-  GoalEventScreen,
-  ToleranceScreen,
-  WeeklySessionScreen,
-  HandoffScreen,
-  PostSessionLogScreen,
-  MilestoneScreen,
-  RaceDayScreen,
-  AlertsScreen,
+  exportFuelCuesToDevice, raceDayCues, sessionCues, downloadRaceDayPdf, downloadSessionPdf,
+} from '../../services/nutrition/gutTrainingExport';
+import {
+  GoalEventScreen, ToleranceScreen, WeeklySessionScreen, HandoffScreen,
+  PostSessionLogScreen, MilestoneScreen, RaceDayScreen, AlertsScreen,
 } from './GutTrainingScreens';
 
 type ScreenId =
-  | 'goal-event'
-  | 'tolerance'
-  | 'weekly-prescription'
-  | 'handoff'
-  | 'post-session-log'
-  | 'milestone'
-  | 'race-day'
-  | 'alerts';
+  | 'goal-event' | 'tolerance' | 'weekly-prescription' | 'handoff'
+  | 'post-session-log' | 'milestone' | 'race-day' | 'alerts';
 
 const outcomeCopy: Record<'advance' | 'hold' | 'back-off', (g: number) => string> = {
-  advance: (g) => `Nice — bumped to ${g} g/hr for next week.`,
-  hold: (g) => `Held at ${g} g/hr for next week.`,
-  'back-off': (g) => `Backed off to ${g} g/hr for next week.`,
+  advance: (g) => `Love it — we'll nudge you up to ${g} g/hr next week.`,
+  hold: (g) => `We'll hold ${g} g/hr next week and let it settle.`,
+  'back-off': (g) => `No stress — we'll ease back to ${g} g/hr next week.`,
 };
 
 interface GutTrainingFlowV2Props {
@@ -90,6 +79,7 @@ function weeksBetween(isoDate: string): number {
 export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
   const { userProfile } = useApp();
   const sport = userProfile.sport ?? 'running';
+  const gutTolerance = userProfile.gutTolerance ?? 'trained';
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -97,19 +87,40 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
   const [sessions, setSessions] = useState<GutTrainingSession[]>([]);
   const [screen, setScreen] = useState<ScreenId>('goal-event');
 
-  // Setup form state
+  // ── Setup: race selection / manual entry ──
+  const [raceQuery, setRaceQuery] = useState('');
+  const [selectedRace, setSelectedRace] = useState<UpcomingRace | null>(null);
+  const [manualMode, setManualMode] = useState(false);
   const [eventName, setEventName] = useState('');
   const [eventDate, setEventDate] = useState('');
-  const [distanceKm, setDistanceKm] = useState(90);
+  const [distanceKm, setDistanceKm] = useState(56);
+  const [discipline, setDiscipline] = useState<RaceDiscipline>('road-run');
+  const [elevationGainM, setElevationGainM] = useState(0);
+  const [terrain, setTerrain] = useState<'flat' | 'rolling' | 'hilly' | 'mountainous'>('rolling');
+  const [lat, setLat] = useState<number | undefined>(undefined);
+  const [lng, setLng] = useState<number | undefined>(undefined);
+
+  // ── Setup: weather + engine suggestion + editable target ──
+  const [weather, setWeather] = useState<RaceWeather | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(false);
+  const [targetGPerHour, setTargetGPerHour] = useState(90);
+  const [targetEdited, setTargetEdited] = useState(false);
+
+  // ── Tolerance form ──
   const [startGPerHour, setStartGPerHour] = useState(60);
   const [gutHistory, setGutHistory] = useState<GutHistoryTag[]>([]);
   const [weeksToEvent, setWeeksToEvent] = useState(8);
 
-  // This-week session form state
+  // ── Weekly loop ──
   const [durationMinutes, setDurationMinutes] = useState(150);
   const [actualGPerHour, setActualGPerHour] = useState(0);
   const [gutResponse, setGutResponse] = useState<GutResponseV2>('clean');
   const [pendingSession, setPendingSession] = useState(false);
+
+  // ── Handoff / export ──
+  const [deviceId, setDeviceId] = useState(DEFAULT_DEVICE_ID);
+  const [exporting, setExporting] = useState(false);
+  const [exportedHint, setExportedHint] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -120,9 +131,7 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       if (cancelled) return;
       setProgram(p);
       setSessions(s);
-      // Reopening after the program already completed should land on the
-      // milestone, not re-offer a "Saturday's session" that doesn't exist
-      // any more — race day is a tap away from there either way.
+      if (p?.deviceId) setDeviceId(p.deviceId);
       setScreen(!p ? 'goal-event' : p.status === 'completed' ? 'milestone' : 'weekly-prescription');
       setLoading(false);
     }
@@ -130,20 +139,42 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     return () => { cancelled = true; };
   }, [isOpen]);
 
-  // Keep the date field pre-filled with a sane default weeks-to-event once
-  // an event date is picked, without fighting the user's own edits after.
+  // Default weeks-to-event from the chosen date, without fighting later edits.
   useEffect(() => {
     if (eventDate) setWeeksToEvent(weeksBetween(eventDate));
   }, [eventDate]);
 
-  const derivedTargetGPerHour = useMemo(
-    () => (distanceKm > 0 ? deriveTargetGPerHour(distanceKm, sport) : 0),
-    [distanceKm, sport],
-  );
+  // Engine suggestion — recompute as the race/manual inputs change.
+  const suggestion = useMemo<CarbSuggestion | null>(() => {
+    if (distanceKm <= 0) return null;
+    return suggestCarbTarget({ distanceKm, discipline, elevationGainM, terrain, gutTolerance });
+  }, [distanceKm, discipline, elevationGainM, terrain, gutTolerance]);
+
+  // Keep the editable target synced to the suggestion until the athlete edits it.
+  useEffect(() => {
+    if (suggestion && !targetEdited) setTargetGPerHour(suggestion.targetGPerHour);
+  }, [suggestion, targetEdited]);
+
+  // Race-day weather — only when we have coordinates (a picked race) + a date.
+  useEffect(() => {
+    if (lat === undefined || lng === undefined || !eventDate) {
+      setWeather(null);
+      return;
+    }
+    let cancelled = false;
+    setWeatherLoading(true);
+    getRaceWeather(lat, lng, eventDate)
+      .then((w) => { if (!cancelled) setWeather(w); })
+      .catch(() => { if (!cancelled) setWeather(null); })
+      .finally(() => { if (!cancelled) setWeatherLoading(false); });
+    return () => { cancelled = true; };
+  }, [lat, lng, eventDate]);
+
+  const raceResults = useMemo(() => searchRaces(raceQuery).slice(0, 12), [raceQuery]);
 
   const realism = useMemo(
-    () => buildRealismNote(startGPerHour, derivedTargetGPerHour, weeksToEvent, 5),
-    [startGPerHour, derivedTargetGPerHour, weeksToEvent],
+    () => buildRealismNote(startGPerHour, targetGPerHour, weeksToEvent, 5),
+    [startGPerHour, targetGPerHour, weeksToEvent],
   );
 
   const prescription = useMemo(
@@ -151,60 +182,107 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     [program, durationMinutes],
   );
 
-  const alerts = useMemo(
-    () => (program ? getActiveAlerts(program, sessions) : []),
-    [program, sessions],
-  );
+  const alerts = useMemo(() => (program ? getActiveAlerts(program, sessions) : []), [program, sessions]);
 
   if (!isOpen) return null;
 
+  const selectRace = (r: UpcomingRace) => {
+    setSelectedRace(r);
+    setEventName(r.name);
+    setEventDate(nextOccurrence(r).toISOString().slice(0, 10));
+    setDistanceKm(r.distanceKm);
+    setDiscipline(r.discipline);
+    setElevationGainM(r.elevationGainM);
+    setTerrain(r.terrain);
+    setLat(r.lat);
+    setLng(r.lng);
+    setTargetEdited(false); // let the new suggestion drive the target
+  };
+
+  const clearRace = () => {
+    setSelectedRace(null);
+    setLat(undefined);
+    setLng(undefined);
+    setWeather(null);
+  };
+
+  const changeTarget = (n: number) => {
+    setTargetGPerHour(n);
+    setTargetEdited(true);
+  };
+
   async function persistProgram(next: GutTrainingV2Program) {
     await saveGutTrainingV2Program(next);
-    if (getCurrentUser()) {
-      await firestoreService.saveGutTrainingV2Program(next);
-    }
+    if (getCurrentUser()) await firestoreService.saveGutTrainingV2Program(next);
   }
 
   async function persistSession(session: GutTrainingSession) {
     await addGutTrainingV2Session(session);
-    if (getCurrentUser()) {
-      await firestoreService.addGutTrainingV2Session(session);
-    }
+    if (getCurrentUser()) await firestoreService.addGutTrainingV2Session(session);
   }
 
   const handleBuildPlan = async () => {
     setSaving(true);
     try {
       const next = createProgramV2({
-        event: { name: eventName.trim(), date: eventDate, distanceKm },
+        event: { name: eventName.trim(), date: eventDate, distanceKm, discipline, terrain, elevationGainM, lat, lng },
         startGPerHour,
         gutHistory,
         weeksToEvent,
         sport,
+        targetGPerHour,
+        deviceId,
       });
       await persistProgram(next);
       setProgram(next);
       setSessions([]);
-      toast.success('Gut training plan built');
+      toast.success('Your plan is ready');
       setScreen('weekly-prescription');
     } catch {
-      toast.error('Failed to build plan');
+      toast.error("Couldn't build the plan");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleSendToWatch = () => {
-    // Stub — no real device integration. See module docstring.
-    setPendingSession(true);
-    setActualGPerHour(prescription?.totalGrams ?? 0);
-    setScreen('handoff');
+  const handleSelectDevice = async (id: string) => {
+    setDeviceId(id);
+    setExportedHint(null);
+    if (program) {
+      const next = { ...program, deviceId: id };
+      setProgram(next);
+      try { await persistProgram(next); } catch { /* non-critical */ }
+    }
   };
 
-  const handleStartInApp = () => {
-    setPendingSession(true);
-    setActualGPerHour(prescription?.totalGrams ?? 0);
-    setScreen('post-session-log');
+  const handleExportSessionGpx = async () => {
+    if (!program || !prescription) return;
+    setExporting(true);
+    try {
+      const { loadHint } = await exportFuelCuesToDevice(
+        program, sessionCues(prescription), `Week ${prescription.weekNumber} session`, deviceId,
+      );
+      setExportedHint(`Done — ${loadHint}`);
+      toast.success(`Sent to ${deviceById(deviceId).brand}`);
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportRaceGpx = async () => {
+    if (!program) return;
+    setExporting(true);
+    try {
+      const plan = buildRaceDayPlan(program, sport);
+      const { loadHint } = await exportFuelCuesToDevice(program, raceDayCues(plan), 'Race day', deviceId);
+      toast.success(`Sent to ${deviceById(deviceId).brand} — ${loadHint}`);
+    } catch {
+      toast.error('Export failed');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleSaveSession = async () => {
@@ -223,9 +301,10 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       setPendingSession(false);
       setActualGPerHour(0);
       setGutResponse('clean');
+      setExportedHint(null);
 
       if (updated.status === 'completed') {
-        toast.success(`Trained — you're tolerating ${updated.targetGPerHour} g/hr!`);
+        toast.success(`That's it — you're tolerating ${updated.targetGPerHour} g/hr!`);
         setScreen('milestone');
         return;
       }
@@ -233,7 +312,7 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       const nextAlerts = getActiveAlerts(updated, [session, ...sessions]);
       setScreen(nextAlerts.length > 0 ? 'alerts' : 'weekly-prescription');
     } catch {
-      toast.error('Failed to save session');
+      toast.error("Couldn't save the run");
     } finally {
       setSaving(false);
     }
@@ -243,41 +322,49 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     setSaving(true);
     try {
       await clearGutTrainingV2Program();
-      if (getCurrentUser()) {
-        await firestoreService.clearGutTrainingV2Program();
-      }
+      if (getCurrentUser()) await firestoreService.clearGutTrainingV2Program();
       setProgram(null);
       setSessions([]);
+      setSelectedRace(null);
+      setManualMode(false);
       setEventName('');
       setEventDate('');
-      setDistanceKm(90);
+      setDistanceKm(56);
+      setDiscipline('road-run');
+      setElevationGainM(0);
+      setTerrain('rolling');
+      setLat(undefined);
+      setLng(undefined);
+      setTargetEdited(false);
       setStartGPerHour(60);
       setGutHistory([]);
+      setExportedHint(null);
       setScreen('goal-event');
     } catch {
-      toast.error('Failed to reset program');
+      toast.error("Couldn't reset");
     } finally {
       setSaving(false);
     }
   };
 
-  // Live preview of what saving this response will do to next week's
-  // target — recordSessionV2 is pure, so we can call it speculatively
-  // without persisting anything.
   const previewNote = (() => {
     if (!program) return '';
     const { program: preview, session } = recordSessionV2(program, {
-      actualGPerHour,
-      durationMinutes,
-      gutComfort: toGutComfort(gutResponse),
+      actualGPerHour, durationMinutes, gutComfort: toGutComfort(gutResponse),
     });
-    if (preview.status === 'completed') return `Target reached — you're gut trained at ${preview.currentGPerHour} g/hr.`;
+    if (preview.status === 'completed') return `That would do it — you'd be race-ready at ${preview.currentGPerHour} g/hr.`;
     return outcomeCopy[session.outcome](preview.currentGPerHour);
   })();
 
   const toggleGutHistory = (tag: GutHistoryTag) => {
     setGutHistory((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   };
+
+  const canProceedGoal = selectedRace
+    ? true
+    : manualMode
+      ? eventName.trim().length > 0 && eventDate.length > 0 && distanceKm > 0
+      : false;
 
   const behindPlanAlert = alerts.find((a) => a.type === 'behind-plan');
   const latestSession = sessions[0];
@@ -295,13 +382,29 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       case 'goal-event':
         return (
           <GoalEventScreen
+            raceQuery={raceQuery}
+            onChangeRaceQuery={setRaceQuery}
+            raceResults={raceResults}
+            selectedRace={selectedRace}
+            onSelectRace={selectRace}
+            onClearRace={clearRace}
+            manualMode={manualMode}
+            onToggleManual={() => setManualMode((v) => !v)}
             eventName={eventName}
             onChangeName={setEventName}
             eventDate={eventDate}
             onChangeDate={setEventDate}
             distanceKm={distanceKm}
             onChangeDistance={setDistanceKm}
-            targetGPerHour={derivedTargetGPerHour}
+            discipline={discipline}
+            onChangeDiscipline={setDiscipline}
+            weather={weather}
+            weatherLoading={weatherLoading}
+            suggestion={suggestion}
+            targetGPerHour={targetGPerHour}
+            onChangeTarget={changeTarget}
+            targetEdited={targetEdited}
+            canProceed={canProceedGoal}
             onNext={() => setScreen('tolerance')}
           />
         );
@@ -328,8 +431,9 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
             durationMinutes={durationMinutes}
             onChangeDuration={setDurationMinutes}
             prescription={prescription}
-            onSendToWatch={handleSendToWatch}
-            onStartInApp={handleStartInApp}
+            onSendToWatch={() => { setExportedHint(null); setPendingSession(true); setActualGPerHour(prescription.totalGrams); setScreen('handoff'); }}
+            onStartInApp={() => { setPendingSession(true); setActualGPerHour(prescription.totalGrams); setScreen('post-session-log'); }}
+            onExportPdf={() => downloadSessionPdf(program, prescription)}
           />
         );
       case 'handoff': {
@@ -337,14 +441,18 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
         const firstCue = prescription.items[1] ?? prescription.items[0];
         return (
           <HandoffScreen
+            device={deviceById(deviceId)}
+            onSelectDevice={handleSelectDevice}
             nextCueLabel={firstCue.label}
             nextCueTimeLabel={firstCue.timeLabel}
             nextCueGrams={firstCue.grams}
             targetGPerHour={program.currentGPerHour}
-            deviceName="Garmin Forerunner"
-            alertsQueuedCount={prescription.items.length}
-            onChangeDevice={() => toast.info('Device pairing is a fast-follow — Garmin Forerunner is the beta default.')}
-            onImBack={() => setScreen('post-session-log')}
+            cueCount={prescription.items.length}
+            onExportGpx={handleExportSessionGpx}
+            onExportPdf={() => downloadSessionPdf(program, prescription)}
+            exportedHint={exportedHint}
+            exporting={exporting}
+            onDone={() => setScreen('post-session-log')}
           />
         );
       }
@@ -377,11 +485,14 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
         return (
           <RaceDayScreen
             plan={buildRaceDayPlan(program, sport)}
-            onSendToWatch={() => toast.success('Race plan sent to watch')}
+            exporting={exporting}
+            onSendToWatch={handleExportRaceGpx}
+            onExportPdf={() => downloadRaceDayPdf(program, buildRaceDayPlan(program, sport))}
             onShareWithCrew={async () => {
-              const text = `${program.event.name} fuel plan — hold ${program.currentGPerHour} g/hr, ${buildRaceDayPlan(program, sport).totalGrams}g on course.`;
+              const plan = buildRaceDayPlan(program, sport);
+              const text = `${program.event.name} fuel plan — hold ${program.currentGPerHour} g/hr, ${plan.totalGrams}g on course.`;
               if (navigator.share) {
-                try { await navigator.share({ title: `${program.event.name} fuel plan`, text }); } catch { /* user cancelled */ }
+                try { await navigator.share({ title: `${program.event.name} fuel plan`, text }); } catch { /* cancelled */ }
               } else if (navigator.clipboard) {
                 await navigator.clipboard.writeText(text);
                 toast.success('Copied — paste it to your crew');
@@ -402,26 +513,23 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     }
   })();
 
-  // Portaled to document.body — this is a full-screen viewport takeover
-  // (per the v2 concept's full mobile pages, not a squeezed dialog like
-  // v1's centered modal). Rendered from inside Sidebar's <aside>, whose
-  // wrapper applies a `translate-x-*` utility for the mobile drawer — any
-  // CSS transform on an ancestor becomes the containing block for
-  // `position: fixed` descendants, which would otherwise trap this overlay
-  // inside the sidebar's own box instead of the true viewport. The portal
-  // sidesteps that entirely.
+  const showRestart = program && !pendingSession && screen !== 'goal-event' && screen !== 'tolerance';
+
   return createPortal(
     <div className="fixed inset-0 z-50 bg-background flex flex-col safe-top safe-bottom">
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-3">
-        <div className="text-[10px] text-accent uppercase tracking-wider font-bold">Gut Training · Beta</div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-display font-black text-text-primary tracking-tight">Gut training</span>
+          <span className="text-[9px] font-display font-bold text-accent px-1.5 py-0.5 rounded-full bg-accent/10 uppercase tracking-wider">Beta</span>
+        </div>
         <div className="flex items-center gap-1">
-          {program && !pendingSession && screen !== 'goal-event' && screen !== 'tolerance' && (
+          {showRestart && (
             <button
               onClick={handleRestart}
               disabled={saving}
               className="p-2 text-text-muted hover:text-alert-brick transition-colors disabled:opacity-40"
-              aria-label="Restart program"
-              title="Restart program"
+              aria-label="Start over"
+              title="Start over"
             >
               <RotateCcw className="w-4 h-4" />
             </button>

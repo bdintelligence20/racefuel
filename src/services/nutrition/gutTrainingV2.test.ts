@@ -10,6 +10,9 @@ import {
   getActiveAlerts,
   toGutComfort,
   fromGutComfort,
+  suggestCarbTarget,
+  estimateRaceDurationHours,
+  estimateRaceIntensity,
   type GutTrainingV2Program,
   type GutTrainingSession,
 } from './gutTrainingV2';
@@ -53,6 +56,54 @@ describe('buildRealismNote', () => {
   it('is aggressive when there are zero or negative weeks to the event', () => {
     const r = buildRealismNote(60, 90, 0, 5);
     expect(r.level).toBe('aggressive');
+  });
+});
+
+describe('estimateRaceDurationHours', () => {
+  it('is shorter for cycling than running over the same distance', () => {
+    const run = estimateRaceDurationHours(90, 'road-run');
+    const ride = estimateRaceDurationHours(90, 'road-cycle');
+    expect(ride).toBeLessThan(run);
+  });
+
+  it('adds time for climbing', () => {
+    const flat = estimateRaceDurationHours(42, 'trail-run', 0);
+    const climby = estimateRaceDurationHours(42, 'trail-run', 2600);
+    expect(climby).toBeGreaterThan(flat);
+  });
+});
+
+describe('estimateRaceIntensity', () => {
+  it('sits lower for longer efforts and higher on mountainous terrain', () => {
+    expect(estimateRaceIntensity(1, 'flat')).toBeGreaterThan(estimateRaceIntensity(8, 'flat'));
+    expect(estimateRaceIntensity(8, 'mountainous')).toBeGreaterThan(estimateRaceIntensity(8, 'flat'));
+  });
+
+  it('never exceeds the 0.85 cap', () => {
+    expect(estimateRaceIntensity(0.5, 'mountainous')).toBeLessThanOrEqual(0.85);
+  });
+});
+
+describe('suggestCarbTarget', () => {
+  it('routes through the engine and lands in the 60–90 band for a long ultra', () => {
+    const s = suggestCarbTarget({ distanceKm: 90, discipline: 'road-run', elevationGainM: 1600, terrain: 'hilly' });
+    expect(s.targetGPerHour).toBeGreaterThanOrEqual(60);
+    expect(s.targetGPerHour).toBeLessThanOrEqual(90);
+    expect(s.durationHours).toBeGreaterThan(3);
+    expect(s.intensityPercent).toBeGreaterThan(0);
+    expect(s.intensityPercent).toBeLessThanOrEqual(0.85);
+    expect(s.rationale.length).toBeGreaterThan(0);
+  });
+
+  it('suggests less for a short race than a long one', () => {
+    const short = suggestCarbTarget({ distanceKm: 15, discipline: 'road-run' });
+    const long = suggestCarbTarget({ distanceKm: 90, discipline: 'road-run', elevationGainM: 1600, terrain: 'hilly' });
+    expect(short.targetGPerHour).toBeLessThan(long.targetGPerHour);
+  });
+
+  it('respects a beginner gut ceiling', () => {
+    const s = suggestCarbTarget({ distanceKm: 90, discipline: 'road-run', gutTolerance: 'beginner' });
+    expect(s.targetGPerHour).toBeLessThanOrEqual(60);
   });
 });
 

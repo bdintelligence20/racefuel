@@ -293,7 +293,16 @@ export async function getAllGutTrainingSessions(): Promise<(FirestoreGutTraining
 // shape rather than sharing v1's. ──
 
 export interface FirestoreGutTrainingV2Program {
-  event: { name: string; date: string; distanceKm: number };
+  event: {
+    name: string;
+    date: string;
+    distanceKm: number;
+    discipline?: string;
+    terrain?: string;
+    elevationGainM?: number;
+    lat?: number;
+    lng?: number;
+  };
   gutHistory: string[];
   weeksToEvent: number;
   weekNumber: number;
@@ -303,12 +312,17 @@ export interface FirestoreGutTrainingV2Program {
   stepGPerHour: number;
   status: 'active' | 'completed' | 'paused';
   optedInAt: string;
+  deviceId?: string;
   updatedAt?: Timestamp;
 }
 
 export async function saveGutTrainingV2Program(program: Omit<FirestoreGutTrainingV2Program, 'updatedAt'>): Promise<void> {
+  // Firestore rejects `undefined` at any depth. The nested `event` can carry
+  // undefined lat/lng/discipline for manually-entered races, so clean it too.
+  const cleaned = stripUndefined(program as unknown as Record<string, unknown>);
+  if (cleaned.event) cleaned.event = stripUndefined(cleaned.event as Record<string, unknown>);
   await setDoc(userDoc('gutTrainingV2Program/data'), {
-    ...stripUndefined(program as unknown as Record<string, unknown>),
+    ...cleaned,
     updatedAt: serverTimestamp(),
   }, { merge: true });
 }
