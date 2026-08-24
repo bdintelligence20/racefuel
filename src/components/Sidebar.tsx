@@ -295,8 +295,11 @@ export function Sidebar() {
           { onClick: () => setSavedPlansOpen(true), icon: FolderOpen, label: 'Saved Plans' },
           { onClick: () => setHistoryOpen(true), icon: History, label: 'History' },
           { onClick: () => setEventSearchOpen(true), icon: Cloud, label: 'Race Weather' },
-          { onClick: () => setGutTrainingOpen(true), icon: TrendingUp, label: 'Gut Training' },
-        ].map(({ onClick, icon: Icon, label }) => (
+          // Beta badge only applies to the v2 flow — v1's own modal already
+          // carries its own "Beta" label internally, so this stays honest
+          // if the flag is ever switched off.
+          { onClick: () => setGutTrainingOpen(true), icon: TrendingUp, label: 'Gut Training', beta: GUT_TRAINING_V2_ENABLED },
+        ].map(({ onClick, icon: Icon, label, beta }) => (
           <button
             key={label}
             onClick={onClick}
@@ -304,6 +307,11 @@ export function Sidebar() {
           >
             <Icon className="w-3.5 h-3.5 text-text-muted" />
             {label}
+            {beta && (
+              <span className="ml-auto px-1.5 py-0.5 rounded-full bg-accent/10 text-accent text-[9px] font-display font-bold uppercase tracking-wider">
+                Beta
+              </span>
+            )}
           </button>
         ))}
         {isAdmin && (
