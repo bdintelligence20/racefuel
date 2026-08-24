@@ -313,6 +313,7 @@ export interface FirestoreGutTrainingV2Program {
   status: 'active' | 'completed' | 'paused';
   optedInAt: string;
   deviceId?: string;
+  fuelKit?: Array<{ productId: string; brand: string; name: string; category: string; carbs: number }>;
   updatedAt?: Timestamp;
 }
 

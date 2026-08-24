@@ -42,7 +42,9 @@ import {
   type GutHistoryTag,
   type GutResponseV2,
   type CarbSuggestion,
+  type FuelKitItem,
 } from '../../services/nutrition/gutTrainingV2';
+import { FuelPicker } from './FuelPicker';
 import { searchRaces, nextOccurrence, type UpcomingRace, type RaceDiscipline } from '../../data/saRaces';
 import { getRaceWeather, type RaceWeather } from '../../services/weather/weatherService';
 import { deviceById, DEFAULT_DEVICE_ID } from '../../data/watchDevices';
@@ -121,6 +123,9 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
   const [deviceId, setDeviceId] = useState(DEFAULT_DEVICE_ID);
   const [exporting, setExporting] = useState(false);
   const [exportedHint, setExportedHint] = useState<string | null>(null);
+
+  // ── Fuel kit (exact products the athlete will use) ──
+  const [fuelPickerOpen, setFuelPickerOpen] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -242,6 +247,19 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       toast.error("Couldn't build the plan");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveFuelKit = async (kit: FuelKitItem[]) => {
+    setFuelPickerOpen(false);
+    if (!program) return;
+    const next = { ...program, fuelKit: kit };
+    setProgram(next);
+    try {
+      await persistProgram(next);
+      toast.success(kit.length > 0 ? 'Fuel saved' : 'Fuel cleared');
+    } catch {
+      toast.error("Couldn't save your fuel");
     }
   };
 
@@ -431,6 +449,8 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
             durationMinutes={durationMinutes}
             onChangeDuration={setDurationMinutes}
             prescription={prescription}
+            hasFuelKit={(program.fuelKit?.length ?? 0) > 0}
+            onChooseFuel={() => setFuelPickerOpen(true)}
             onSendToWatch={() => { setExportedHint(null); setPendingSession(true); setActualGPerHour(prescription.totalGrams); setScreen('handoff'); }}
             onStartInApp={() => { setPendingSession(true); setActualGPerHour(prescription.totalGrams); setScreen('post-session-log'); }}
             onExportPdf={() => downloadSessionPdf(program, prescription)}
@@ -542,6 +562,14 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       <div className="flex-1 min-h-0 max-w-md w-full mx-auto flex flex-col">
         {screenNode}
       </div>
+
+      <FuelPicker
+        isOpen={fuelPickerOpen}
+        initialKit={program?.fuelKit ?? []}
+        preferredBrands={userProfile.preferredBrands}
+        onClose={() => setFuelPickerOpen(false)}
+        onSave={handleSaveFuelKit}
+      />
     </div>,
     document.body,
   );

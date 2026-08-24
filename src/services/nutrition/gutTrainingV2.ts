@@ -73,10 +73,25 @@ export function fromGutComfort(comfort: GutComfort): GutResponseV2 {
   return 'rough'; // moderate + severe both read as "Rough" in the v2 3-button UI
 }
 
+/** A product the athlete has chosen to fuel with, snapshotted from the
+ *  catalog so the plan keeps working even if the feed changes later. Carbs
+ *  are per serving. */
+export interface FuelKitItem {
+  productId: string;
+  brand: string;
+  name: string;
+  category: 'gel' | 'drink' | 'bar' | 'chew';
+  carbs: number;
+}
+
 export interface GutTrainingV2Program extends GutTrainingProgram {
   event: GoalEvent;
   gutHistory: GutHistoryTag[];
   weeksToEvent: number;
+  /** The exact products the athlete plans to use. When set, the session
+   *  breakdown speaks in real products (counts of each) instead of the
+   *  generic mix/gel/chews split. */
+  fuelKit?: FuelKitItem[];
   /** Which week of the plan the *next* session is for. Sessions can exceed
    *  weekNumber (an athlete logging an extra session in one week) or fall
    *  behind it (a skipped week), it's a plan pointer, not a session count. */
@@ -239,6 +254,7 @@ export interface CreateProgramV2Input {
    *  crude distance-derived tier when omitted (keeps older callers working). */
   targetGPerHour?: number;
   deviceId?: string;
+  fuelKit?: FuelKitItem[];
 }
 
 /** Starts a new v2 program. Builds on top of v1's `createProgram` (same
@@ -254,6 +270,7 @@ export function createProgramV2(input: CreateProgramV2Input): GutTrainingV2Progr
     weekNumber: 1,
     optedInAt: new Date().toISOString(),
     deviceId: input.deviceId,
+    fuelKit: input.fuelKit,
   };
 }
 
@@ -288,6 +305,12 @@ export function buildSessionPrescription(
   const hours = durationMinutes / 60;
   const totalGrams = Math.round(target * hours);
 
+  // When the athlete has chosen real products, speak in those instead of the
+  // generic mix/gel/chews split.
+  if (program.fuelKit && program.fuelKit.length > 0) {
+    return buildKitPrescription(program, durationMinutes);
+  }
+
   const items: SessionIntakeItem[] = [
     { timeLabel: 'Start', label: '500ml mix', grams: Math.round(target * 0.53) },
   ];
@@ -301,6 +324,80 @@ export function buildSessionPrescription(
   // adds up to totalGrams exactly.
   const runningSum = items.reduce((sum, item) => sum + item.grams, 0);
   items[items.length - 1].grams += totalGrams - runningSum;
+
+  return { weekNumber: program.weekNumber, durationMinutes, targetGPerHour: target, items, totalGrams };
+}
+
+export interface FuelServing {
+  item: FuelKitItem;
+  /** Servings across the whole session. */
+  count: number;
+  /** Carbs those servings provide (count * carbs). */
+  grams: number;
+}
+
+/**
+ * Turn a target g/hr into whole servings of the chosen products over the
+ * session. A drink or mix, when present, carries one serving per hour as the
+ * base; the rest of each hour's carbs are split across the solids (gels,
+ * chews, bars). Everything is rounded to whole servings, because you can't
+ * take half a gel on the run.
+ */
+export function planFuelServings(
+  targetGPerHour: number,
+  hours: number,
+  kit: FuelKitItem[],
+): { servings: FuelServing[]; totalGrams: number; perHourGrams: number } {
+  const drinks = kit.filter((k) => k.category === 'drink');
+  const solids = kit.filter((k) => k.category !== 'drink');
+  const perHour = new Map<string, number>(); // productId -> servings per hour
+
+  let remaining = targetGPerHour;
+  if (drinks.length > 0 && drinks[0].carbs > 0) {
+    perHour.set(drinks[0].productId, 1);
+    remaining -= drinks[0].carbs;
+  }
+  remaining = Math.max(0, remaining);
+
+  if (solids.length > 0 && remaining > 0) {
+    const perSolid = remaining / solids.length;
+    for (const s of solids) {
+      if (s.carbs <= 0) continue;
+      const count = Math.max(0, Math.round(perSolid / s.carbs));
+      if (count > 0) perHour.set(s.productId, (perHour.get(s.productId) ?? 0) + count);
+    }
+  }
+
+  // If nothing landed (e.g. a single drink whose carbs exceed target, or a
+  // kit of only-drinks), fall back to the closest whole-serving fit.
+  if ([...perHour.values()].every((v) => v === 0) || perHour.size === 0) {
+    const cheapest = [...kit].sort((a, b) => a.carbs - b.carbs).find((k) => k.carbs > 0);
+    if (cheapest) perHour.set(cheapest.productId, Math.max(1, Math.round(targetGPerHour / cheapest.carbs)));
+  }
+
+  const servings: FuelServing[] = [];
+  for (const k of kit) {
+    const perHourCount = perHour.get(k.productId) ?? 0;
+    const count = Math.round(perHourCount * hours);
+    if (count > 0) servings.push({ item: k, count, grams: count * k.carbs });
+  }
+
+  const totalGrams = servings.reduce((sum, s) => sum + s.grams, 0);
+  const perHourGrams = hours > 0 ? Math.round(totalGrams / hours) : totalGrams;
+  return { servings, totalGrams, perHourGrams };
+}
+
+/** Session prescription expressed as counts of the athlete's chosen products. */
+function buildKitPrescription(program: GutTrainingV2Program, durationMinutes: number): SessionPrescription {
+  const target = program.currentGPerHour;
+  const hours = durationMinutes / 60;
+  const { servings, totalGrams } = planFuelServings(target, hours, program.fuelKit ?? []);
+
+  const items: SessionIntakeItem[] = servings.map((s) => ({
+    timeLabel: `x${s.count}`,
+    label: `${s.item.brand} ${s.item.name}`,
+    grams: s.grams,
+  }));
 
   return { weekNumber: program.weekNumber, durationMinutes, targetGPerHour: target, items, totalGrams };
 }

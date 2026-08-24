@@ -13,8 +13,10 @@ import {
   suggestCarbTarget,
   estimateRaceDurationHours,
   estimateRaceIntensity,
+  planFuelServings,
   type GutTrainingV2Program,
   type GutTrainingSession,
+  type FuelKitItem,
 } from './gutTrainingV2';
 
 describe('deriveTargetGPerHour', () => {
@@ -104,6 +106,46 @@ describe('suggestCarbTarget', () => {
   it('respects a beginner gut ceiling', () => {
     const s = suggestCarbTarget({ distanceKm: 90, discipline: 'road-run', gutTolerance: 'beginner' });
     expect(s.targetGPerHour).toBeLessThanOrEqual(60);
+  });
+});
+
+describe('planFuelServings', () => {
+  const drink: FuelKitItem = { productId: 'd', brand: '32Gi', name: 'Endure', category: 'drink', carbs: 36 };
+  const gel: FuelKitItem = { productId: 'g', brand: '32Gi', name: 'Race Gel', category: 'gel', carbs: 25 };
+  const chew: FuelKitItem = { productId: 'c', brand: 'GU', name: 'Chews', category: 'chew', carbs: 24 };
+
+  it('uses the drink as the hourly base and fills the rest with solids', () => {
+    const { servings, totalGrams } = planFuelServings(90, 3, [drink, gel]);
+    const d = servings.find((s) => s.item.productId === 'd');
+    const g = servings.find((s) => s.item.productId === 'g');
+    expect(d?.count).toBe(3); // one drink per hour over 3 hours
+    expect(g && g.count).toBeGreaterThan(0);
+    expect(totalGrams).toBeGreaterThan(0);
+  });
+
+  it('returns whole servings only', () => {
+    const { servings } = planFuelServings(85, 2.5, [drink, gel, chew]);
+    for (const s of servings) expect(Number.isInteger(s.count)).toBe(true);
+  });
+
+  it('still plans something when the kit is solids only', () => {
+    const { servings, totalGrams } = planFuelServings(60, 2, [gel]);
+    expect(servings.length).toBeGreaterThan(0);
+    expect(totalGrams).toBeGreaterThan(0);
+  });
+
+  it('feeds the session prescription real product labels when a kit is set', () => {
+    const program: GutTrainingV2Program = {
+      ...createProgramV2({
+        event: { name: 'Comrades', date: '2026-06-14', distanceKm: 90 },
+        startGPerHour: 60, gutHistory: [], weeksToEvent: 8, targetGPerHour: 85,
+      }),
+      currentGPerHour: 80,
+      fuelKit: [drink, gel],
+    };
+    const rx = buildSessionPrescription(program, 150);
+    expect(rx.items.some((i) => i.label.includes('32Gi'))).toBe(true);
+    expect(rx.items.every((i) => i.timeLabel.startsWith('x'))).toBe(true);
   });
 });
 

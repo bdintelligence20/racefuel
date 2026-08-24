@@ -435,11 +435,12 @@ export function ToleranceScreen({
 /* -------------------------- weekly prescription ------------------------- */
 
 export function WeeklySessionScreen({
-  weekNumber, targetGPerHour, durationMinutes, onChangeDuration, prescription, onSendToWatch, onStartInApp, onExportPdf,
+  weekNumber, targetGPerHour, durationMinutes, onChangeDuration, prescription, hasFuelKit, onChooseFuel, onSendToWatch, onStartInApp, onExportPdf,
 }: {
   weekNumber: number; targetGPerHour: number;
   durationMinutes: number; onChangeDuration: (v: number) => void;
   prescription: SessionPrescription;
+  hasFuelKit: boolean; onChooseFuel: () => void;
   onSendToWatch: () => void; onStartInApp: () => void; onExportPdf: () => void;
 }) {
   const hours = (durationMinutes / 60).toFixed(1).replace(/\.0$/, '');
@@ -476,18 +477,28 @@ export function WeeklySessionScreen({
       </TintedPanel>
 
       <div>
-        <FieldLabel>Your fuelling for the run</FieldLabel>
+        <div className="flex items-center justify-between mb-1.5">
+          <FieldLabel>Your fuelling for the run</FieldLabel>
+          <button onClick={onChooseFuel} className="text-[10px] font-display font-bold text-accent hover:opacity-80 transition-opacity">
+            {hasFuelKit ? 'Change fuel' : 'Choose your fuel'}
+          </button>
+        </div>
         <div className="rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border)] overflow-hidden">
           {prescription.items.map((item, i) => (
             <div key={i} className="flex items-center justify-between px-3 py-2 text-sm">
               <span className="text-text-secondary">
-                <span className="text-text-muted font-display text-[10px] mr-2">{item.timeLabel}</span>
+                <span className="text-text-muted font-display text-[10px] mr-2 tabular-nums">{item.timeLabel}</span>
                 {item.label}
               </span>
               <span className="font-display font-semibold text-text-primary">{item.grams}g</span>
             </div>
           ))}
         </div>
+        {!hasFuelKit && (
+          <p className="text-[11px] text-text-muted mt-1.5">
+            Pick the exact products you'll use and this becomes a real shopping list, counts and all.
+          </p>
+        )}
       </div>
 
       <div className="flex items-center justify-between px-1">
