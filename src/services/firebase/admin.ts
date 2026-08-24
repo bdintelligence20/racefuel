@@ -196,6 +196,26 @@ export interface ValidateCouponResult {
   };
 }
 
+export interface AdminGutTrainingV2Row {
+  uid: string;
+  email: string;
+  event: { name?: string; date?: string; distanceKm?: number } | null;
+  startGPerHour: number | null;
+  targetGPerHour: number | null;
+  currentGPerHour: number | null;
+  weekNumber: number | null;
+  status: string | null;
+  optedInAt: string | null;
+  updatedAt: number | null;
+  sessionsCount: number;
+}
+
+export interface AdminListGutTrainingV2Result {
+  rows: AdminGutTrainingV2Row[];
+  nextCursor: number | null;
+  total: number;
+}
+
 /* ----------------------------- callables ---------------------------- */
 
 const callableUnwrap = <Args, Result>(name: string) => {
@@ -226,6 +246,11 @@ export const adminListEarlyAccess = callableUnwrap<
   { cursor?: number | null; limit?: number; search?: string },
   AdminListEarlyAccessResult
 >('adminListEarlyAccess');
+
+export const adminListGutTrainingV2 = callableUnwrap<
+  { cursor?: number | null; limit?: number; search?: string },
+  AdminListGutTrainingV2Result
+>('adminListGutTrainingV2');
 
 export const adminListSiteFeedback = callableUnwrap<
   { cursor?: number | null; limit?: number; search?: string },

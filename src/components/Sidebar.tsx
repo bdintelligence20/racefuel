@@ -10,11 +10,18 @@ import { SavedPlansModal } from './SavedPlansModal';
 import { HistoryView } from './HistoryView';
 import { EventSearchModal } from './EventSearchModal';
 import { GutTrainingPanel } from './GutTrainingPanel';
+import { GutTrainingFlowV2 } from './gutTraining/GutTrainingFlowV2';
 import { ThemeToggle } from './ThemeToggle';
 import { NutritionStatsCard } from './NutritionStatsCard';
 import { saveOrUpdatePlan } from '../persistence/db';
 import { toast } from 'sonner';
 
+// Master switch for the Gut Training v2 beta (goal event → weekly loop →
+// watch handoff → race day). Defaults ON; set VITE_GUT_TRAINING_V2=false to
+// pull it instantly without touching component code. Flag off (or unset in
+// an env that predates it) leaves the original v1 GutTrainingPanel exactly
+// as it was — additive, no regression to existing users.
+const GUT_TRAINING_V2_ENABLED = import.meta.env.VITE_GUT_TRAINING_V2 !== 'false';
 
 export function Sidebar() {
   const { userProfile, updateProfile, routeData, strava, connectStrava, disconnectStrava, resetAll } = useApp();
@@ -367,10 +374,17 @@ export function Sidebar() {
         isOpen={eventSearchOpen}
         onClose={() => setEventSearchOpen(false)}
       />
-      <GutTrainingPanel
-        isOpen={gutTrainingOpen}
-        onClose={() => setGutTrainingOpen(false)}
-      />
+      {GUT_TRAINING_V2_ENABLED ? (
+        <GutTrainingFlowV2
+          isOpen={gutTrainingOpen}
+          onClose={() => setGutTrainingOpen(false)}
+        />
+      ) : (
+        <GutTrainingPanel
+          isOpen={gutTrainingOpen}
+          onClose={() => setGutTrainingOpen(false)}
+        />
+      )}
     </aside>
   );
 }

@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { GutTrainingProgram, GutTrainingSession } from '../services/nutrition/gutTraining';
+import type { GutTrainingV2Program } from '../services/nutrition/gutTrainingV2';
 
 export interface SavedPlan {
   id?: number;
@@ -55,6 +56,15 @@ export interface StoredGutTrainingProgram extends GutTrainingProgram {
 
 const GUT_TRAINING_PROGRAM_ID = 'current' as const;
 
+/** Dexie's row for the single "current" v2 program — same fixed-key idea as
+ *  v1's StoredGutTrainingProgram above. A separate table from v1's, on
+ *  purpose: v2's session log (`gutTrainingV2Sessions`) is kept apart from
+ *  v1's so an athlete's weekly-loop history can't get mixed in with any
+ *  pre-existing v1 ad-hoc session log. */
+export interface StoredGutTrainingV2Program extends GutTrainingV2Program {
+  id: 'current';
+}
+
 class FuelCueDB extends Dexie {
   plans!: EntityTable<SavedPlan, 'id'>;
   preferences!: EntityTable<SavedPreference, 'key'>;
@@ -62,6 +72,8 @@ class FuelCueDB extends Dexie {
   feedback!: EntityTable<PlanFeedback, 'id'>;
   gutTrainingProgram!: EntityTable<StoredGutTrainingProgram, 'id'>;
   gutTrainingSessions!: EntityTable<GutTrainingSession, 'id'>;
+  gutTrainingV2Program!: EntityTable<StoredGutTrainingV2Program, 'id'>;
+  gutTrainingV2Sessions!: EntityTable<GutTrainingSession, 'id'>;
 
   constructor() {
     super('racefuel');
@@ -85,6 +97,17 @@ class FuelCueDB extends Dexie {
       feedback: '++id, planId, routeName, date, createdAt',
       gutTrainingProgram: 'id',
       gutTrainingSessions: '++id, createdAt',
+    });
+
+    this.version(4).stores({
+      plans: '++id, name, routeName, distanceKm, createdAt, updatedAt',
+      preferences: 'key',
+      productRatings: '++id, productId, planId, rating, createdAt',
+      feedback: '++id, planId, routeName, date, createdAt',
+      gutTrainingProgram: 'id',
+      gutTrainingSessions: '++id, createdAt',
+      gutTrainingV2Program: 'id',
+      gutTrainingV2Sessions: '++id, createdAt',
     });
   }
 }
@@ -265,4 +288,27 @@ export async function addGutTrainingSession(session: GutTrainingSession): Promis
 
 export async function getAllGutTrainingSessions(): Promise<GutTrainingSession[]> {
   return db.gutTrainingSessions.orderBy('createdAt').reverse().toArray();
+}
+
+// Gut training v2 operations — same one-current-program-plus-a-log shape as
+// v1 above, kept in separate tables (see StoredGutTrainingV2Program).
+export async function saveGutTrainingV2Program(program: GutTrainingV2Program): Promise<void> {
+  await db.gutTrainingV2Program.put({ ...program, id: GUT_TRAINING_PROGRAM_ID });
+}
+
+export async function getGutTrainingV2Program(): Promise<GutTrainingV2Program | null> {
+  const row = await db.gutTrainingV2Program.get(GUT_TRAINING_PROGRAM_ID);
+  return row ?? null;
+}
+
+export async function clearGutTrainingV2Program(): Promise<void> {
+  await db.gutTrainingV2Program.delete(GUT_TRAINING_PROGRAM_ID);
+}
+
+export async function addGutTrainingV2Session(session: GutTrainingSession): Promise<number> {
+  return await db.gutTrainingV2Sessions.add(session) as number;
+}
+
+export async function getAllGutTrainingV2Sessions(): Promise<GutTrainingSession[]> {
+  return db.gutTrainingV2Sessions.orderBy('createdAt').reverse().toArray();
 }

@@ -286,6 +286,58 @@ export async function getAllGutTrainingSessions(): Promise<(FirestoreGutTraining
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as FirestoreGutTrainingSession & { id: string }));
 }
 
+// ── Gut Training v2 (beta) — opt-in program with a goal event + weekly
+// loop. Kept in its own subcollection (gutTrainingV2Program/data) so the
+// admin dashboard's opt-in list (a collectionGroup query, see
+// functions/src/admin.ts adminListGutTrainingV2) reads a stable, dedicated
+// shape rather than sharing v1's. ──
+
+export interface FirestoreGutTrainingV2Program {
+  event: { name: string; date: string; distanceKm: number };
+  gutHistory: string[];
+  weeksToEvent: number;
+  weekNumber: number;
+  startGPerHour: number;
+  targetGPerHour: number;
+  currentGPerHour: number;
+  stepGPerHour: number;
+  status: 'active' | 'completed' | 'paused';
+  optedInAt: string;
+  updatedAt?: Timestamp;
+}
+
+export async function saveGutTrainingV2Program(program: Omit<FirestoreGutTrainingV2Program, 'updatedAt'>): Promise<void> {
+  await setDoc(userDoc('gutTrainingV2Program/data'), {
+    ...stripUndefined(program as unknown as Record<string, unknown>),
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+export async function loadGutTrainingV2Program(): Promise<FirestoreGutTrainingV2Program | null> {
+  const snap = await getDoc(userDoc('gutTrainingV2Program/data'));
+  return snap.exists() ? (snap.data() as FirestoreGutTrainingV2Program) : null;
+}
+
+export async function clearGutTrainingV2Program(): Promise<void> {
+  try {
+    await deleteDoc(userDoc('gutTrainingV2Program/data'));
+  } catch {
+    // doc may not exist
+  }
+}
+
+export async function addGutTrainingV2Session(session: Omit<FirestoreGutTrainingSession, 'id' | 'createdAt'>): Promise<string> {
+  const ref = doc(userCollection('gutTrainingV2Sessions'));
+  await setDoc(ref, { ...stripUndefined(session), createdAt: serverTimestamp() });
+  return ref.id;
+}
+
+export async function getAllGutTrainingV2Sessions(): Promise<(FirestoreGutTrainingSession & { id: string })[]> {
+  const q = query(userCollection('gutTrainingV2Sessions'), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as FirestoreGutTrainingSession & { id: string }));
+}
+
 // ── Custom products (user-created products not in the main feed) ──
 
 export interface FirestoreCustomProduct {

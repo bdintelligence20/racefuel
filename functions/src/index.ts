@@ -11,6 +11,7 @@ export {
   adminGetUser,
   adminListOrders,
   adminListEarlyAccess,
+  adminListGutTrainingV2,
   adminListSiteFeedback,
   adminProductInsights,
   adminActivityInsights,
