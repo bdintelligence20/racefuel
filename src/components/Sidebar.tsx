@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Activity, User, Wind, Zap, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings, ShieldCheck, Users, TrendingUp } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useCoachStore } from '../services/coach/coachStore';
@@ -11,6 +11,7 @@ import { SavedPlansModal } from './SavedPlansModal';
 import { HistoryView } from './HistoryView';
 import { EventSearchModal } from './EventSearchModal';
 import { GutTrainingFlowV2 } from './gutTraining/GutTrainingFlowV2';
+import { onOpenGutTraining } from '../services/gutTrainingOpen';
 import { ThemeToggle } from './ThemeToggle';
 import { NutritionStatsCard } from './NutritionStatsCard';
 import { saveOrUpdatePlan } from '../persistence/db';
@@ -32,6 +33,13 @@ export function Sidebar() {
   // entry never flashes in for an ineligible user.
   const { betaGutTraining } = useEntitlements();
   const showGutTraining = GUT_TRAINING_BUILD_ENABLED && betaGutTraining;
+
+  // The opt-in banner (app-shell level, outside this provider) asks the flow
+  // to open via a signal bus. Only honour it for eligible users.
+  useEffect(() => {
+    if (!showGutTraining) return;
+    return onOpenGutTraining(() => setGutTrainingOpen(true));
+  }, [showGutTraining]);
   const [savedPlansOpen, setSavedPlansOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [eventSearchOpen, setEventSearchOpen] = useState(false);
