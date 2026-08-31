@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, TrendingUp, Sparkles, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
@@ -181,7 +182,13 @@ export function GutTrainingPanel({ isOpen, onClose }: GutTrainingPanelProps) {
     toast.success(`Carb target set to ${program.targetGPerHour} g/h`);
   };
 
-  return (
+  // Portaled to document.body — rendered from inside Sidebar's <aside>,
+  // whose wrapper applies a `translate-x-*` utility for the mobile drawer.
+  // Any CSS transform on an ancestor becomes the containing block for
+  // `position: fixed` descendants, which would otherwise trap this overlay
+  // inside the sidebar's own ~288px box instead of the true viewport below
+  // the `lg` breakpoint. The portal sidesteps that entirely.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
@@ -368,7 +375,8 @@ export function GutTrainingPanel({ isOpen, onClose }: GutTrainingPanelProps) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

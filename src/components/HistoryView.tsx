@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useModalBehavior } from '../hooks/useModalBehavior';
 import { X, MapPin, ChevronDown, ChevronUp, RotateCcw, Smile, Frown, Meh, MessageSquare } from 'lucide-react';
 import { getAllPlans, getAllFeedback, SavedPlan, PlanFeedback } from '../persistence/db';
@@ -198,7 +199,13 @@ export function HistoryView({ isOpen, onClose }: HistoryViewProps) {
     grouped.set(key, existing);
   }
 
-  return (
+  // Portaled to document.body — rendered from inside Sidebar's <aside>,
+  // whose wrapper applies a `translate-x-*` utility for the mobile drawer.
+  // Any CSS transform on an ancestor becomes the containing block for
+  // `position: fixed` descendants, which would otherwise trap this overlay
+  // inside the sidebar's own ~288px box instead of the true viewport below
+  // the `lg` breakpoint. The portal sidesteps that entirely.
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
@@ -285,6 +292,7 @@ export function HistoryView({ isOpen, onClose }: HistoryViewProps) {
           });
         }}
       />
-    </div>
+    </div>,
+    document.body,
   );
 }
