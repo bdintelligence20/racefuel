@@ -566,7 +566,7 @@ export const adminListGutTrainingV2 = onCall({ region: REGION }, async (request)
   const rows = await Promise.all(progSnap.docs.map(async (d) => {
     const uid = d.ref.parent.parent?.id ?? '';
     const data = d.data() as {
-      event?: { name?: string; date?: string; distanceKm?: number };
+      event?: { name?: string; date?: string; durationHours?: number; distanceKm?: number };
       startGPerHour?: number;
       targetGPerHour?: number;
       currentGPerHour?: number;

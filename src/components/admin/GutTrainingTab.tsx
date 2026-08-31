@@ -23,7 +23,7 @@ function csvEscape(v: string | number | undefined | null): string {
 }
 
 function downloadCSV(rows: AdminGutTrainingV2Row[]) {
-  const header = ['optedInAt', 'email', 'event', 'eventDate', 'distanceKm', 'startGPerHour', 'targetGPerHour', 'currentGPerHour', 'weekNumber', 'sessionsCount', 'status'];
+  const header = ['optedInAt', 'email', 'event', 'eventDate', 'durationHours', 'startGPerHour', 'targetGPerHour', 'currentGPerHour', 'weekNumber', 'sessionsCount', 'status'];
   const lines = [header.join(',')];
   for (const r of rows) {
     lines.push([
@@ -31,7 +31,7 @@ function downloadCSV(rows: AdminGutTrainingV2Row[]) {
       csvEscape(r.email),
       csvEscape(r.event?.name),
       csvEscape(r.event?.date),
-      csvEscape(r.event?.distanceKm),
+      csvEscape(r.event?.durationHours),
       csvEscape(r.startGPerHour),
       csvEscape(r.targetGPerHour),
       csvEscape(r.currentGPerHour),
@@ -162,7 +162,7 @@ export function GutTrainingTab() {
                     </td>
                     <td className="px-3 py-3 text-[11px] text-text-secondary">
                       {r.event?.name ?? '—'}
-                      {r.event?.distanceKm ? <span className="text-text-muted"> · {r.event.distanceKm}km</span> : null}
+                      {r.event?.durationHours ? <span className="text-text-muted"> · {r.event.durationHours}h</span> : null}
                     </td>
                     <td className="px-3 py-3 tabular-nums text-text-primary">
                       {r.currentGPerHour ?? '—'}{r.targetGPerHour ? <span className="text-text-muted"> / {r.targetGPerHour}</span> : null}

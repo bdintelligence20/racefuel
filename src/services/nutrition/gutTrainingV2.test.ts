@@ -11,30 +11,26 @@ import {
   toGutComfort,
   fromGutComfort,
   suggestCarbTarget,
-  estimateRaceDurationHours,
-  estimateRaceIntensity,
   planFuelServings,
   type GutTrainingV2Program,
   type GutTrainingSession,
   type FuelKitItem,
 } from './gutTrainingV2';
 
-describe('deriveTargetGPerHour', () => {
+// Time-native event — duration is the primary input; distance never appears.
+const longEvent = { name: 'Comrades Marathon', date: '2026-06-14', durationHours: 8 };
+
+describe('deriveTargetGPerHour (duration-driven)', () => {
   it('gives short efforts the beginner ceiling', () => {
-    expect(deriveTargetGPerHour(15, 'running')).toBe(60); // ~1.4h
+    expect(deriveTargetGPerHour(1.4)).toBe(60); // ≤2h
   });
 
-  it('gives a Comrades-length ultra the trained ceiling', () => {
-    expect(deriveTargetGPerHour(90, 'running')).toBe(90); // 90/11 ≈ 8.2h
+  it('gives a Comrades-length day the trained ceiling', () => {
+    expect(deriveTargetGPerHour(8.2)).toBe(90); // 2–10h
   });
 
   it('gives very long ultras the elite ceiling', () => {
-    expect(deriveTargetGPerHour(160, 'running')).toBe(120); // 160/11 ≈ 14.5h
-  });
-
-  it('accounts for cycling being faster than running', () => {
-    // 90km at 28km/h ≈ 3.2h — well inside the trained tier, same as running's Comrades case.
-    expect(deriveTargetGPerHour(90, 'cycling')).toBe(90);
+    expect(deriveTargetGPerHour(14.5)).toBe(120); // >10h
   });
 });
 
@@ -61,51 +57,32 @@ describe('buildRealismNote', () => {
   });
 });
 
-describe('estimateRaceDurationHours', () => {
-  it('is shorter for cycling than running over the same distance', () => {
-    const run = estimateRaceDurationHours(90, 'road-run');
-    const ride = estimateRaceDurationHours(90, 'road-cycle');
-    expect(ride).toBeLessThan(run);
-  });
-
-  it('adds time for climbing', () => {
-    const flat = estimateRaceDurationHours(42, 'trail-run', 0);
-    const climby = estimateRaceDurationHours(42, 'trail-run', 2600);
-    expect(climby).toBeGreaterThan(flat);
-  });
-});
-
-describe('estimateRaceIntensity', () => {
-  it('sits lower for longer efforts and higher on mountainous terrain', () => {
-    expect(estimateRaceIntensity(1, 'flat')).toBeGreaterThan(estimateRaceIntensity(8, 'flat'));
-    expect(estimateRaceIntensity(8, 'mountainous')).toBeGreaterThan(estimateRaceIntensity(8, 'flat'));
-  });
-
-  it('never exceeds the 0.85 cap', () => {
-    expect(estimateRaceIntensity(0.5, 'mountainous')).toBeLessThanOrEqual(0.85);
-  });
-});
-
-describe('suggestCarbTarget', () => {
-  it('routes through the engine and lands in the 60–90 band for a long ultra', () => {
-    const s = suggestCarbTarget({ distanceKm: 90, discipline: 'road-run', elevationGainM: 1600, terrain: 'hilly' });
+describe('suggestCarbTarget (time + effort driven)', () => {
+  it('routes through the engine and lands in the 60–90 band for a long day', () => {
+    const s = suggestCarbTarget({ durationHours: 8, effortLevel: 6 });
     expect(s.targetGPerHour).toBeGreaterThanOrEqual(60);
     expect(s.targetGPerHour).toBeLessThanOrEqual(90);
-    expect(s.durationHours).toBeGreaterThan(3);
+    expect(s.durationHours).toBe(8);
     expect(s.intensityPercent).toBeGreaterThan(0);
-    expect(s.intensityPercent).toBeLessThanOrEqual(0.85);
+    expect(s.intensityPercent).toBeLessThanOrEqual(1);
     expect(s.rationale.length).toBeGreaterThan(0);
   });
 
   it('suggests less for a short race than a long one', () => {
-    const short = suggestCarbTarget({ distanceKm: 15, discipline: 'road-run' });
-    const long = suggestCarbTarget({ distanceKm: 90, discipline: 'road-run', elevationGainM: 1600, terrain: 'hilly' });
+    const short = suggestCarbTarget({ durationHours: 1.4 });
+    const long = suggestCarbTarget({ durationHours: 8, effortLevel: 6 });
     expect(short.targetGPerHour).toBeLessThan(long.targetGPerHour);
   });
 
   it('respects a beginner gut ceiling', () => {
-    const s = suggestCarbTarget({ distanceKm: 90, discipline: 'road-run', gutTolerance: 'beginner' });
+    const s = suggestCarbTarget({ durationHours: 8, gutTolerance: 'beginner' });
     expect(s.targetGPerHour).toBeLessThanOrEqual(60);
+  });
+
+  it('higher effort pushes the target up within the same duration', () => {
+    const easy = suggestCarbTarget({ durationHours: 8, effortLevel: 3 });
+    const hard = suggestCarbTarget({ durationHours: 8, effortLevel: 9 });
+    expect(hard.targetGPerHour).toBeGreaterThanOrEqual(easy.targetGPerHour);
   });
 });
 
@@ -137,7 +114,7 @@ describe('planFuelServings', () => {
   it('feeds the session prescription real product labels when a kit is set', () => {
     const program: GutTrainingV2Program = {
       ...createProgramV2({
-        event: { name: 'Comrades', date: '2026-06-14', distanceKm: 90 },
+        event: longEvent,
         startGPerHour: 60, gutHistory: [], weeksToEvent: 8, targetGPerHour: 85,
       }),
       currentGPerHour: 80,
@@ -150,18 +127,19 @@ describe('planFuelServings', () => {
 });
 
 describe('createProgramV2', () => {
-  it('derives the target from the event and starts week 1', () => {
+  it('derives the target from the event duration and starts week 1', () => {
     const p = createProgramV2({
-      event: { name: 'Comrades Marathon', date: '2026-06-14', distanceKm: 90 },
+      event: longEvent,
       startGPerHour: 60,
       gutHistory: ['bloating-gels'],
       weeksToEvent: 8,
     });
     expect(p.startGPerHour).toBe(60);
-    expect(p.targetGPerHour).toBe(90);
+    expect(p.targetGPerHour).toBe(90); // 8h → trained ceiling
     expect(p.currentGPerHour).toBe(60);
     expect(p.weekNumber).toBe(1);
     expect(p.event.name).toBe('Comrades Marathon');
+    expect(p.event.durationHours).toBe(8);
     expect(p.status).toBe('active');
   });
 });
@@ -169,7 +147,7 @@ describe('createProgramV2', () => {
 describe('buildSessionPrescription', () => {
   it('breaks the session target down into items that sum to the total', () => {
     const program = createProgramV2({
-      event: { name: 'Comrades Marathon', date: '2026-06-14', distanceKm: 90 },
+      event: longEvent,
       startGPerHour: 85,
       gutHistory: [],
       weeksToEvent: 8,
@@ -185,7 +163,7 @@ describe('buildSessionPrescription', () => {
 describe('recordSessionV2', () => {
   it('advances the week pointer and reuses v1 advance/hold/back-off logic', () => {
     const program = createProgramV2({
-      event: { name: 'Comrades Marathon', date: '2026-06-14', distanceKm: 90 },
+      event: longEvent,
       startGPerHour: 60,
       gutHistory: [],
       weeksToEvent: 8,
@@ -217,7 +195,7 @@ describe('computeMilestoneStats', () => {
   it('summarises weeks elapsed, session count, and clean rate', () => {
     const program: GutTrainingV2Program = {
       ...createProgramV2({
-        event: { name: 'Comrades Marathon', date: '2026-06-14', distanceKm: 90 },
+        event: longEvent,
         startGPerHour: 60,
         gutHistory: [],
         weeksToEvent: 8,
@@ -237,20 +215,23 @@ describe('computeMilestoneStats', () => {
   });
 });
 
-describe('buildRaceDayPlan', () => {
-  it('splits the course into segments whose grams sum to the total', () => {
+describe('buildRaceDayPlan (time-native)', () => {
+  it('splits the race duration into elapsed-time segments whose grams sum to the total', () => {
     const program = createProgramV2({
-      event: { name: 'Comrades Marathon', date: '2026-06-14', distanceKm: 90 },
+      event: longEvent, // 8h
       startGPerHour: 90,
       gutHistory: [],
       weeksToEvent: 8,
     });
     const plan = buildRaceDayPlan(program);
     expect(plan.segments.length).toBeGreaterThanOrEqual(3);
-    expect(plan.segments[0].fromKm).toBe(0);
-    expect(plan.segments[plan.segments.length - 1].toKm).toBe(90);
+    expect(plan.durationMinutes).toBe(480);
+    expect(plan.segments[0].fromMinutes).toBe(0);
+    expect(plan.segments[plan.segments.length - 1].toMinutes).toBe(480);
     const sum = plan.segments.reduce((s, seg) => s + seg.grams, 0);
     expect(sum).toBe(plan.totalGrams);
+    // No km anywhere on the plan.
+    expect(Object.keys(plan.segments[0])).toEqual(['fromMinutes', 'toMinutes', 'grams']);
     // Later segments taper below the flat rate as GI capacity/appetite drop.
     expect(plan.segments[plan.segments.length - 1].grams).toBeLessThan(plan.segments[0].grams);
   });
@@ -258,7 +239,7 @@ describe('buildRaceDayPlan', () => {
 
 describe('getActiveAlerts', () => {
   const program: GutTrainingV2Program = createProgramV2({
-    event: { name: 'Comrades Marathon', date: '2026-06-14', distanceKm: 90 },
+    event: longEvent,
     startGPerHour: 60,
     gutHistory: [],
     weeksToEvent: 8,

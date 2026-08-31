@@ -4,7 +4,8 @@ import { raceDayCues, sessionCues, buildWorkoutTcx, buildFuelCuesGpx } from './g
 
 function makeProgram() {
   return createProgramV2({
-    event: { name: 'Comrades Marathon', date: '2026-06-14', distanceKm: 90, discipline: 'road-run', terrain: 'hilly', elevationGainM: 1600, lat: -29.7, lng: 30.7 },
+    // duration is the primary input; lat/lng kept for GPX geo, distance omitted.
+    event: { name: 'Comrades Marathon', date: '2026-06-14', durationHours: 8, discipline: 'road-run', terrain: 'hilly', elevationGainM: 1600, lat: -29.7, lng: 30.7 },
     startGPerHour: 60,
     gutHistory: [],
     weeksToEvent: 8,
@@ -13,14 +14,16 @@ function makeProgram() {
 }
 
 describe('raceDayCues', () => {
-  it('is time-native: first cue at minute 0, minutes increase, distance kept', () => {
+  it('is time-native: first cue at minute 0, minutes increase, no distance', () => {
     const program = makeProgram();
     const cues = raceDayCues(program, buildRaceDayPlan(program));
     expect(cues[0].atMinutes).toBe(0);
     for (let i = 1; i < cues.length; i++) {
       expect(cues[i].atMinutes).toBeGreaterThan(cues[i - 1].atMinutes);
     }
-    expect(cues.every((c) => typeof c.distanceKm === 'number')).toBe(true);
+    // Cues carry no distance; labels are clock times, not km.
+    expect(cues.every((c) => c.distanceKm === undefined)).toBe(true);
+    expect(cues.every((c) => !/km/i.test(c.label) && !/km/i.test(c.detail))).toBe(true);
   });
 });
 

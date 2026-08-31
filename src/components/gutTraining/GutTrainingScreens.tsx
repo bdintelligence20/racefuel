@@ -14,7 +14,7 @@
 import { useState, type ReactNode } from 'react';
 import {
   Check, Search, Watch as WatchIcon, Send, Share2, FileDown, MapPin,
-  Calendar, Thermometer, Droplets, Wind, ChevronDown, Pencil, Ruler,
+  Calendar, Thermometer, Droplets, Wind, ChevronDown, Pencil,
 } from 'lucide-react';
 import { NumberField } from '../ui/NumberField';
 import {
@@ -23,7 +23,7 @@ import {
   type GutTrainingAlert, type GutTrainingV2Program, type CarbSuggestion,
 } from '../../services/nutrition/gutTrainingV2';
 import {
-  DISCIPLINE_LABELS, type RaceDiscipline, type UpcomingRace,
+  DISCIPLINE_LABELS, type UpcomingRace,
 } from '../../data/saRaces';
 import type { RaceWeather } from '../../services/weather/weatherService';
 import { WATCH_DEVICES, preferredFuelFormat, type WatchDevice } from '../../data/watchDevices';
@@ -229,7 +229,22 @@ function TargetPanel({ suggestion, targetGPerHour, onChangeTarget, edited }: {
 
 /* --------------------------- 1 · goal event ------------------------------ */
 
-const DISCIPLINE_ORDER: RaceDiscipline[] = ['road-run', 'trail-run', 'road-cycle', 'mtb', 'gravel'];
+const EFFORT_OPTIONS: { label: string; bucket: 'easy' | 'moderate' | 'hard'; level: number }[] = [
+  { label: 'Easy', bucket: 'easy', level: 3 },
+  { label: 'Moderate', bucket: 'moderate', level: 6 },
+  { label: 'Hard', bucket: 'hard', level: 9 },
+];
+
+function effortBucket(level: number): 'easy' | 'moderate' | 'hard' {
+  return level <= 4 ? 'easy' : level <= 7 ? 'moderate' : 'hard';
+}
+
+/** Elapsed minutes → readable "6h" / "6h 30m". */
+function formatHrs(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = Math.round(totalMinutes % 60);
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
 
 export function GoalEventScreen(props: {
   raceQuery: string;
@@ -244,10 +259,10 @@ export function GoalEventScreen(props: {
   onChangeName: (v: string) => void;
   eventDate: string;
   onChangeDate: (v: string) => void;
-  distanceKm: number;
-  onChangeDistance: (v: number) => void;
-  discipline: RaceDiscipline;
-  onChangeDiscipline: (d: RaceDiscipline) => void;
+  durationMinutes: number;
+  onChangeDuration: (v: number) => void;
+  effortLevel: number;
+  onChangeEffort: (v: number) => void;
   weather: RaceWeather | null;
   weatherLoading: boolean;
   suggestion: CarbSuggestion | null;
@@ -260,13 +275,34 @@ export function GoalEventScreen(props: {
   const {
     raceQuery, onChangeRaceQuery, raceResults, selectedRace, onSelectRace, onClearRace,
     manualMode, onToggleManual, eventName, onChangeName, eventDate, onChangeDate,
-    distanceKm, onChangeDistance, discipline, onChangeDiscipline,
+    durationMinutes, onChangeDuration, effortLevel, onChangeEffort,
     weather, weatherLoading, suggestion, targetGPerHour, onChangeTarget, targetEdited,
     canProceed, onNext,
   } = props;
 
+  // Expected finish time + effort drive the whole plan — no distance anywhere.
+  const timeAndEffort = (
+    <>
+      <div>
+        <FieldLabel>Expected finish time</FieldLabel>
+        <div className="flex items-center gap-2">
+          <NumberField value={durationMinutes} onChange={onChangeDuration} min={30} max={1440} step={15} ariaLabel="Expected finish time in minutes" commitOnBlur className={`${fieldInputClass()} w-28`} />
+          <span className="text-text-muted font-display text-xs whitespace-nowrap">min · {formatHrs(durationMinutes)}</span>
+        </div>
+      </div>
+      <div>
+        <FieldLabel>How hard will you push?</FieldLabel>
+        <div className="flex flex-wrap gap-2">
+          {EFFORT_OPTIONS.map((o) => (
+            <OutlineChip key={o.label} label={o.label} selected={effortBucket(effortLevel) === o.bucket} onClick={() => onChangeEffort(o.level)} />
+          ))}
+        </div>
+      </div>
+    </>
+  );
+
   const body = selectedRace ? (
-    // ── A race is chosen: show it, weather, and the editable target ──
+    // ── A race is chosen: show it, weather, then time/effort + target ──
     <>
       <TintedPanel className="!bg-accent/[0.06]">
         <div className="flex items-start justify-between gap-2">
@@ -274,8 +310,6 @@ export function GoalEventScreen(props: {
             <div className="text-base font-display font-black text-text-primary leading-snug">{selectedRace.name}</div>
             <div className="text-xs text-text-secondary mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
               <span>{DISCIPLINE_LABELS[selectedRace.discipline]}</span>
-              <span className="text-text-muted">·</span>
-              <span className="inline-flex items-center gap-1"><Ruler className="w-3 h-3" />{selectedRace.distanceKm} km</span>
               <span className="text-text-muted">·</span>
               <span className="inline-flex items-center gap-1"><Calendar className="w-3 h-3" />{formatRaceDate(selectedRace.date)}</span>
             </div>
@@ -285,6 +319,7 @@ export function GoalEventScreen(props: {
       </TintedPanel>
 
       <WeatherPanel weather={weather} loading={weatherLoading} />
+      {timeAndEffort}
       <TargetPanel suggestion={suggestion} targetGPerHour={targetGPerHour} onChangeTarget={onChangeTarget} edited={targetEdited} />
     </>
   ) : manualMode ? (
@@ -294,31 +329,15 @@ export function GoalEventScreen(props: {
         <FieldLabel>Event</FieldLabel>
         <input type="text" value={eventName} onChange={(e) => onChangeName(e.target.value)} placeholder="Your race" className={fieldInputClass()} />
       </div>
-      <div className="flex gap-3">
-        <div className="flex-1">
-          <FieldLabel>Date</FieldLabel>
-          <input type="date" value={eventDate} onChange={(e) => onChangeDate(e.target.value)} className={fieldInputClass()} />
-        </div>
-        <div className="flex-1">
-          <FieldLabel>Distance</FieldLabel>
-          <div className="flex items-center gap-2">
-            <NumberField value={distanceKm} onChange={onChangeDistance} min={1} max={1000} ariaLabel="Event distance in kilometres" commitOnBlur className={fieldInputClass()} />
-            <span className="text-text-muted font-display text-xs">km</span>
-          </div>
-        </div>
-      </div>
       <div>
-        <FieldLabel>Type</FieldLabel>
-        <div className="flex flex-wrap gap-2">
-          {DISCIPLINE_ORDER.map((d) => (
-            <OutlineChip key={d} label={DISCIPLINE_LABELS[d]} selected={discipline === d} onClick={() => onChangeDiscipline(d)} />
-          ))}
-        </div>
+        <FieldLabel>Date</FieldLabel>
+        <input type="date" value={eventDate} onChange={(e) => onChangeDate(e.target.value)} className={fieldInputClass()} />
       </div>
+      {timeAndEffort}
       <TargetPanel suggestion={suggestion} targetGPerHour={targetGPerHour} onChangeTarget={onChangeTarget} edited={targetEdited} />
     </>
   ) : (
-    // ── Default: search the SA race list ──
+    // ── Default: search the SA race list (no distance shown) ──
     <>
       <div className="relative">
         <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -344,8 +363,6 @@ export function GoalEventScreen(props: {
               <div className="text-[11px] text-text-secondary mt-0.5 flex flex-wrap items-center gap-x-1.5">
                 <span>{DISCIPLINE_LABELS[r.discipline]}</span>
                 <span className="text-text-muted">·</span>
-                <span>{r.distanceKm} km</span>
-                <span className="text-text-muted">·</span>
                 <span>{formatRaceDate(r.date)}</span>
               </div>
             </button>
@@ -358,7 +375,7 @@ export function GoalEventScreen(props: {
   return (
     <ScreenShell
       title="What are you training for?"
-      subtitle="Pick your race and we'll shape the whole plan around it."
+      subtitle="Tell us your race and expected finish time — that shapes the plan."
       progress={1 / 3}
       footer={
         <>
@@ -719,7 +736,7 @@ export function RaceDayScreen({ plan, onSendToWatch, onExportPdf, onShareWithCre
   return (
     <ScreenShell
       title={`Your ${plan.event.name} game plan`}
-      subtitle={`${plan.event.distanceKm} km · hold ${plan.targetGPerHour} g/hr`}
+      subtitle={`${formatHrs(plan.durationMinutes)} · hold ${plan.targetGPerHour} g/hr`}
       footer={
         <>
           <PrimaryButton onClick={onSendToWatch} loading={exporting}><Send className="w-4 h-4" /> Send to watch</PrimaryButton>
@@ -739,7 +756,7 @@ export function RaceDayScreen({ plan, onSendToWatch, onExportPdf, onShareWithCre
       <div className="rounded-xl border border-[var(--color-border)] divide-y divide-[var(--color-border)] overflow-hidden">
         {plan.segments.map((seg, i) => (
           <div key={i} className="flex items-center justify-between px-3 py-2 text-sm">
-            <span className="text-text-secondary">{seg.fromKm}, {seg.toKm} km</span>
+            <span className="text-text-secondary">{formatHrs(seg.fromMinutes)}–{formatHrs(seg.toMinutes)}</span>
             <span className="font-display font-semibold text-text-primary">{seg.grams}g</span>
           </div>
         ))}

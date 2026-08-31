@@ -297,7 +297,12 @@ export interface FirestoreGutTrainingV2Program {
   event: {
     name: string;
     date: string;
-    distanceKm: number;
+    /** Primary input — expected finish time. Optional here for back-compat
+     *  with pre-time-native docs; new programs always set it. */
+    durationHours?: number;
+    /** Informational only now — never drives duration. Optional; legacy docs
+     *  still carry it. */
+    distanceKm?: number;
     discipline?: string;
     terrain?: string;
     elevationGainM?: number;

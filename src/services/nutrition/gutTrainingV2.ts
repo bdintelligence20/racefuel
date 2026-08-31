@@ -23,7 +23,7 @@ import {
   type GutComfort,
 } from './gutTraining';
 import { calculateCarbTarget, gutCeilingFor, type GutTolerance } from './carbCalculator';
-import type { Sport } from './hydrationCalculator';
+import { buildFuelSchedule, effortToIntensity } from './fuelingCore';
 import type { RaceDiscipline, RaceTerrain } from '../../data/saRaces';
 
 export type { GutTrainingSession, GutComfort };
@@ -34,9 +34,13 @@ export interface GoalEvent {
   name: string;
   /** ISO date string (yyyy-mm-dd). */
   date: string;
-  distanceKm: number;
-  /** Optional, set when picked from the SA race catalog. Drives the carb
-   *  suggestion (duration + intensity) and race-day weather. */
+  /** Expected finish time in hours — the PRIMARY input. Entered by the
+   *  athlete, it drives the carb tier and the whole race-day breakdown. Never
+   *  derived from distance. */
+  durationHours: number;
+  /** Optional, informational only (e.g. carried from the SA race catalog for
+   *  labels/weather). NEVER the source of durationHours. */
+  distanceKm?: number;
   discipline?: RaceDiscipline;
   terrain?: RaceTerrain;
   elevationGainM?: number;
@@ -104,22 +108,16 @@ export interface GutTrainingV2Program extends GutTrainingProgram {
 
 /* --------------------------- 1 · goal event --------------------------- */
 
-/** Same speed assumptions AppContext already uses to size route ETAs
- *  (running 11 km/h, cycling 28 km/h), reused here so the derived target
- *  lines up with how the rest of the app estimates effort duration. */
-const REF_SPEED_KM_H: Record<Sport, number> = { running: 11, cycling: 28 };
-
-/** Derives a race-day carb target from the event's distance, using the same
- *  60/90/120 g/h ceiling tiers `gutCeilingFor` already defines elsewhere in
- *  the app (and the "60 to 90 g/h is the sweet spot for efforts over two
- *  hours" guidance already surfaced in ActionBar's tooltip), an estimated
- *  duration under 2h stays at the beginner ceiling, 2 to 10h sits at the
- *  trained ceiling most events land on, and only very long ultras (10h+)
- *  reach for the elite ceiling. A simplification for beta, not a
- *  physiology model, flagged here so it's easy to revisit. */
-export function deriveTargetGPerHour(distanceKm: number, sport: Sport = 'running'): number {
-  const hours = distanceKm / REF_SPEED_KM_H[sport];
-  const tier: GutTolerance = hours <= 2 ? 'beginner' : hours <= 10 ? 'trained' : 'elite';
+/** Derives a race-day carb target from the event's expected DURATION, using
+ *  the same 60/90/120 g/h ceiling tiers `gutCeilingFor` already defines
+ *  elsewhere (and the "60 to 90 g/h is the sweet spot for efforts over two
+ *  hours" guidance): under 2h stays at the beginner ceiling, 2 to 10h sits at
+ *  the trained ceiling most events land on, and only very long ultras (10h+)
+ *  reach for the elite ceiling. Time-driven — distance never enters. A
+ *  simplification for beta, not a physiology model, flagged so it's easy to
+ *  revisit. */
+export function deriveTargetGPerHour(durationHours: number): number {
+  const tier: GutTolerance = durationHours <= 2 ? 'beginner' : durationHours <= 10 ? 'trained' : 'elite';
   return gutCeilingFor(tier);
 }
 
@@ -127,44 +125,15 @@ export function deriveTargetGPerHour(distanceKm: number, sport: Sport = 'running
 /*
  * The proper carb suggestion routes through the app's existing, literature-
  * grounded engine (carbCalculator.calculateCarbTarget) rather than the crude
- * distance to tier shortcut above. That engine encodes current consensus:
+ * duration-to-tier shortcut above. That engine encodes current consensus:
  *   - 60 to 90 g/hr for 2h+ efforts; up to 120 g/hr only with a trained gut,
  *     1:0.8 glucose:fructose (Costa et al. 2025 SDA/USSF position stand;
  *     Jeukendrup 2014; Hearris et al. 2022; ACSM 2016).
- * We feed it an estimated race duration + intensity from the race's
- * discipline / distance / terrain. The result is a *suggestion the athlete
- * can override*, surfaced as an editable field in the flow.
+ * It is fed the athlete-entered race duration plus an intensity from their
+ * perceived effort — never a route-inferred pace/elevation intensity. The
+ * result is a *suggestion the athlete can override*, surfaced as an editable
+ * field in the flow.
  */
-
-/** Per-discipline reference speeds (km/h) for a typical age-group finisher,  *  used only to estimate race duration, which sets the carb tier. */
-const DISCIPLINE_REF_SPEED_KMH: Record<RaceDiscipline, number> = {
-  'road-run': 10,
-  'trail-run': 7.5,
-  'road-cycle': 30,
-  gravel: 23,
-  mtb: 16,
-};
-
-export function estimateRaceDurationHours(
-  distanceKm: number,
-  discipline: RaceDiscipline,
-  elevationGainM = 0,
-): number {
-  const base = distanceKm / DISCIPLINE_REF_SPEED_KMH[discipline];
-  // Climbing costs time: runs pay more per metre of ascent than bikes.
-  const perKmAscentHours = discipline.endsWith('run') ? 0.5 : 0.25;
-  const climbPenalty = (elevationGainM / 1000) * perKmAscentHours;
-  return base + climbPenalty;
-}
-
-/** Race intensity as a fraction of threshold, longer efforts sit lower,
- *  hillier terrain pushes it up. Feeds calculateCarbTarget's band position. */
-export function estimateRaceIntensity(durationHours: number, terrain: RaceTerrain = 'rolling'): number {
-  let base = durationHours < 1.5 ? 0.82 : durationHours < 3 ? 0.75 : durationHours < 6 ? 0.7 : 0.62;
-  if (terrain === 'hilly') base += 0.03;
-  if (terrain === 'mountainous') base += 0.05;
-  return Math.min(0.85, base);
-}
 
 export interface CarbSuggestion {
   targetGPerHour: number;
@@ -173,26 +142,24 @@ export interface CarbSuggestion {
   rationale: string;
 }
 
-/** The recommended race-day carb rate, via the real engine. This is a
- *  starting point, the athlete edits it in the flow. */
+/** The recommended race-day carb rate, via the real engine. Duration is the
+ *  athlete's expected finish time; intensity comes from their effort (1–10),
+ *  defaulting to a middling 5. A starting point the athlete edits in the flow. */
 export function suggestCarbTarget(input: {
-  distanceKm: number;
-  discipline: RaceDiscipline;
-  elevationGainM?: number;
-  terrain?: RaceTerrain;
+  durationHours: number;
+  effortLevel?: number;
   gutTolerance?: GutTolerance;
 }): CarbSuggestion {
-  const durationHours = estimateRaceDurationHours(input.distanceKm, input.discipline, input.elevationGainM ?? 0);
-  const intensityPercent = estimateRaceIntensity(durationHours, input.terrain);
+  const intensityPercent = effortToIntensity(input.effortLevel ?? 5);
   const result = calculateCarbTarget({
-    durationHours,
+    durationHours: input.durationHours,
     intensityPercent,
     gutTolerance: input.gutTolerance ?? 'trained',
     isCompetition: true,
   });
   return {
     targetGPerHour: result.target,
-    durationHours,
+    durationHours: input.durationHours,
     intensityPercent,
     rationale: result.rationale,
   };
@@ -248,10 +215,9 @@ export interface CreateProgramV2Input {
   startGPerHour: number;
   gutHistory: GutHistoryTag[];
   weeksToEvent: number;
-  sport?: Sport;
-  /** The race-day target the athlete is committing to, normally the
-   *  engine's `suggestCarbTarget` value after any edit. Falls back to the
-   *  crude distance-derived tier when omitted (keeps older callers working). */
+  /** The race-day target the athlete is committing to, normally the engine's
+   *  `suggestCarbTarget` value after any edit. Falls back to the duration-
+   *  derived tier when omitted (keeps older callers working). */
   targetGPerHour?: number;
   deviceId?: string;
   fuelKit?: FuelKitItem[];
@@ -260,7 +226,7 @@ export interface CreateProgramV2Input {
 /** Starts a new v2 program. Builds on top of v1's `createProgram` (same
  *  clamping, same start/target-swap safety) rather than re-implementing it. */
 export function createProgramV2(input: CreateProgramV2Input): GutTrainingV2Program {
-  const targetGPerHour = input.targetGPerHour ?? deriveTargetGPerHour(input.event.distanceKm, input.sport ?? 'running');
+  const targetGPerHour = input.targetGPerHour ?? deriveTargetGPerHour(input.event.durationHours);
   const base = createProgram(input.startGPerHour, targetGPerHour);
   return {
     ...base,
@@ -441,48 +407,43 @@ export function computeMilestoneStats(program: GutTrainingV2Program, sessions: G
 /* ------------------------------ 7 · race day ----------------------------- */
 
 export interface RaceDaySegment {
-  fromKm: number;
-  toKm: number;
+  /** Elapsed minutes from the gun. */
+  fromMinutes: number;
+  toMinutes: number;
   grams: number;
 }
 
 export interface RaceDayPlan {
   event: GoalEvent;
   targetGPerHour: number;
+  durationMinutes: number;
   segments: RaceDaySegment[];
   totalGrams: number;
 }
 
-/** Splits the course into ~20 to 25km segments and tapers the fuelling rate
- *  through the back half (100% of target through the first 60% of the
- *  course, linearly down to 75% by the finish), GI capacity and appetite
- *  typically drop late in an ultra, so the plan front-loads intake rather
- *  than holding a flat rate to the line. A reasonable default for beta,  *  not a clinical taper protocol. */
-export function buildRaceDayPlan(program: GutTrainingV2Program, sport: Sport = 'running'): RaceDayPlan {
-  const { distanceKm } = program.event;
+/** Splits the race DURATION into elapsed-time segments and tapers the fuelling
+ *  rate through the back half (100% of target through the first 60% of the
+ *  time, linearly down to 75% by the finish) — GI capacity and appetite
+ *  typically drop late, so the plan front-loads intake rather than holding a
+ *  flat rate to the line. Built on the shared time-driven `buildFuelSchedule`;
+ *  no distance anywhere. A reasonable default for beta, not a clinical taper
+ *  protocol. */
+export function buildRaceDayPlan(program: GutTrainingV2Program): RaceDayPlan {
+  const durationMinutes = Math.round(program.event.durationHours * 60);
   const target = program.currentGPerHour;
-  const refSpeed = REF_SPEED_KM_H[sport];
-
-  const segmentCount = Math.max(3, Math.min(6, Math.round(distanceKm / 22)));
-  const segmentKm = distanceKm / segmentCount;
-
-  const segments: RaceDaySegment[] = [];
-  let cursorKm = 0;
-  for (let i = 0; i < segmentCount; i++) {
-    const fromKm = Math.round(cursorKm);
-    cursorKm += segmentKm;
-    const toKm = i === segmentCount - 1 ? Math.round(distanceKm) : Math.round(cursorKm);
-    const segHours = (toKm - fromKm) / refSpeed;
-    const progress = i / Math.max(1, segmentCount - 1);
-    const multiplier = progress <= 0.6 ? 1 : 1 - 0.25 * ((progress - 0.6) / 0.4);
-    segments.push({ fromKm, toKm, grams: Math.round(segHours * target * multiplier) });
-  }
+  const schedule = buildFuelSchedule(durationMinutes, target, {
+    blockMinutes: 60,
+    minBlocks: 3,
+    maxBlocks: 6,
+    taper: { holdFraction: 0.6, endMultiplier: 0.75 },
+  });
 
   return {
     event: program.event,
     targetGPerHour: target,
-    segments,
-    totalGrams: segments.reduce((sum, s) => sum + s.grams, 0),
+    durationMinutes,
+    segments: schedule.blocks.map((b) => ({ fromMinutes: b.fromMinutes, toMinutes: b.toMinutes, grams: b.grams })),
+    totalGrams: schedule.totalGrams,
   };
 }
 

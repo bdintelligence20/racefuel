@@ -24,11 +24,17 @@ import autoTable from 'jspdf-autotable';
 import { downloadFile } from '../export/downloadFile';
 import { deviceById, preferredFuelFormat, type WatchDevice, type ExportFormat } from '../../data/watchDevices';
 import {
-  estimateRaceDurationHours,
   type GutTrainingV2Program,
   type RaceDayPlan,
   type SessionPrescription,
 } from './gutTrainingV2';
+
+/** Elapsed minutes → "h:mm" clock label (e.g. 90 → "1:30", 45 → "0:45"). */
+function formatClock(totalMinutes: number): string {
+  const h = Math.floor(totalMinutes / 60);
+  const m = Math.round(totalMinutes % 60);
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
 
 export interface FuelCue {
   /** Minutes from the start of the effort when this cue fires. */
@@ -54,19 +60,15 @@ function escapeXml(str: string): string {
 
 /* ------------------------------ cue builders ------------------------------ */
 
-/** Race-day plan to time-native cues. Segment start distances become minutes
- *  using the estimated race duration (linear over the course), so a "45 km"
- *  cue also knows roughly when it lands on the clock. */
-export function raceDayCues(program: GutTrainingV2Program, plan: RaceDayPlan): FuelCue[] {
-  const distanceKm = plan.event.distanceKm || 1;
-  const discipline = program.event.discipline ?? 'road-run';
-  const totalMinutes = estimateRaceDurationHours(distanceKm, discipline, program.event.elevationGainM ?? 0) * 60;
+/** Race-day plan to time-native cues. Segments are already elapsed-time
+ *  blocks, so each cue fires at its block's start minute — no distance
+ *  involved. (GPX waypoint geo is synthesised from time downstream.) */
+export function raceDayCues(_program: GutTrainingV2Program, plan: RaceDayPlan): FuelCue[] {
   return plan.segments.map((seg) => ({
-    atMinutes: Math.round((seg.fromKm / distanceKm) * totalMinutes),
-    label: `Fuel ${seg.fromKm}k`,
+    atMinutes: seg.fromMinutes,
+    label: `Fuel at ${formatClock(seg.fromMinutes)}`,
     grams: seg.grams,
-    detail: `${seg.fromKm} to ${seg.toKm} km, ${seg.grams} g carbs, hold ${plan.targetGPerHour} g/hr`,
-    distanceKm: seg.fromKm,
+    detail: `${formatClock(seg.fromMinutes)}–${formatClock(seg.toMinutes)}, ${seg.grams} g carbs, hold ${plan.targetGPerHour} g/hr`,
   }));
 }
 
@@ -323,7 +325,7 @@ export function downloadRaceDayPdf(program: GutTrainingV2Program, plan: RaceDayP
   doc.setTextColor(...INK);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.text(`Hold ${plan.targetGPerHour} g/hr, ${plan.event.distanceKm} km`, 14, y);
+  doc.text(`Hold ${plan.targetGPerHour} g/hr over ${formatClock(plan.durationMinutes)}`, 14, y);
   y += 6;
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
@@ -334,7 +336,7 @@ export function downloadRaceDayPdf(program: GutTrainingV2Program, plan: RaceDayP
   autoTable(doc, {
     startY: y,
     head: [['Segment', 'Carbs']],
-    body: plan.segments.map((s) => [`${s.fromKm} to ${s.toKm} km`, `${s.grams} g`]),
+    body: plan.segments.map((s) => [`${formatClock(s.fromMinutes)}–${formatClock(s.toMinutes)}`, `${s.grams} g`]),
     foot: [['Total on course', `${plan.totalGrams} g`]],
     headStyles: { fillColor: PLUM, textColor: CREAM, fontStyle: 'bold' },
     footStyles: { fillColor: PLUM_TINT, textColor: INK, fontStyle: 'bold' },

@@ -199,7 +199,7 @@ export interface ValidateCouponResult {
 export interface AdminGutTrainingV2Row {
   uid: string;
   email: string;
-  event: { name?: string; date?: string; distanceKm?: number } | null;
+  event: { name?: string; date?: string; durationHours?: number; distanceKm?: number } | null;
   startGPerHour: number | null;
   targetGPerHour: number | null;
   currentGPerHour: number | null;

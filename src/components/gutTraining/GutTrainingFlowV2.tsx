@@ -80,7 +80,6 @@ function weeksBetween(isoDate: string): number {
 
 export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
   const { userProfile } = useApp();
-  const sport = userProfile.sport ?? 'running';
   const gutTolerance = userProfile.gutTolerance ?? 'trained';
 
   const [loading, setLoading] = useState(true);
@@ -101,12 +100,18 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
   const [manualMode, setManualMode] = useState(false);
   const [eventName, setEventName] = useState('');
   const [eventDate, setEventDate] = useState('');
-  const [distanceKm, setDistanceKm] = useState(56);
+  // Expected finish time is the PRIMARY input now — distance is only carried
+  // along informationally when a catalog race is picked, never used to derive
+  // duration. Effort (1–10) drives intensity; no route/pace inference.
+  const [expectedDurationMinutes, setExpectedDurationMinutes] = useState(360); // 6h default
+  const [effortLevel, setEffortLevel] = useState(6);
+  const [distanceKm, setDistanceKm] = useState<number | undefined>(undefined);
   const [discipline, setDiscipline] = useState<RaceDiscipline>('road-run');
   const [elevationGainM, setElevationGainM] = useState(0);
   const [terrain, setTerrain] = useState<'flat' | 'rolling' | 'hilly' | 'mountainous'>('rolling');
   const [lat, setLat] = useState<number | undefined>(undefined);
   const [lng, setLng] = useState<number | undefined>(undefined);
+  const expectedDurationHours = expectedDurationMinutes / 60;
 
   // ── Setup: weather + engine suggestion + editable target ──
   const [weather, setWeather] = useState<RaceWeather | null>(null);
@@ -163,11 +168,12 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     if (eventDate) setWeeksToEvent(weeksBetween(eventDate));
   }, [eventDate]);
 
-  // Engine suggestion, recompute as the race/manual inputs change.
+  // Engine suggestion, recompute as duration / effort change. Time-driven —
+  // distance is never an input here.
   const suggestion = useMemo<CarbSuggestion | null>(() => {
-    if (distanceKm <= 0) return null;
-    return suggestCarbTarget({ distanceKm, discipline, elevationGainM, terrain, gutTolerance });
-  }, [distanceKm, discipline, elevationGainM, terrain, gutTolerance]);
+    if (expectedDurationHours <= 0) return null;
+    return suggestCarbTarget({ durationHours: expectedDurationHours, effortLevel, gutTolerance });
+  }, [expectedDurationHours, effortLevel, gutTolerance]);
 
   // Keep the editable target synced to the suggestion until the athlete edits it.
   useEffect(() => {
@@ -258,11 +264,16 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     setSaving(true);
     try {
       const next = createProgramV2({
-        event: { name: eventName.trim(), date: eventDate, distanceKm, discipline, terrain, elevationGainM, lat, lng },
+        event: {
+          name: eventName.trim(),
+          date: eventDate,
+          durationHours: expectedDurationHours,
+          // informational only (from a catalog pick); never drives duration
+          distanceKm, discipline, terrain, elevationGainM, lat, lng,
+        },
         startGPerHour,
         gutHistory,
         weeksToEvent,
-        sport,
         targetGPerHour,
         deviceId,
       });
@@ -321,7 +332,7 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     if (!program) return;
     setExporting(true);
     try {
-      const plan = buildRaceDayPlan(program, sport);
+      const plan = buildRaceDayPlan(program);
       const { loadHint } = await exportFuelCuesToDevice(program, raceDayCues(program, plan), 'Race day', deviceId);
       toast.success(`Sent to ${deviceById(deviceId).brand}. ${loadHint}`);
     } catch {
@@ -375,7 +386,9 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       setManualMode(false);
       setEventName('');
       setEventDate('');
-      setDistanceKm(56);
+      setExpectedDurationMinutes(360);
+      setEffortLevel(6);
+      setDistanceKm(undefined);
       setDiscipline('road-run');
       setElevationGainM(0);
       setTerrain('rolling');
@@ -406,11 +419,12 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     setGutHistory((prev) => (prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]));
   };
 
-  const canProceedGoal = selectedRace
+  const hasEvent = selectedRace
     ? true
     : manualMode
-      ? eventName.trim().length > 0 && eventDate.length > 0 && distanceKm > 0
+      ? eventName.trim().length > 0 && eventDate.length > 0
       : false;
+  const canProceedGoal = hasEvent && expectedDurationMinutes > 0;
 
   const behindPlanAlert = alerts.find((a) => a.type === 'behind-plan');
   const latestSession = sessions[0];
@@ -445,10 +459,10 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
             onChangeName={setEventName}
             eventDate={eventDate}
             onChangeDate={setEventDate}
-            distanceKm={distanceKm}
-            onChangeDistance={setDistanceKm}
-            discipline={discipline}
-            onChangeDiscipline={setDiscipline}
+            durationMinutes={expectedDurationMinutes}
+            onChangeDuration={setExpectedDurationMinutes}
+            effortLevel={effortLevel}
+            onChangeEffort={setEffortLevel}
             weather={weather}
             weatherLoading={weatherLoading}
             suggestion={suggestion}
@@ -537,12 +551,12 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
         if (!program) return null;
         return (
           <RaceDayScreen
-            plan={buildRaceDayPlan(program, sport)}
+            plan={buildRaceDayPlan(program)}
             exporting={exporting}
             onSendToWatch={handleExportRaceGpx}
-            onExportPdf={() => downloadRaceDayPdf(program, buildRaceDayPlan(program, sport))}
+            onExportPdf={() => downloadRaceDayPdf(program, buildRaceDayPlan(program))}
             onShareWithCrew={async () => {
-              const plan = buildRaceDayPlan(program, sport);
+              const plan = buildRaceDayPlan(program);
               const text = `${program.event.name} fuel plan, hold ${program.currentGPerHour} g/hr, ${plan.totalGrams}g on course.`;
               if (navigator.share) {
                 try { await navigator.share({ title: `${program.event.name} fuel plan`, text }); } catch { /* cancelled */ }
