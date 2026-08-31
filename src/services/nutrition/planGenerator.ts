@@ -3,9 +3,10 @@ import { NutritionPoint, UserProfile, GpsPoint } from '../../context/AppContext'
 import { ProductProps } from '../../components/NutritionCard';
 import { products } from '../../data/products';
 import { RouteAnalysis, RouteSegment } from '../route/routeAnalyzer';
-import { calculateCarbTarget, CarbTarget } from './carbCalculator';
-import { calculateHydration, HydrationTarget } from './hydrationCalculator';
-import { calculateCaffeineStrategy, CaffeineRecommendation, shouldUseCaffeineProduct } from './caffeineStrategy';
+import { CarbTarget } from './carbCalculator';
+import { HydrationTarget } from './hydrationCalculator';
+import { CaffeineRecommendation, shouldUseCaffeineProduct } from './caffeineStrategy';
+import { computeFuelingTargets } from './fuelingCore';
 
 export interface PlanGeneratorInput {
   distanceKm: number;
@@ -264,40 +265,16 @@ export function generatePlan(input: PlanGeneratorInput): GeneratedPlan {
   } = input;
 
   const sport = profile.sport ?? 'running';
-  const gutTolerance = profile.gutTolerance ?? 'trained';
   const intensityPercent = input.effortLevel != null
     ? effortToIntensity(input.effortLevel)
     : inferIntensity(distanceKm, durationHours, input.elevationGainM ?? 0, sport);
 
-  const carbTarget = calculateCarbTarget({
+  const { carbTarget, hydrationTarget, caffeineStrategy } = computeFuelingTargets(
     durationHours,
     intensityPercent,
-    gutTolerance,
-    isCompetition,
-    bodyWeightKg: profile.weight,
-    userOverrideGPerHour: profile.carbTargetGPerHour,
-  });
-
-  const hydrationTarget = calculateHydration({
-    bodyWeightKg: profile.weight,
-    durationHours,
-    temperatureCelsius,
-    humidity,
-    intensityPercent,
-    sweatRate: profile.sweatRate,
-    sport,
-    sweatSodiumBucket: profile.sweatSodiumBucket ?? 'unknown',
-    heatAcclimatised: profile.heatAcclimatised ?? false,
-    earlySeasonHeat: profile.earlySeasonHeat ?? false,
-  });
-
-  const caffeineStrategy = calculateCaffeineStrategy({
-    bodyWeightKg: profile.weight,
-    durationHours,
-    distanceKm,
-    isRegularConsumer: true,
-    targetMgPerKg: isCompetition ? 4 : 3,
-  });
+    profile,
+    { temperatureCelsius, humidity, isCompetition, distanceKm },
+  );
 
   const emptyMetrics = { totalCarbs: 0, carbsPerHour: 0, totalSodium: 0, totalCaffeine: 0, totalCalories: 0 };
 
