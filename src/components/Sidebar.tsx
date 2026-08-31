@@ -5,28 +5,33 @@ import { useCoachStore } from '../services/coach/coachStore';
 import { useCoachPlanning } from '../services/coach/useCoachPlanning';
 import { useAuth } from '../context/AuthContext';
 import { useAdminGate } from '../hooks/useAdminGate';
+import { useEntitlements } from '../hooks/useEntitlements';
 import { EditableStatRow } from './EditableStatRow';
 import { SavedPlansModal } from './SavedPlansModal';
 import { HistoryView } from './HistoryView';
 import { EventSearchModal } from './EventSearchModal';
-import { GutTrainingPanel } from './GutTrainingPanel';
 import { GutTrainingFlowV2 } from './gutTraining/GutTrainingFlowV2';
 import { ThemeToggle } from './ThemeToggle';
 import { NutritionStatsCard } from './NutritionStatsCard';
 import { saveOrUpdatePlan } from '../persistence/db';
 import { toast } from 'sonner';
 
-// Master switch for the Gut Training v2 beta (goal event → weekly loop →
-// watch handoff → race day). Defaults ON; set VITE_GUT_TRAINING_V2=false to
-// pull it instantly without touching component code. Flag off (or unset in
-// an env that predates it) leaves the original v1 GutTrainingPanel exactly
-// as it was — additive, no regression to existing users.
-const GUT_TRAINING_V2_ENABLED = import.meta.env.VITE_GUT_TRAINING_V2 !== 'false';
+// Build-time exclusion ONLY, for local work — set VITE_GUT_TRAINING_V2=false
+// to compile the beta out of a dev build. It is NOT the per-user gate and NOT
+// the kill switch: production access is decided at runtime by the
+// server-authoritative entitlement (useEntitlements → getMyAccess), which is
+// itself ANDed with the admin-toggled kill switch. See functions
+// entitlements.ts.
+const GUT_TRAINING_BUILD_ENABLED = import.meta.env.VITE_GUT_TRAINING_V2 !== 'false';
 
 export function Sidebar() {
   const { userProfile, updateProfile, routeData, strava, connectStrava, disconnectStrava, resetAll } = useApp();
   const { user, logout } = useAuth();
   const { isAdmin } = useAdminGate();
+  // Fail-closed: hidden while loading and whenever the gate is false, so the
+  // entry never flashes in for an ineligible user.
+  const { betaGutTraining } = useEntitlements();
+  const showGutTraining = GUT_TRAINING_BUILD_ENABLED && betaGutTraining;
   const [savedPlansOpen, setSavedPlansOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [eventSearchOpen, setEventSearchOpen] = useState(false);
@@ -295,10 +300,12 @@ export function Sidebar() {
           { onClick: () => setSavedPlansOpen(true), icon: FolderOpen, label: 'Saved Plans' },
           { onClick: () => setHistoryOpen(true), icon: History, label: 'History' },
           { onClick: () => setEventSearchOpen(true), icon: Cloud, label: 'Race Weather' },
-          // Beta badge only applies to the v2 flow — v1's own modal already
-          // carries its own "Beta" label internally, so this stays honest
-          // if the flag is ever switched off.
-          { onClick: () => setGutTrainingOpen(true), icon: TrendingUp, label: 'Gut Training', beta: GUT_TRAINING_V2_ENABLED },
+          // Gut Training is beta-gated per user — the entry only appears for
+          // eligible accounts (see showGutTraining). Opening it still routes
+          // through the flow's own consent gate.
+          ...(showGutTraining
+            ? [{ onClick: () => setGutTrainingOpen(true), icon: TrendingUp, label: 'Gut Training', beta: true }]
+            : []),
         ].map(({ onClick, icon: Icon, label, beta }) => (
           <button
             key={label}
@@ -382,13 +389,11 @@ export function Sidebar() {
         isOpen={eventSearchOpen}
         onClose={() => setEventSearchOpen(false)}
       />
-      {GUT_TRAINING_V2_ENABLED ? (
+      {/* Rendered only for eligible users — a defensive second gate so an
+          ineligible account can't reach the flow even if gutTrainingOpen were
+          set some other way. */}
+      {showGutTraining && (
         <GutTrainingFlowV2
-          isOpen={gutTrainingOpen}
-          onClose={() => setGutTrainingOpen(false)}
-        />
-      ) : (
-        <GutTrainingPanel
           isOpen={gutTrainingOpen}
           onClose={() => setGutTrainingOpen(false)}
         />

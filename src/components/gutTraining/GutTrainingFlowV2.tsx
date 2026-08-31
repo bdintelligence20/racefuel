@@ -15,7 +15,7 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, RotateCcw } from 'lucide-react';
+import { X, RotateCcw, Sparkles, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useApp } from '../../context/AppContext';
 import {
@@ -88,6 +88,12 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
   const [program, setProgram] = useState<GutTrainingV2Program | null>(null);
   const [sessions, setSessions] = useState<GutTrainingSession[]>([]);
   const [screen, setScreen] = useState<ScreenId>('goal-event');
+  // Explicit beta consent. Separate from the program's `optedInAt` (which only
+  // fires after full setup) — the flow shows a lightweight consent screen
+  // first and won't proceed until the opt-in doc is written. Fails closed:
+  // if we can't confirm prior consent, we ask for it.
+  const [consented, setConsented] = useState(false);
+  const [consenting, setConsenting] = useState(false);
 
   // ── Setup: race selection / manual entry ──
   const [raceQuery, setRaceQuery] = useState('');
@@ -138,6 +144,14 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       setSessions(s);
       if (p?.deviceId) setDeviceId(p.deviceId);
       setScreen(!p ? 'goal-event' : p.status === 'completed' ? 'milestone' : 'weekly-prescription');
+      // Whether the athlete has already accepted the beta. Read separately so
+      // a returning opted-in user skips the consent screen.
+      try {
+        const optIns = await firestoreService.loadBetaOptIns();
+        if (!cancelled) setConsented(!!optIns?.gutTraining?.optedIn);
+      } catch {
+        if (!cancelled) setConsented(false); // fail closed → ask for consent
+      }
       setLoading(false);
     }
     load();
@@ -225,6 +239,20 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     await addGutTrainingV2Session(session);
     if (getCurrentUser()) await firestoreService.addGutTrainingV2Session(session);
   }
+
+  const handleConsent = async () => {
+    setConsenting(true);
+    try {
+      await firestoreService.setGutTrainingOptIn();
+    } catch (err) {
+      // Persist can fail for the dev-bypass user (no real session). Proceed
+      // locally so the flow is still usable; real users get it written.
+      console.warn('[gut-training] opt-in persist failed:', err);
+    } finally {
+      setConsenting(false);
+      setConsented(true);
+    }
+  };
 
   const handleBuildPlan = async () => {
     setSaving(true);
@@ -396,6 +424,11 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       );
     }
 
+    // Consent gate — explicit opt-in before the beta flow is usable.
+    if (!consented) {
+      return <ConsentGate onAccept={handleConsent} onDecline={onClose} pending={consenting} />;
+    }
+
     switch (screen) {
       case 'goal-event':
         return (
@@ -533,7 +566,7 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     }
   })();
 
-  const showRestart = program && !pendingSession && screen !== 'goal-event' && screen !== 'tolerance';
+  const showRestart = consented && program && !pendingSession && screen !== 'goal-event' && screen !== 'tolerance';
 
   return createPortal(
     <div className="fixed inset-0 z-50 bg-background flex flex-col safe-top safe-bottom">
@@ -572,5 +605,50 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       />
     </div>,
     document.body,
+  );
+}
+
+/** Lightweight consent screen shown before the beta flow is usable. Accepting
+ *  writes the opt-in doc (see firestore.setGutTrainingOptIn); declining just
+ *  closes the flow, leaving the athlete free to open it again later. */
+function ConsentGate({
+  onAccept,
+  onDecline,
+  pending,
+}: {
+  onAccept: () => void;
+  onDecline: () => void;
+  pending: boolean;
+}) {
+  return (
+    <div className="flex-1 flex flex-col justify-center px-6 py-8">
+      <div className="w-11 h-11 rounded-2xl bg-accent/10 flex items-center justify-center mb-5">
+        <Sparkles className="w-5 h-5 text-accent" />
+      </div>
+      <h2 className="text-xl font-display font-black text-text-primary tracking-tight mb-2">
+        Join the gut-training beta
+      </h2>
+      <p className="text-[13px] font-sans text-text-secondary leading-relaxed mb-6">
+        Train your gut to hold more carbs per hour on race day, one weekly session at a
+        time. It's still in beta, so expect the odd rough edge, and tell us what breaks.
+      </p>
+      <div className="flex flex-col gap-2.5">
+        <button
+          onClick={onAccept}
+          disabled={pending}
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent text-white text-[13px] font-display font-bold hover:bg-accent-light transition-colors disabled:opacity-50"
+        >
+          {pending && <Loader2 className="w-4 h-4 animate-spin" />}
+          {pending ? 'Setting up…' : "I'm in"}
+        </button>
+        <button
+          onClick={onDecline}
+          disabled={pending}
+          className="w-full py-3 rounded-xl border border-[var(--color-border)] text-text-secondary text-[13px] font-display font-semibold hover:bg-accent/[0.06] hover:text-text-primary transition-colors disabled:opacity-50"
+        >
+          Maybe later
+        </button>
+      </div>
+    </div>
   );
 }

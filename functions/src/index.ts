@@ -20,6 +20,13 @@ export {
   adminRemoveAdmin,
 } from './admin';
 export {
+  getMyAccess,
+  adminListBeta,
+  adminAddBeta,
+  adminRemoveBeta,
+  adminSetGutTrainingV2Enabled,
+} from './entitlements';
+export {
   validateCoupon,
   adminListCoupons,
   adminUpsertCoupon,

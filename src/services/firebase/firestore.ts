@@ -10,6 +10,7 @@ import {
   orderBy,
   where,
   serverTimestamp,
+  increment,
   Timestamp,
 } from 'firebase/firestore';
 import { firestore } from './config';
@@ -351,6 +352,60 @@ export async function getAllGutTrainingV2Sessions(): Promise<(FirestoreGutTraini
   const q = query(userCollection('gutTrainingV2Sessions'), orderBy('createdAt', 'desc'));
   const snap = await getDocs(q);
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as FirestoreGutTrainingSession & { id: string }));
+}
+
+// ── Beta opt-in (gut training) — user-owned consent + dismissal record ──
+//
+// Eligibility is server-authoritative (betaAccess collection, off the user
+// doc). Whether the eligible user has ACCEPTED the beta is their own choice,
+// so it lives here under users/{uid}/betaOptIns/data — already covered by the
+// existing owner-only rules, no rules change needed. `email` is denormalised
+// so the admin dashboard's collectionGroup list can show who is declining
+// (dismissCount) without a uid→email join.
+
+export interface BetaGutTrainingOptIn {
+  optedIn: boolean;
+  optedInAt?: string | null;
+  dismissedAt?: string | null;
+  dismissCount?: number;
+}
+
+export interface BetaOptIns {
+  email?: string | null;
+  gutTraining?: BetaGutTrainingOptIn;
+  updatedAt?: Timestamp;
+}
+
+export async function loadBetaOptIns(): Promise<BetaOptIns | null> {
+  const snap = await getDoc(userDoc('betaOptIns/data'));
+  return snap.exists() ? (snap.data() as BetaOptIns) : null;
+}
+
+/** Records explicit consent to the gut-training beta. This is the opt-in
+ *  signal the banner and flow gate on — deliberately separate from the
+ *  program's `optedInAt`, which only fires after full setup. */
+export async function setGutTrainingOptIn(): Promise<void> {
+  const email = getCurrentUser()?.email ?? null;
+  await setDoc(userDoc('betaOptIns/data'), {
+    email: email ? email.toLowerCase() : null,
+    gutTraining: { optedIn: true, optedInAt: new Date().toISOString() },
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+/** Records a "Not now" dismissal: stamps the time and atomically bumps the
+ *  count (so it's consistent across devices). Merges into the gutTraining map
+ *  without clearing any prior opt-in. */
+export async function recordGutTrainingDismissal(): Promise<void> {
+  const email = getCurrentUser()?.email ?? null;
+  await setDoc(userDoc('betaOptIns/data'), {
+    email: email ? email.toLowerCase() : null,
+    gutTraining: {
+      dismissedAt: new Date().toISOString(),
+      dismissCount: increment(1),
+    },
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
 }
 
 // ── Custom products (user-created products not in the main feed) ──

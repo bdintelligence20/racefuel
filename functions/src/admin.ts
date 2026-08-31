@@ -8,7 +8,7 @@ import { logger } from 'firebase-functions';
 // without a manual seed step. Anyone added via `adminAddAdmin` joins the
 // allowlist alongside this baseline. Seed admins can't be removed from the
 // Settings tab — change this list and redeploy if that's needed.
-const SEED_ADMINS: ReadonlySet<string> = new Set([
+export const SEED_ADMINS: ReadonlySet<string> = new Set([
   'nicholasflemmer@gmail.com',
   'mullin.scott1@gmail.com',
   'spiesbradley@gmail.com',
@@ -36,13 +36,13 @@ function requireEmail(request: CallableRequest<unknown>): ContextEmail {
   return { uid: auth.uid, email };
 }
 
-async function isAdmin(email: string): Promise<boolean> {
+export async function isAdmin(email: string): Promise<boolean> {
   if (SEED_ADMINS.has(email)) return true;
   const snap = await getFirestore().collection('admins').doc(email).get();
   return snap.exists;
 }
 
-async function assertAdmin(request: CallableRequest<unknown>): Promise<ContextEmail> {
+export async function assertAdmin(request: CallableRequest<unknown>): Promise<ContextEmail> {
   const ctx = requireEmail(request);
   if (!(await isAdmin(ctx.email))) {
     throw new HttpsError('permission-denied', 'Admin access required.');

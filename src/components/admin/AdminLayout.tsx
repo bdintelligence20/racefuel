@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, BarChart3, Users, ShoppingBag, Activity, Mail, Package, Settings as SettingsIcon, MessageSquare, Tag, FileText, Loader2, TrendingUp } from 'lucide-react';
+import { ArrowLeft, BarChart3, Users, ShoppingBag, Activity, Mail, Package, Settings as SettingsIcon, MessageSquare, Tag, FileText, Loader2, TrendingUp, FlaskConical } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useAdminGate } from '../../hooks/useAdminGate';
 import { OverviewTab } from './OverviewTab';
@@ -8,6 +8,7 @@ import { OrdersTab } from './OrdersTab';
 import { ActivityTab } from './ActivityTab';
 import { EarlyAccessTab } from './EarlyAccessTab';
 import { GutTrainingTab } from './GutTrainingTab';
+import { BetaAccessTab } from './BetaAccessTab';
 import { ProductsTab } from './ProductsTab';
 import { SettingsTab } from './SettingsTab';
 import { SiteFeedbackTab } from './SiteFeedbackTab';
@@ -22,6 +23,7 @@ const TABS = [
   { id: 'feedback', label: 'Feedback', icon: MessageSquare },
   { id: 'early-access', label: 'Early Access', icon: Mail },
   { id: 'gut-training', label: 'Gut Training', icon: TrendingUp },
+  { id: 'beta-access', label: 'Beta Access', icon: FlaskConical },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'blog', label: 'Blog', icon: FileText },
   { id: 'coupons', label: 'Coupons', icon: Tag },
@@ -64,6 +66,7 @@ export function AdminLayout() {
       case 'feedback': return <SiteFeedbackTab />;
       case 'early-access': return <EarlyAccessTab />;
       case 'gut-training': return <GutTrainingTab />;
+      case 'beta-access': return <BetaAccessTab />;
       case 'products': return <ProductsTab />;
       case 'blog': return <BlogTab />;
       case 'coupons': return <CouponsTab />;

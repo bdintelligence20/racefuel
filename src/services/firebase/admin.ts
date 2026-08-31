@@ -269,6 +269,46 @@ export const adminAddAdmin = callableUnwrap<{ email: string }, { ok: boolean }>(
 
 export const adminRemoveAdmin = callableUnwrap<{ email: string }, { ok: boolean }>('adminRemoveAdmin');
 
+/* ------------------------- entitlements / beta ------------------------ */
+
+export interface MyAccessResult {
+  isAdmin: boolean;
+  betaGutTraining: boolean;
+  email?: string;
+}
+
+/** Per-user feature access. Fails closed server-side (see functions
+ *  entitlements.ts) — an unauthenticated or erroring call resolves to all
+ *  false. */
+export const getMyAccess = callableUnwrap<void, MyAccessResult>('getMyAccess');
+
+export interface AdminBetaOptInRow {
+  uid: string | null;
+  email: string | null;
+  optedIn: boolean;
+  optedInAt: string | null;
+  dismissedAt: string | null;
+  dismissCount: number;
+}
+
+export interface AdminListBetaResult {
+  gutTrainingV2Enabled: boolean;
+  seedAdmins: string[];
+  allow: Array<{ email: string; addedAt: number | null; addedBy: string | null }>;
+  optIns: AdminBetaOptInRow[];
+}
+
+export const adminListBeta = callableUnwrap<void, AdminListBetaResult>('adminListBeta');
+
+export const adminAddBeta = callableUnwrap<{ email: string }, { ok: boolean }>('adminAddBeta');
+
+export const adminRemoveBeta = callableUnwrap<{ email: string }, { ok: boolean }>('adminRemoveBeta');
+
+export const adminSetGutTrainingV2Enabled = callableUnwrap<
+  { enabled: boolean },
+  { ok: boolean; enabled: boolean }
+>('adminSetGutTrainingV2Enabled');
+
 export const validateCoupon = callableUnwrap<
   { code: string; subtotalZar: number },
   ValidateCouponResult
