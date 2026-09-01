@@ -17,9 +17,10 @@ name: Deploy Staging
 #      or Google sign-in / getMyAccess will be rejected on that origin.
 
 on:
+  # Manual only — click "Run workflow" in the Actions tab (pick the branch you
+  # want on staging). Pushing a branch does nothing on its own, so there are no
+  # surprise deploys.
   workflow_dispatch: {}
-  push:
-    branches: [feat/gut-training-beta]
 
 env:
   PROJECT_ID: promogroup
