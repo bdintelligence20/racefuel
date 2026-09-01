@@ -1,0 +1,140 @@
+name: Deploy Staging
+
+# Staging = a separate Cloud Run service (racefuel-staging) built from this
+# branch, sharing the prod Firebase backend (project promogroup). Safe for the
+# gated beta: the gut-training gate is fail-closed and allowlist-based, so the
+# newly deployed functions/rules are inert until an email is added to
+# betaAccess AND the kill switch is turned on (admin dashboard → Beta Access).
+#
+# Unlike deploy.yml (prod), this ALSO deploys Cloud Functions + Firestore
+# rules, which the entitlement feature needs.
+#
+# Prereqs (one-time) — see notes at the bottom of this file:
+#   1. The GCP_SA_KEY service account needs Cloud Functions + Firebase Rules
+#      deploy permissions, not just Cloud Run.
+#   2. The staging Cloud Run domain must be allow-listed in Firebase Auth
+#      (authorized domains) and the reCAPTCHA Enterprise key (App Check),
+#      or Google sign-in / getMyAccess will be rejected on that origin.
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [feat/gut-training-beta]
+
+env:
+  PROJECT_ID: promogroup
+  REGION: us-central1
+  SERVICE: racefuel-staging
+  IMAGE: us-central1-docker.pkg.dev/promogroup/cloud-run-source-deploy/racefuel
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: Build Docker image (staging tag)
+        run: |
+          docker build \
+            --build-arg VITE_STRAVA_CLIENT_ID=${{ secrets.VITE_STRAVA_CLIENT_ID }} \
+            --build-arg VITE_STRAVA_CLIENT_SECRET=${{ secrets.VITE_STRAVA_CLIENT_SECRET }} \
+            --build-arg VITE_MAPBOX_TOKEN=${{ secrets.VITE_MAPBOX_TOKEN }} \
+            --build-arg VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }} \
+            --build-arg VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }} \
+            --build-arg VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }} \
+            --build-arg VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }} \
+            --build-arg VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }} \
+            --build-arg VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }} \
+            --build-arg VITE_RECAPTCHA_SITE_KEY=${{ secrets.VITE_RECAPTCHA_SITE_KEY }} \
+            -t ${{ env.IMAGE }}:staging-${{ github.sha }} \
+            -t ${{ env.IMAGE }}:staging \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.IMAGE }}:staging-${{ github.sha }}
+          docker push ${{ env.IMAGE }}:staging
+
+      - name: Deploy frontend to Cloud Run (staging)
+        run: |
+          gcloud run deploy ${{ env.SERVICE }} \
+            --image ${{ env.IMAGE }}:staging-${{ github.sha }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --memory 256Mi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 3 \
+            --port 8080 \
+            --quiet
+
+      - name: Show staging URL
+        run: |
+          echo "Staging URL:"
+          gcloud run services describe ${{ env.SERVICE }} \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --format='value(status.url)'
+
+      # ── Backend: functions + Firestore rules (what the beta gate needs) ──
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Deploy Cloud Functions + Firestore rules
+        env:
+          # google-github-actions/auth wrote the SA key here; firebase-tools
+          # authenticates non-interactively from it.
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+        run: |
+          npx --yes firebase-tools@13 deploy \
+            --only functions,firestore:rules \
+            --project ${{ env.PROJECT_ID }} \
+            --non-interactive \
+            --force
+
+# ─────────────────────────────────────────────────────────────────────────
+# One-time setup so the staging URL actually works end to end:
+#
+# 1. Service-account permissions (GCP IAM, on the promogroup project) for the
+#    account behind GCP_SA_KEY — in addition to its existing Cloud Run /
+#    Artifact Registry roles:
+#      - roles/cloudfunctions.admin       (deploy functions)
+#      - roles/firebaserules.admin        (deploy Firestore rules)
+#      - roles/iam.serviceAccountUser     (act as the functions runtime SA)
+#      - roles/serviceusage.serviceUsageConsumer
+#    (If the Firebase Functions API complains, also grant roles/firebase.admin.)
+#
+# 2. After the FIRST run, note the printed staging URL
+#    (https://racefuel-staging-<hash>-uc.a.run.app) and register it once:
+#      - Firebase console → Authentication → Settings → Authorized domains:
+#        add the staging host (so Google sign-in works there).
+#      - Google Cloud → Security → reCAPTCHA (Enterprise) → your site key →
+#        add the staging host to allowed domains (so App Check attestation
+#        passes; otherwise getMyAccess / Firestore / Gemini are rejected).
+#
+# 3. Turn the beta on for testers (admin dashboard → Beta Access tab):
+#      - add your + Scott's emails to the allowlist,
+#      - flip the kill switch on.
+#    (You're a seed admin, so you can reach /admin and are auto-eligible.)
+# ─────────────────────────────────────────────────────────────────────────
