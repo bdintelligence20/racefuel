@@ -1,0 +1,66 @@
+name: Deploy Firebase Backend
+
+# Frontend hosting is on Vercel (prod + a preview URL per branch/PR). Vercel
+# does NOT deploy the Firebase backend, so this workflow ships the Cloud
+# Functions + Firestore rules the app depends on (getMyAccess, admin callables,
+# the betaAccess/config rules, etc.) to project promogroup — the single backend
+# shared by prod and every Vercel preview.
+#
+#   - push to main (backend files only): ships the backend for a prod release.
+#   - Run workflow (manual, pick a branch): deploys THAT branch's functions +
+#     rules, so a Vercel preview of the branch can be tested end to end.
+#
+# Prereqs (one-time):
+#   - The GCP_SA_KEY service account needs deploy roles beyond Cloud Run:
+#       roles/cloudfunctions.admin, roles/firebaserules.admin,
+#       roles/iam.serviceAccountUser, roles/serviceusage.serviceUsageConsumer
+#   - Add each Vercel domain (prod + the branch preview) to Firebase Auth →
+#     Authorized domains AND the reCAPTCHA Enterprise key, or Google sign-in and
+#     App Check will reject requests from that origin (and the gate stays hidden).
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - 'functions/**'
+      - 'firestore.rules'
+      - 'firestore.indexes.json'
+      - '.github/workflows/deploy-firebase.yml'
+
+env:
+  PROJECT_ID: promogroup
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Deploy Cloud Functions + Firestore rules
+        env:
+          # google-github-actions/auth wrote the SA key here; firebase-tools
+          # authenticates non-interactively from it.
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+        run: |
+          npx --yes firebase-tools@13 deploy \
+            --only functions,firestore:rules \
+            --project ${{ env.PROJECT_ID }} \
+            --non-interactive \
+            --force
