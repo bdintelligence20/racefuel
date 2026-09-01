@@ -18,6 +18,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Authenticate to Google Cloud
+        id: auth
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
@@ -64,3 +65,27 @@ jobs:
             --max-instances 3 \
             --port 8080 \
             --quiet
+
+      # ── Backend: functions + Firestore rules ──
+      # The frontend alone isn't enough — callables (getMyAccess, admin*, etc.)
+      # and rules must ship too, or the app calls functions that don't exist.
+      # Same GCP_SA_KEY; it needs Cloud Functions + Firebase Rules deploy roles
+      # (see deploy-staging.yml notes) in addition to its Cloud Run roles.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install functions dependencies
+        working-directory: functions
+        run: npm ci
+
+      - name: Deploy Cloud Functions + Firestore rules
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+        run: |
+          npx --yes firebase-tools@13 deploy \
+            --only functions,firestore:rules \
+            --project ${{ env.PROJECT_ID }} \
+            --non-interactive \
+            --force
