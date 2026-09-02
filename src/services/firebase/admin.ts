@@ -196,6 +196,26 @@ export interface ValidateCouponResult {
   };
 }
 
+export interface AdminGutTrainingV2Row {
+  uid: string;
+  email: string;
+  event: { name?: string; date?: string; durationHours?: number; distanceKm?: number } | null;
+  startGPerHour: number | null;
+  targetGPerHour: number | null;
+  currentGPerHour: number | null;
+  weekNumber: number | null;
+  status: string | null;
+  optedInAt: string | null;
+  updatedAt: number | null;
+  sessionsCount: number;
+}
+
+export interface AdminListGutTrainingV2Result {
+  rows: AdminGutTrainingV2Row[];
+  nextCursor: number | null;
+  total: number;
+}
+
 /* ----------------------------- callables ---------------------------- */
 
 const callableUnwrap = <Args, Result>(name: string) => {
@@ -227,6 +247,11 @@ export const adminListEarlyAccess = callableUnwrap<
   AdminListEarlyAccessResult
 >('adminListEarlyAccess');
 
+export const adminListGutTrainingV2 = callableUnwrap<
+  { cursor?: number | null; limit?: number; search?: string },
+  AdminListGutTrainingV2Result
+>('adminListGutTrainingV2');
+
 export const adminListSiteFeedback = callableUnwrap<
   { cursor?: number | null; limit?: number; search?: string },
   AdminListSiteFeedbackResult
@@ -243,6 +268,46 @@ export const adminListAdmins = callableUnwrap<void, AdminListAdminsResult>('admi
 export const adminAddAdmin = callableUnwrap<{ email: string }, { ok: boolean }>('adminAddAdmin');
 
 export const adminRemoveAdmin = callableUnwrap<{ email: string }, { ok: boolean }>('adminRemoveAdmin');
+
+/* ------------------------- entitlements / beta ------------------------ */
+
+export interface MyAccessResult {
+  isAdmin: boolean;
+  betaGutTraining: boolean;
+  email?: string;
+}
+
+/** Per-user feature access. Fails closed server-side (see functions
+ *  entitlements.ts) — an unauthenticated or erroring call resolves to all
+ *  false. */
+export const getMyAccess = callableUnwrap<void, MyAccessResult>('getMyAccess');
+
+export interface AdminBetaOptInRow {
+  uid: string | null;
+  email: string | null;
+  optedIn: boolean;
+  optedInAt: string | null;
+  dismissedAt: string | null;
+  dismissCount: number;
+}
+
+export interface AdminListBetaResult {
+  gutTrainingV2Enabled: boolean;
+  seedAdmins: string[];
+  allow: Array<{ email: string; addedAt: number | null; addedBy: string | null }>;
+  optIns: AdminBetaOptInRow[];
+}
+
+export const adminListBeta = callableUnwrap<void, AdminListBetaResult>('adminListBeta');
+
+export const adminAddBeta = callableUnwrap<{ email: string }, { ok: boolean }>('adminAddBeta');
+
+export const adminRemoveBeta = callableUnwrap<{ email: string }, { ok: boolean }>('adminRemoveBeta');
+
+export const adminSetGutTrainingV2Enabled = callableUnwrap<
+  { enabled: boolean },
+  { ok: boolean; enabled: boolean }
+>('adminSetGutTrainingV2Enabled');
 
 export const validateCoupon = callableUnwrap<
   { code: string; subtotalZar: number },

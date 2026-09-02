@@ -8,22 +8,30 @@
 
 /* Fuelcue Brand Theme — warm, terrain-inspired */
 :root {
-  /* Backgrounds */
-  --color-background: #FFF9F0;
-  --color-surface: #FFFFFF;
-  --color-surfaceHighlight: #FFF5E8;
+  /* Backgrounds — plum/cream palette (v2, Aug 2026). Cream is the surface
+     everywhere: background/surface/surfaceHighlight are three steps of the
+     same cream→plum-tint family, not white + a highlight color. */
+  --color-background: #FBF3E8;
+  --color-surface: #F3EDF0;
+  --color-surfaceHighlight: #E6DBE0;
 
-  /* Primary — Fuelcue Plum */
-  --color-accent: #3D2152;
-  --color-accent-light: #5C2D6E;
-  --color-accent-muted: #2A1639;
+  /* Primary — Fuelcue Plum. accent is type + the one primary button per
+     screen; accent-light/-muted are lighter/darker steps of the same family. */
+  --color-accent: #2B0D3D;
+  --color-accent-light: #8A4467;
+  --color-accent-muted: #561E3B;
 
-  /* Warm — Route Amber / Terrain Orange */
+  /* Warm — Route Amber / Terrain Orange. Left as the existing terrain
+     orange for this pass (used app-wide, including as a 3-tier
+     good/warn/critical severity signal in ActionBar/ScorePopover/
+     CoachDashboard) — NOT repointed to the new alert tones below, since
+     those are reserved for alerts only, never decorative. See
+     --color-alert-* for the v2 palette's actual alert colors. */
   --color-warm: #F5A020;
   --color-warm-light: #FFCD6B;
   --color-warm-muted: #E8671A;
 
-  /* Terrain */
+  /* Terrain — same "leave as-is" note as --color-warm above. */
   --color-terrain-rust: #C94A1A;
   --color-terrain-deep: #A63020;
   --color-terrain-orange: #E8671A;
@@ -31,29 +39,38 @@
   /* Golden accent (shoes, highlights) */
   --color-golden: #F5B830;
 
-  /* Text */
-  --color-text-primary: #2A1639;
-  --color-text-secondary: #6B5A7A;
-  --color-text-muted: #A0929E;
+  /* v2 alert tones — amber (behind plan) / brick (needs a decision).
+     Alerts ONLY. Never used decoratively. */
+  --color-alert-amber: #9A6B24;
+  --color-alert-amber-tint: rgba(154, 107, 36, 0.12);
+  --color-alert-brick: #9C3B37;
+  --color-alert-brick-tint: rgba(156, 59, 55, 0.12);
+
+  /* Text — plum family, per "plum is type" */
+  --color-text-primary: #2B0D3D;
+  --color-text-secondary: #561E3B;
+  --color-text-muted: #8A4467;
 
   /* Utility */
-  --color-scrollbar: #E0D6CC;
-  --color-selection: rgba(61, 33, 82, 0.15);
-  --color-border: rgba(61, 33, 82, 0.08);
+  --color-scrollbar: #CDBACA;
+  --color-selection: rgba(43, 13, 61, 0.15);
+  --color-border: rgba(43, 13, 61, 0.1);
   --mapbox-style: outdoors-v12;
 }
 
 [data-theme="dark"] {
-  --color-background: #1A1025;
-  --color-surface: #231430;
-  --color-surfaceHighlight: #2D1C3D;
+  /* Dark ground + cream type — the same pairing the v2 concept reserves
+     for the watch face — reused here for the app's dark theme so the
+     token family stays plum/cream in both modes. */
+  --color-background: #1F0A2E;
+  --color-surface: #2B0D3D;
+  --color-surfaceHighlight: #3A1650;
 
-  /* Keep plum as accent in dark mode — warm and grounded */
-  --color-accent: #D4A0F0;
-  --color-accent-light: #E0B8F5;
-  --color-accent-muted: #A878C8;
+  --color-accent: #E6DBE0;
+  --color-accent-light: #F3EDF0;
+  --color-accent-muted: #CDBACA;
 
-  /* Warm tones remain vibrant */
+  /* Warm tones remain vibrant — see light-theme note above. */
   --color-warm: #F5A020;
   --color-warm-light: #FFCD6B;
   --color-warm-muted: #E8671A;
@@ -63,17 +80,24 @@
   --color-terrain-deep: #C04828;
   --color-terrain-orange: #F08030;
 
-  /* Warm text tones, not cold gray */
-  --color-text-primary: #F5EDE6;
-  --color-text-secondary: #C4B0A0;
-  --color-text-muted: #7A6870;
+  /* Alert tones stay the same muted hues in dark mode — they're already
+     designed to "sit on screen without shouting" in either theme. */
+  --color-alert-amber: #C99348;
+  --color-alert-amber-tint: rgba(201, 147, 72, 0.16);
+  --color-alert-brick: #C46A65;
+  --color-alert-brick-tint: rgba(196, 106, 101, 0.16);
+
+  /* Cream text tones on the dark plum ground */
+  --color-text-primary: #FBF3E8;
+  --color-text-secondary: #E6DBE0;
+  --color-text-muted: #A98096;
 
   /* Golden highlight */
   --color-golden: #FFD050;
 
-  --color-scrollbar: #3D2852;
-  --color-selection: rgba(245, 160, 32, 0.2);
-  --color-border: rgba(245, 184, 48, 0.08);
+  --color-scrollbar: #561E3B;
+  --color-selection: rgba(230, 219, 224, 0.2);
+  --color-border: rgba(230, 219, 224, 0.1);
   --mapbox-style: dark-v11;
 }
 

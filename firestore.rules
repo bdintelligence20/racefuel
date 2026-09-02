@@ -36,6 +36,20 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Beta-access allowlist — server-authoritative eligibility, mirrors
+    // /admins. Deliberately NOT under /users so owner-write rules can't let a
+    // user self-grant. Read/written only by callables (getMyAccess,
+    // adminAddBeta/adminRemoveBeta) via the Admin SDK, which bypasses rules.
+    match /betaAccess/{email} {
+      allow read, write: if false;
+    }
+
+    // Runtime feature flags (e.g. the gut-training kill switch). Read
+    // server-side inside getMyAccess; toggled only via an admin callable.
+    match /config/{docId} {
+      allow read, write: if false;
+    }
+
     // Coupons — all reads/writes go through callable Cloud Functions
     // (validateCoupon for public, adminUpsertCoupon/Delete/List for admins).
     // The Admin SDK inside the function bypasses these rules.

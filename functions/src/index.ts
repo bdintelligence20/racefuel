@@ -11,6 +11,7 @@ export {
   adminGetUser,
   adminListOrders,
   adminListEarlyAccess,
+  adminListGutTrainingV2,
   adminListSiteFeedback,
   adminProductInsights,
   adminActivityInsights,
@@ -18,6 +19,13 @@ export {
   adminAddAdmin,
   adminRemoveAdmin,
 } from './admin';
+export {
+  getMyAccess,
+  adminListBeta,
+  adminAddBeta,
+  adminRemoveBeta,
+  adminSetGutTrainingV2Enabled,
+} from './entitlements';
 export {
   validateCoupon,
   adminListCoupons,

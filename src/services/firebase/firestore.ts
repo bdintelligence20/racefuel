@@ -10,6 +10,7 @@ import {
   orderBy,
   where,
   serverTimestamp,
+  increment,
   Timestamp,
 } from 'firebase/firestore';
 import { firestore } from './config';
@@ -220,6 +221,196 @@ export async function getAllFeedback(): Promise<(FirestoreFeedback & { id: strin
 
 export async function deleteFeedback(feedbackId: string): Promise<void> {
   await deleteDoc(userDoc(`feedback/${feedbackId}`));
+}
+
+// ── Gut Training (beta) — single "current" program + a growing session log ──
+
+export interface FirestoreGutTrainingProgram {
+  startGPerHour: number;
+  targetGPerHour: number;
+  currentGPerHour: number;
+  stepGPerHour: number;
+  status: 'active' | 'completed' | 'paused';
+  updatedAt?: Timestamp;
+}
+
+export async function saveGutTrainingProgram(program: Omit<FirestoreGutTrainingProgram, 'updatedAt'>): Promise<void> {
+  await setDoc(userDoc('gutTrainingProgram/data'), {
+    ...program,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+/** Firestore rejects `undefined` field values (see saveProfile above) — strip
+ *  them so an unset `notes` doesn't throw on write. */
+function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  const cleaned: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) cleaned[k] = v;
+  }
+  return cleaned as Partial<T>;
+}
+
+export async function loadGutTrainingProgram(): Promise<FirestoreGutTrainingProgram | null> {
+  const snap = await getDoc(userDoc('gutTrainingProgram/data'));
+  return snap.exists() ? (snap.data() as FirestoreGutTrainingProgram) : null;
+}
+
+export async function clearGutTrainingProgram(): Promise<void> {
+  try {
+    await deleteDoc(userDoc('gutTrainingProgram/data'));
+  } catch {
+    // doc may not exist
+  }
+}
+
+export interface FirestoreGutTrainingSession {
+  id?: string;
+  sessionTargetGPerHour: number;
+  actualGPerHour: number;
+  durationMinutes: number;
+  gutComfort: 'none' | 'mild' | 'moderate' | 'severe';
+  outcome: 'advance' | 'hold' | 'back-off';
+  notes?: string;
+  createdAt?: Timestamp;
+}
+
+export async function addGutTrainingSession(session: Omit<FirestoreGutTrainingSession, 'id' | 'createdAt'>): Promise<string> {
+  const ref = doc(userCollection('gutTrainingSessions'));
+  await setDoc(ref, { ...stripUndefined(session), createdAt: serverTimestamp() });
+  return ref.id;
+}
+
+export async function getAllGutTrainingSessions(): Promise<(FirestoreGutTrainingSession & { id: string })[]> {
+  const q = query(userCollection('gutTrainingSessions'), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as FirestoreGutTrainingSession & { id: string }));
+}
+
+// ── Gut Training v2 (beta) — opt-in program with a goal event + weekly
+// loop. Kept in its own subcollection (gutTrainingV2Program/data) so the
+// admin dashboard's opt-in list (a collectionGroup query, see
+// functions/src/admin.ts adminListGutTrainingV2) reads a stable, dedicated
+// shape rather than sharing v1's. ──
+
+export interface FirestoreGutTrainingV2Program {
+  event: {
+    name: string;
+    date: string;
+    /** Primary input — expected finish time. Optional here for back-compat
+     *  with pre-time-native docs; new programs always set it. */
+    durationHours?: number;
+    /** Informational only now — never drives duration. Optional; legacy docs
+     *  still carry it. */
+    distanceKm?: number;
+    discipline?: string;
+    terrain?: string;
+    elevationGainM?: number;
+    lat?: number;
+    lng?: number;
+  };
+  gutHistory: string[];
+  weeksToEvent: number;
+  weekNumber: number;
+  startGPerHour: number;
+  targetGPerHour: number;
+  currentGPerHour: number;
+  stepGPerHour: number;
+  status: 'active' | 'completed' | 'paused';
+  optedInAt: string;
+  deviceId?: string;
+  fuelKit?: Array<{ productId: string; brand: string; name: string; category: string; carbs: number }>;
+  updatedAt?: Timestamp;
+}
+
+export async function saveGutTrainingV2Program(program: Omit<FirestoreGutTrainingV2Program, 'updatedAt'>): Promise<void> {
+  // Firestore rejects `undefined` at any depth. The nested `event` can carry
+  // undefined lat/lng/discipline for manually-entered races, so clean it too.
+  const cleaned = stripUndefined(program as unknown as Record<string, unknown>);
+  if (cleaned.event) cleaned.event = stripUndefined(cleaned.event as Record<string, unknown>);
+  await setDoc(userDoc('gutTrainingV2Program/data'), {
+    ...cleaned,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+export async function loadGutTrainingV2Program(): Promise<FirestoreGutTrainingV2Program | null> {
+  const snap = await getDoc(userDoc('gutTrainingV2Program/data'));
+  return snap.exists() ? (snap.data() as FirestoreGutTrainingV2Program) : null;
+}
+
+export async function clearGutTrainingV2Program(): Promise<void> {
+  try {
+    await deleteDoc(userDoc('gutTrainingV2Program/data'));
+  } catch {
+    // doc may not exist
+  }
+}
+
+export async function addGutTrainingV2Session(session: Omit<FirestoreGutTrainingSession, 'id' | 'createdAt'>): Promise<string> {
+  const ref = doc(userCollection('gutTrainingV2Sessions'));
+  await setDoc(ref, { ...stripUndefined(session), createdAt: serverTimestamp() });
+  return ref.id;
+}
+
+export async function getAllGutTrainingV2Sessions(): Promise<(FirestoreGutTrainingSession & { id: string })[]> {
+  const q = query(userCollection('gutTrainingV2Sessions'), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as FirestoreGutTrainingSession & { id: string }));
+}
+
+// ── Beta opt-in (gut training) — user-owned consent + dismissal record ──
+//
+// Eligibility is server-authoritative (betaAccess collection, off the user
+// doc). Whether the eligible user has ACCEPTED the beta is their own choice,
+// so it lives here under users/{uid}/betaOptIns/data — already covered by the
+// existing owner-only rules, no rules change needed. `email` is denormalised
+// so the admin dashboard's collectionGroup list can show who is declining
+// (dismissCount) without a uid→email join.
+
+export interface BetaGutTrainingOptIn {
+  optedIn: boolean;
+  optedInAt?: string | null;
+  dismissedAt?: string | null;
+  dismissCount?: number;
+}
+
+export interface BetaOptIns {
+  email?: string | null;
+  gutTraining?: BetaGutTrainingOptIn;
+  updatedAt?: Timestamp;
+}
+
+export async function loadBetaOptIns(): Promise<BetaOptIns | null> {
+  const snap = await getDoc(userDoc('betaOptIns/data'));
+  return snap.exists() ? (snap.data() as BetaOptIns) : null;
+}
+
+/** Records explicit consent to the gut-training beta. This is the opt-in
+ *  signal the banner and flow gate on — deliberately separate from the
+ *  program's `optedInAt`, which only fires after full setup. */
+export async function setGutTrainingOptIn(): Promise<void> {
+  const email = getCurrentUser()?.email ?? null;
+  await setDoc(userDoc('betaOptIns/data'), {
+    email: email ? email.toLowerCase() : null,
+    gutTraining: { optedIn: true, optedInAt: new Date().toISOString() },
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+/** Records a "Not now" dismissal: stamps the time and atomically bumps the
+ *  count (so it's consistent across devices). Merges into the gutTraining map
+ *  without clearing any prior opt-in. */
+export async function recordGutTrainingDismissal(): Promise<void> {
+  const email = getCurrentUser()?.email ?? null;
+  await setDoc(userDoc('betaOptIns/data'), {
+    email: email ? email.toLowerCase() : null,
+    gutTraining: {
+      dismissedAt: new Date().toISOString(),
+      dismissCount: increment(1),
+    },
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
 }
 
 // ── Custom products (user-created products not in the main feed) ──

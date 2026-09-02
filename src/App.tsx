@@ -21,6 +21,8 @@ import { CheckoutTest } from './components/CheckoutTest';
 import { PaymentCallback } from './components/PaymentCallback';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { SiteFeedbackBanner } from './components/SiteFeedbackBanner';
+import { GutTrainingBetaBanner } from './components/GutTrainingBetaBanner';
+import { useGutBetaBanner } from './hooks/useGutBetaBanner';
 import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
 import { TermsOfService } from './components/legal/TermsOfService';
 import { CookiesPolicy } from './components/legal/CookiesPolicy';
@@ -384,11 +386,24 @@ function AuthGate() {
   );
 }
 
+/**
+ * Owns the single global top-banner slot. The gut-training beta invite takes
+ * priority for eligible, not-yet-opted-in users; the site-feedback banner
+ * returns otherwise (including while eligibility is still loading, so the beta
+ * banner never flashes in for an ineligible user). Only one is ever mounted,
+ * so only one owns --banner-h at a time.
+ */
+function TopBanners() {
+  const beta = useGutBetaBanner();
+  if (beta.visible) return <GutTrainingBetaBanner state={beta} />;
+  return <SiteFeedbackBanner />;
+}
+
 export function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <SiteFeedbackBanner />
+        <TopBanners />
         <AuthGate />
       </AuthProvider>
     </ErrorBoundary>
