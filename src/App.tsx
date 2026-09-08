@@ -193,15 +193,18 @@ function AppContent() {
         </div>
       </div>
 
-      {/* Fuel column — desktop only. Mobile gets all the same affordances
-          via the on-map fuel strip + ActionBar's View Kit button. */}
-      <div className="hidden lg:flex lg:relative lg:top-0 lg:left-auto bottom-0 z-30 flex-col">
-        <ErrorBoundary>
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <NutritionPanel />
-          </div>
-        </ErrorBoundary>
-      </div>
+      {/* Fuel column — desktop only, and only once a plan exists. On an empty
+          start the guided single-column entry (GpxDropZone) stands alone, so a
+          new athlete isn't met with a dense, zeroed-out product panel. */}
+      {routeData.loaded && (
+        <div className="hidden lg:flex lg:relative lg:top-0 lg:left-auto bottom-0 z-30 flex-col">
+          <ErrorBoundary>
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <NutritionPanel />
+            </div>
+          </ErrorBoundary>
+        </div>
+      )}
 
       {!onboardingComplete && <OnboardingModal />}
 

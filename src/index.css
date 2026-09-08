@@ -11,15 +11,15 @@
   /* Backgrounds — plum/cream palette (v2, Aug 2026). Cream is the surface
      everywhere: background/surface/surfaceHighlight are three steps of the
      same cream→plum-tint family, not white + a highlight color. */
-  --color-background: #FBF3E8;
-  --color-surface: #F3EDF0;
-  --color-surfaceHighlight: #E6DBE0;
+  --color-background: #FFFFFF;
+  --color-surface: #FFFFFF;
+  --color-surfaceHighlight: #EEF4F1;
 
   /* Primary — Fuelcue Plum. accent is type + the one primary button per
      screen; accent-light/-muted are lighter/darker steps of the same family. */
-  --color-accent: #2B0D3D;
-  --color-accent-light: #8A4467;
-  --color-accent-muted: #561E3B;
+  --color-accent: #2F5D50;
+  --color-accent-light: #3E7D6C;
+  --color-accent-muted: #264C42;
 
   /* Warm — Route Amber / Terrain Orange. Left as the existing terrain
      orange for this pass (used app-wide, including as a 3-tier
@@ -27,9 +27,9 @@
      CoachDashboard) — NOT repointed to the new alert tones below, since
      those are reserved for alerts only, never decorative. See
      --color-alert-* for the v2 palette's actual alert colors. */
-  --color-warm: #F5A020;
-  --color-warm-light: #FFCD6B;
-  --color-warm-muted: #E8671A;
+  --color-warm: #9A6208;
+  --color-warm-light: #C68A2E;
+  --color-warm-muted: #7A4E06;
 
   /* Terrain — same "leave as-is" note as --color-warm above. */
   --color-terrain-rust: #C94A1A;
@@ -47,14 +47,14 @@
   --color-alert-brick-tint: rgba(156, 59, 55, 0.12);
 
   /* Text — plum family, per "plum is type" */
-  --color-text-primary: #2B0D3D;
-  --color-text-secondary: #561E3B;
-  --color-text-muted: #8A4467;
+  --color-text-primary: #1B2320;
+  --color-text-secondary: #47514B;
+  --color-text-muted: #6B7772;
 
   /* Utility */
-  --color-scrollbar: #CDBACA;
-  --color-selection: rgba(43, 13, 61, 0.15);
-  --color-border: rgba(43, 13, 61, 0.1);
+  --color-scrollbar: #D9D3C7;
+  --color-selection: rgba(47, 93, 80, 0.15);
+  --color-border: #EAE5DA;
   --mapbox-style: outdoors-v12;
 }
 

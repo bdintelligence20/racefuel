@@ -22,7 +22,8 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { downloadFile } from '../export/downloadFile';
-import { deviceById, preferredFuelFormat, type WatchDevice, type ExportFormat } from '../../data/watchDevices';
+import { encodeWorkoutFit, type FitSport } from './fitEncoder';
+import { deviceById, type WatchDevice } from '../../data/watchDevices';
 import {
   type GutTrainingV2Program,
   type RaceDayPlan,
@@ -215,66 +216,46 @@ function fileStem(program: GutTrainingV2Program, suffix: string): string {
   return `${base}-${suffix}`;
 }
 
-function baseStartMsFor(program: GutTrainingV2Program): number {
-  // A 6am start on race day if we have a date, otherwise now. Only used to
-  // stamp cue times in the GPX, the absolute value does not matter much.
-  if (program.event.date) {
-    const t = new Date(`${program.event.date}T06:00:00`).getTime();
-    if (!Number.isNaN(t)) return t;
-  }
-  return Date.now();
+/** Discipline → FIT sport enum. */
+function fitSportFor(program: GutTrainingV2Program): FitSport {
+  const d = program.event.discipline ?? 'road-run';
+  if (d === 'road-run' || d === 'trail-run') return 'running';
+  if (d === 'road-cycle' || d === 'mtb' || d === 'gravel') return 'cycling';
+  return 'generic';
 }
 
-/** How to load the file, worded for the format and brand. */
-function loadHintFor(device: WatchDevice, format: ExportFormat): string {
-  if (format === 'tcx') {
-    if (device.brand === 'Garmin') {
-      return 'In Garmin Connect, go to Training, Workouts, Import, then send it to your device. It beeps at each fuel cue.';
-    }
-    if (device.brand === 'Hammerhead') {
-      return 'In the Hammerhead dashboard, import the workout, then sync. It cues you at each step.';
-    }
-    return 'Import the .tcx as a workout in your device app. It beeps at each fuel cue on the clock.';
+/** How to load the .FIT workout, worded per brand. */
+function fitLoadHint(device: WatchDevice): string {
+  if (device.brand === 'Garmin') {
+    return 'In Garmin Connect: Training & Planning → Workouts → Import, then send it to your device. It beeps at each fuel cue on the clock.';
   }
-  return device.loadHint;
+  if (device.brand === 'Hammerhead') {
+    return 'Import the .FIT workout in the Hammerhead dashboard, then sync. It cues you at each fuel step.';
+  }
+  return 'Import the .FIT workout in your device app. It beeps at each fuel cue on the clock.';
 }
 
 /**
- * Export the time-based fuel cues in the best format the chosen device can
- * use (TCX workout where possible, GPX otherwise). Returns the format and a
- * plain-language hint on how to load it.
+ * Export the time-based fuel cues as a Garmin-authored .FIT workout: timed
+ * steps that make the watch beep at each fuel cue on the clock. Works on any
+ * device that imports FIT workouts (Garmin, Hammerhead, COROS, …), with or
+ * without a route loaded. Returns a plain-language hint on how to load it.
  */
 export async function exportFuelCuesToDevice(
   program: GutTrainingV2Program,
   cues: FuelCue[],
-  subtitle: string,
+  _subtitle: string,
   deviceId: string | undefined,
-): Promise<{ format: ExportFormat; loadHint: string }> {
+): Promise<{ format: 'fit'; loadHint: string }> {
   const device = deviceById(deviceId);
-  const format = preferredFuelFormat(device);
-  const startLat = program.event.lat ?? -33.9249;
-  const startLng = program.event.lng ?? 18.4241;
-
-  let content: string;
-  let mime: string;
-  if (format === 'tcx') {
-    content = buildWorkoutTcx(`${program.event.name} fuel`, tcxSportFor(program), cues);
-    mime = 'application/vnd.garmin.tcx+xml';
-  } else {
-    content = buildFuelCuesGpx(
-      `${program.event.name} fuel cues`,
-      startLat,
-      startLng,
-      cues,
-      subtitle,
-      baseStartMsFor(program),
-    );
-    mime = 'application/gpx+xml';
-  }
-
-  const blob = new Blob([content], { type: mime });
-  await downloadFile(blob, `${fileStem(program, 'fuel')}.${format}`, mime);
-  return { format, loadHint: loadHintFor(device, format) };
+  const bytes = encodeWorkoutFit(
+    `${program.event.name} fuel`,
+    fitSportFor(program),
+    cues.map((c) => ({ atMinutes: c.atMinutes, label: `${c.label} ${c.grams}g` })),
+  );
+  const mime = 'application/vnd.ant.fit';
+  await downloadFile(new Blob([bytes], { type: mime }), `${fileStem(program, 'fuel')}.fit`, mime);
+  return { format: 'fit', loadHint: fitLoadHint(device) };
 }
 
 /* -------------------------------- PDF -------------------------------- */

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Upload, FileCode, Play, Activity, Pencil } from 'lucide-react';
+import { Upload, Play, Activity, Pencil } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { StravaActivityList } from './strava/StravaActivityList';
 import { toast } from 'sonner';
@@ -65,106 +65,81 @@ export function GpxDropZone({ onDrawRoute }: { onDrawRoute?: () => void }) {
 
   return (
     <>
+      {/* Full-surface, single-column guided start — white base, one friendly
+          headline, one primary action. Covers the map area so a brand-new
+          athlete sees a calm "here's how to begin", not a dashboard. */}
       <div
-        className="absolute inset-0 z-10 flex items-center justify-center p-4 sm:p-8"
+        className="absolute inset-0 z-10 flex items-center justify-center bg-surface p-6 overflow-y-auto"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* Card container */}
-        <div className={`w-full max-w-sm bg-surface rounded-2xl shadow-xl border transition-all duration-300 ${
-          isDragging ? 'border-warm scale-[0.98]' : 'border-[var(--color-border)]'
-        }`}>
-          <div className="p-6 sm:p-8">
-            {isLoading ? (
-              <div className="flex flex-col items-center py-4 animate-pulse">
-                <div className="w-14 h-14 rounded-2xl bg-warm/10 flex items-center justify-center mb-4">
-                  <FileCode className="w-7 h-7 text-warm" />
+        <div className="w-full max-w-md">
+          {isLoading ? (
+            <div className="flex flex-col items-center text-center py-12">
+              <div className="w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin mb-4" />
+              <h3 className="text-base font-display font-bold text-text-primary">Reading your route…</h3>
+              <p className="text-text-muted font-display text-sm mt-1">Mapping the climbs and working out your fuel</p>
+            </div>
+          ) : (
+            <>
+              <h1 className="text-3xl font-display font-black text-text-primary leading-tight tracking-tight text-center text-balance">
+                Let's build your <span className="text-accent">fuel plan</span>.
+              </h1>
+              <p className="text-sm text-text-secondary text-center mt-2.5 mb-7 max-w-sm mx-auto leading-relaxed">
+                Bring your route and we'll tell you exactly what to eat, and when.
+              </p>
+
+              {/* Upload / drag-drop */}
+              <button
+                onClick={() => document.getElementById('gpx-upload')?.click()}
+                className={`w-full flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed p-6 transition-colors active:scale-[0.99] ${
+                  isDragging ? 'border-accent bg-accent/[0.05]' : 'border-[var(--color-border)] hover:border-accent/40'
+                }`}
+              >
+                <div className="w-11 h-11 rounded-full bg-accent/10 flex items-center justify-center">
+                  <Upload className="w-5 h-5 text-accent" />
                 </div>
-                <h3 className="text-base font-display font-semibold text-text-primary">
-                  Parsing route data...
-                </h3>
-                <p className="text-text-muted font-display text-sm mt-1">
-                  Analyzing elevation profile
-                </p>
+                <div className="text-sm font-display font-bold text-text-primary">Upload a GPX or TCX</div>
+                <div className="text-xs text-text-muted font-display">
+                  Drag it here, or <span className="lg:hidden">tap</span><span className="hidden lg:inline">click</span> to choose
+                </div>
+              </button>
+
+              <input type="file" id="gpx-upload" className="hidden" accept=".gpx,.tcx" onChange={handleFileInput} />
+
+              <div className="flex items-center gap-3 my-4">
+                <div className="flex-1 h-px bg-[var(--color-border)]" />
+                <span className="text-[10px] font-display uppercase tracking-wider text-text-muted">or</span>
+                <div className="flex-1 h-px bg-[var(--color-border)]" />
               </div>
-            ) : (
-              <div className="flex flex-col items-center">
-                {/* Upload button */}
+
+              <div className="flex flex-col gap-2">
                 <button
-                  onClick={() => document.getElementById('gpx-upload')?.click()}
-                  className={`w-full flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-dashed transition-all duration-200 cursor-pointer active:scale-[0.98] ${
-                    isDragging
-                      ? 'border-warm bg-warm/5'
-                      : 'border-[var(--color-border)] hover:border-warm/40 hover:bg-warm/[0.03]'
-                  }`}
+                  onClick={loadDemoRoute}
+                  className="w-full min-h-[52px] flex items-center justify-center gap-2 rounded-xl bg-accent text-white font-display font-bold text-sm active:scale-[0.99] transition-all"
                 >
-                  <div className="w-12 h-12 rounded-full bg-warm/10 flex items-center justify-center">
-                    <Upload className="w-5 h-5 text-warm" />
-                  </div>
-                  <div className="text-center">
-                    <div className="text-sm font-display font-semibold text-text-primary">
-                      Upload GPX or TCX
-                    </div>
-                    <div className="text-xs text-text-muted font-display mt-0.5">
-                      <span className="lg:hidden">Tap</span>
-                      <span className="hidden lg:inline">Click</span>
-                      {' '}to select a route file
-                    </div>
-                  </div>
+                  <Play className="w-4 h-4" /> Try a demo route
                 </button>
-
-                <input
-                  type="file"
-                  id="gpx-upload"
-                  className="hidden"
-                  accept=".gpx,.tcx"
-                  onChange={handleFileInput}
-                />
-
-                {/* Divider */}
-                <div className="flex items-center gap-3 w-full my-4">
-                  <div className="flex-1 h-px bg-[var(--color-border)]" />
-                  <span className="text-xs text-text-muted font-display">or</span>
-                  <div className="flex-1 h-px bg-[var(--color-border)]" />
-                </div>
-
-                {/* Action buttons. Strava sits beside GPX upload and manual
-                    entry as an equal, not a fallback — and is offered even when
-                    not yet connected (tapping it starts the connect flow), so a
-                    brand-new user isn't stuck if Strava is how they think. */}
-                <div className="flex flex-col gap-2 w-full">
+                <button
+                  onClick={() => (strava.isConnected ? setShowStravaModal(true) : connectStrava())}
+                  disabled={strava.isLoading}
+                  className="w-full min-h-[48px] flex items-center justify-center gap-2 rounded-xl border border-[var(--color-border)] text-text-primary font-display font-semibold text-sm hover:border-accent/40 active:scale-[0.99] transition-all disabled:opacity-60"
+                >
+                  <Activity className="w-4 h-4 text-[#FC4C02]" />
+                  {strava.isLoading ? 'Connecting…' : strava.isConnected ? 'Import from Strava' : 'Connect Strava'}
+                </button>
+                {onDrawRoute && (
                   <button
-                    onClick={() => (strava.isConnected ? setShowStravaModal(true) : connectStrava())}
-                    disabled={strava.isLoading}
-                    className="w-full h-11 flex items-center justify-center gap-2 rounded-xl bg-[#FC4C02] text-white font-display font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-60"
+                    onClick={handleDrawRoute}
+                    className="w-full min-h-[44px] flex items-center justify-center gap-2 text-text-muted hover:text-text-primary font-display font-semibold text-[13px] transition-colors"
                   >
-                    <Activity className="w-4 h-4" />
-                    {strava.isLoading ? 'Connecting…' : strava.isConnected ? 'Import from Strava' : 'Connect Strava'}
+                    <Pencil className="w-3.5 h-3.5" /> Or draw it on the map
                   </button>
-
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleDrawRoute}
-                      disabled={!onDrawRoute}
-                      className="flex-1 h-11 flex items-center justify-center gap-2 rounded-xl bg-warm text-white font-display font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      <Pencil className="w-4 h-4" />
-                      Draw Route
-                    </button>
-
-                    <button
-                      onClick={loadDemoRoute}
-                      className="flex-1 h-11 flex items-center justify-center gap-2 rounded-xl bg-accent text-white font-display font-semibold text-sm active:scale-[0.98] transition-all"
-                    >
-                      <Play className="w-4 h-4" />
-                      Try Demo
-                    </button>
-                  </div>
-                </div>
+                )}
               </div>
-            )}
-          </div>
+            </>
+          )}
         </div>
       </div>
 

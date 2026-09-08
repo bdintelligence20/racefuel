@@ -5,6 +5,7 @@ import { X, FileText, Table, MapPin, Download, Image, Share2, Video, Watch, Chec
 import { useApp } from '../../context/AppContext';
 import { useMap } from '../../context/MapContext';
 import { downloadGpx } from '../../services/export/gpxExporter';
+import { downloadRouteFitCourse, downloadRouteFitWorkout, hasRoutePolyline } from '../../services/export/fitRouteExporter';
 import { downloadCsv } from '../../services/export/csvExporter';
 import { downloadPdf } from '../../services/export/pdfExporter';
 import { exportMapImage } from '../../services/export/mapImageExporter';
@@ -48,8 +49,13 @@ export function ExportModal({ isOpen, onClose, onBuyProducts }: ExportModalProps
   // One tap to the watch: a GPX course carrying the fuel points as waypoints is
   // exactly what Garmin and Wahoo ingest as on-course cues. We frame it as
   // "send to your watch" because that's what it is to the athlete, then confirm.
-  const sendToWatch = () => {
-    downloadGpx(routeData);
+  const routeHasPolyline = hasRoutePolyline(routeData);
+  const sendCourse = () => {
+    downloadRouteFitCourse(routeData);
+    setSentToWatch(true);
+  };
+  const sendWorkout = () => {
+    downloadRouteFitWorkout(routeData);
     setSentToWatch(true);
   };
 
@@ -170,12 +176,12 @@ export function ExportModal({ isOpen, onClose, onBuyProducts }: ExportModalProps
               <div className="mx-auto w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mb-4">
                 <Check className="w-8 h-8 text-accent" />
               </div>
-              <h3 className="text-lg font-display font-bold text-text-primary mb-1">Your plan is on the way to your watch</h3>
+              <h3 className="text-lg font-display font-bold text-text-primary mb-1">Your .FIT is ready</h3>
               <p className="text-sm text-text-secondary max-w-xs mx-auto mb-2">
-                Open the file on your watch app to load the course — your watch will cue you at each fuel point.
+                Import it into your watch app and your device cues you at each fuel point.
               </p>
               <p className="text-[11px] text-text-muted max-w-xs mx-auto mb-6">
-                Garmin: Connect → Courses. Wahoo: Routes. Apple Watch: any GPX-compatible app.
+                Garmin Connect: a course lands under Courses, a workout under Training &amp; Planning → Workouts. Then sync to your device.
               </p>
               {onBuyProducts && (
                 <button
@@ -202,21 +208,40 @@ export function ExportModal({ isOpen, onClose, onBuyProducts }: ExportModalProps
                 </div>
               </div>
 
-              {/* Primary action — one tap to the watch. */}
+              {/* Watch export is .FIT. Two shapes: route + cues (a FIT course)
+                  or cues only (a FIT workout). The course needs a real
+                  polyline, so it only shows when the route has one. */}
+              {routeHasPolyline && (
+                <button
+                  onClick={sendCourse}
+                  className="w-full flex items-center gap-3 p-4 bg-accent hover:bg-accent-light text-white rounded-xl active:scale-[0.99] transition-all text-left shadow-[0_0_20px_rgba(61,33,82,0.15)]"
+                >
+                  <div className="w-11 h-11 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
+                    <Watch className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-base font-display font-bold leading-tight">Route + fuel cues</div>
+                    <div className="text-xs text-white/80 mt-0.5 leading-snug">
+                      .FIT course. Navigate the route; your watch prompts at each fuel stop.
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 flex-shrink-0" />
+                </button>
+              )}
               <button
-                onClick={sendToWatch}
-                className="w-full flex items-center gap-3 p-4 bg-accent hover:bg-accent-light text-white rounded-xl active:scale-[0.99] transition-all text-left shadow-[0_0_20px_rgba(61,33,82,0.15)]"
+                onClick={sendWorkout}
+                className={`w-full flex items-center gap-3 p-4 rounded-xl active:scale-[0.99] transition-all text-left ${routeHasPolyline ? 'mt-2 bg-surfaceHighlight border border-[var(--color-border)] hover:border-accent/40 text-text-primary' : 'bg-accent hover:bg-accent-light text-white shadow-[0_0_20px_rgba(61,33,82,0.15)]'}`}
               >
-                <div className="w-11 h-11 rounded-lg bg-white/15 flex items-center justify-center flex-shrink-0">
+                <div className={`w-11 h-11 rounded-lg flex items-center justify-center flex-shrink-0 ${routeHasPolyline ? 'bg-accent/10 text-accent' : 'bg-white/15'}`}>
                   <Watch className="w-5 h-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-base font-display font-bold leading-tight">Send to your watch</div>
-                  <div className="text-xs text-white/80 mt-0.5 leading-snug">
-                    One tap. Your watch cues you when to fuel. Works with Garmin, Wahoo, Apple Watch.
+                  <div className="text-base font-display font-bold leading-tight">Fuel cues only</div>
+                  <div className={`text-xs mt-0.5 leading-snug ${routeHasPolyline ? 'text-text-secondary' : 'text-white/80'}`}>
+                    .FIT workout. Timed beeps at each cue, no route. Run it your own way.
                   </div>
                 </div>
-                <ArrowRight className="w-5 h-5 flex-shrink-0" />
+                <ArrowRight className={`w-5 h-5 flex-shrink-0 ${routeHasPolyline ? 'text-text-muted' : ''}`} />
               </button>
 
               {/* Everything else, out of the way (secondary layer). */}

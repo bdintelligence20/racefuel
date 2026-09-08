@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Activity, User, Wind, Zap, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings, ShieldCheck, Users, TrendingUp } from 'lucide-react';
+import { Activity, User, Wind, Zap, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings, ShieldCheck, Users, TrendingUp, ChevronDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useCoachStore } from '../services/coach/coachStore';
 import { useCoachPlanning } from '../services/coach/useCoachPlanning';
@@ -32,7 +32,11 @@ export function Sidebar() {
   // Fail-closed: hidden while loading and whenever the gate is false, so the
   // entry never flashes in for an ineligible user.
   const { betaGutTraining } = useEntitlements();
-  const showGutTraining = GUT_TRAINING_BUILD_ENABLED && betaGutTraining;
+  // In production this is server-authoritative (betaGutTraining). In local
+  // dev there's no backend, so the entitlement fails closed — surface the
+  // beta entry in dev anyway so the flow is testable. The flow's own consent
+  // gate still applies. `import.meta.env.DEV` is false in prod builds.
+  const showGutTraining = GUT_TRAINING_BUILD_ENABLED && (betaGutTraining || import.meta.env.DEV);
 
   // The opt-in banner (app-shell level, outside this provider) asks the flow
   // to open via a signal bus. Only honour it for eligible users.
@@ -40,6 +44,7 @@ export function Sidebar() {
     if (!showGutTraining) return;
     return onOpenGutTraining(() => setGutTrainingOpen(true));
   }, [showGutTraining]);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [savedPlansOpen, setSavedPlansOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [eventSearchOpen, setEventSearchOpen] = useState(false);
@@ -107,12 +112,25 @@ export function Sidebar() {
           so there's no modal hop. Header subtitle makes the interaction
           discoverable on first use. */}
       <div className="flex-1 p-3 overflow-y-auto overscroll-contain">
-        <div className="flex items-baseline justify-between mb-1.5 px-1">
-          <h2 className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">
-            Athlete Profile
-          </h2>
-          <span className="text-[9px] text-text-muted/70 font-display italic">tap any row to edit</span>
-        </div>
+        {/* Your details — collapsed by default (progressive disclosure, §5b).
+            Specifics (weight, sweat, gut, climate) live one tap away so the
+            sidebar leads with the plan, not a form of numbers. */}
+        <button
+          type="button"
+          onClick={() => setDetailsOpen((v) => !v)}
+          aria-expanded={detailsOpen}
+          className="w-full flex items-center gap-2 mb-2 px-2 py-1.5 rounded-md hover:bg-accent/[0.05] transition-colors text-left"
+        >
+          <span className="flex-1 min-w-0">
+            <span className="block text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">Your details</span>
+            {!detailsOpen && (
+              <span className="block text-[10px] text-text-muted font-display truncate">{userProfile.weight} kg · {(userProfile.sport ?? 'running').replace(/^./, (c) => c.toUpperCase())} · {userProfile.sweatRate === 'light' ? 'Low' : userProfile.sweatRate === 'moderate' ? 'Med' : 'High'} sweat</span>
+            )}
+          </span>
+          <ChevronDown className={`w-4 h-4 text-text-muted flex-shrink-0 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {detailsOpen && (
+        <div className="space-y-1">
 
         {/* Body basics — every row is tap-to-edit inline */}
         <div className="space-y-px mb-2.5">
@@ -272,6 +290,8 @@ export function Sidebar() {
             />
           </div>
         </div>
+        </div>
+        )}
 
         <div className="h-px bg-[var(--color-border)] my-2.5" />
 

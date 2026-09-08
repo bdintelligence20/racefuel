@@ -44,16 +44,11 @@ export function NutritionCard({
   priceZAR,
   image,
 }: ProductProps) {
-  const colorMap: Record<string, { border: string; accent: string; hover: string }> = {
-    orange: { border: 'border-warm', accent: 'text-warm', hover: 'hover:bg-warm/[0.06]' },
-    blue: { border: 'border-accent', accent: 'text-accent', hover: 'hover:bg-accent/[0.06]' },
-    white: { border: 'border-text-muted', accent: 'text-text-primary', hover: 'hover:bg-accent/[0.04]' },
-    green: { border: 'border-warm-muted', accent: 'text-warm-muted', hover: 'hover:bg-warm-muted/[0.06]' },
-    red: { border: 'border-terrain-rust', accent: 'text-terrain-rust', hover: 'hover:bg-terrain-rust/[0.06]' },
-    yellow: { border: 'border-golden', accent: 'text-golden', hover: 'hover:bg-golden/[0.06]' },
-  };
-
-  const colors = colorMap[color] || colorMap.white;
+  // White + Pine: numbers are pine data, not per-product orange/rust/golden.
+  // The `color` prop is kept in the type for feed compatibility but no longer
+  // drives decorative accents — every card reads on the one system.
+  const colors = { border: 'border-[var(--color-border)]', accent: 'text-accent', hover: 'hover:bg-accent/[0.04]' };
+  void color;
 
   return (
     <div
@@ -114,7 +109,7 @@ export function NutritionCard({
         </div>
         <div className="flex items-end justify-end">
           <div className="flex items-center gap-0.5">
-            <Zap className="w-3 h-3 text-warm" />
+            <Zap className="w-3 h-3 text-text-muted" />
             <span className="text-xs font-display font-bold text-text-primary">
               {calories}
             </span>

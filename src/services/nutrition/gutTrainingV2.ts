@@ -210,6 +210,80 @@ export function buildRealismNote(
   };
 }
 
+export interface ProjectedWeek {
+  week: number;
+  /** Projected g/hr the athlete holds that week on a clean ramp. */
+  hold: number;
+  /** True once the ramp has reached the race-day target (maintenance weeks). */
+  atTarget: boolean;
+}
+
+/** Projects the week-by-week carb ramp for the plan overview (Runna-style):
+ *  startGPerHour climbing by stepGPerHour each week up to targetGPerHour, then
+ *  held. Display-only — the *actual* weekly advance still comes from logged
+ *  sessions (recordSessionV2), so a rough week just reshapes the real curve.
+ *  This is the plan, not a promise. */
+export function projectWeeklyRamp(program: GutTrainingV2Program): ProjectedWeek[] {
+  const weeks = Math.max(1, program.weeksToEvent);
+  const step = program.stepGPerHour > 0 ? program.stepGPerHour : 5;
+  const out: ProjectedWeek[] = [];
+  for (let w = 1; w <= weeks; w++) {
+    const hold = Math.min(program.targetGPerHour, program.startGPerHour + (w - 1) * step);
+    out.push({ week: w, hold, atTarget: hold >= program.targetGPerHour });
+  }
+  return out;
+}
+
+export interface RunIntakeItem {
+  /** Elapsed minutes into the run when this is taken. */
+  atMin: number;
+  label: string;
+  grams: number;
+}
+
+/** When-to-take-what for a single run: a start mix, then a gel/chews every
+ *  20 minutes, each carrying the hold rate's share of that block, with real
+ *  elapsed times so the athlete can set watch alerts. Gut-training runs are
+ *  time-based (no route), so this is a time breakdown, not distance. */
+export function buildRunBreakdown(holdGPerHour: number, durationMinutes: number): RunIntakeItem[] {
+  // Fallback only, used before the athlete has chosen their fuel: assume a
+  // standard ~30 g serving and space it to hit the target rate. Real timing
+  // comes from buildKitSchedule once products are picked.
+  const serving = 30;
+  const interval = Math.max(8, Math.round((serving / Math.max(1, holdGPerHour)) * 60));
+  const items: RunIntakeItem[] = [];
+  for (let t = 0; t < Math.max(1, durationMinutes); t += interval) {
+    items.push({ atMin: t, label: 'Fuel (~30 g)', grams: serving });
+  }
+  return items.length ? items : [{ atMin: 0, label: 'Fuel (~30 g)', grams: serving }];
+}
+
+/** Product-derived fuel schedule: each chosen product is spaced by how long it
+ *  takes to "use up" its carbs at its share of the target rate, then the
+ *  products are interleaved across the run. A 40 g gel at 90 g/hr lands every
+ *  ~27 min; the same gel at 60 g/hr every ~40 min. Timing follows the actual
+ *  products, never a fixed cadence. */
+export function buildKitSchedule(
+  targetGPerHour: number,
+  durationMinutes: number,
+  kit: FuelKitItem[],
+): RunIntakeItem[] {
+  const usable = (kit ?? []).filter((k) => k.carbs > 0);
+  if (usable.length === 0) return buildRunBreakdown(targetGPerHour, durationMinutes);
+
+  const perProductRate = Math.max(1, targetGPerHour / usable.length);
+  const cues: RunIntakeItem[] = [];
+  usable.forEach((p, idx) => {
+    const interval = Math.max(8, Math.round((p.carbs / perProductRate) * 60));
+    const offset = Math.round((interval / usable.length) * idx); // interleave products
+    for (let t = offset; t < Math.max(1, durationMinutes); t += interval) {
+      cues.push({ atMin: t, label: `${p.brand} ${p.name}`, grams: p.carbs });
+    }
+  });
+  if (cues.length === 0) cues.push({ atMin: 0, label: `${usable[0].brand} ${usable[0].name}`, grams: usable[0].carbs });
+  return cues.sort((a, b) => a.atMin - b.atMin);
+}
+
 export interface CreateProgramV2Input {
   event: GoalEvent;
   startGPerHour: number;
@@ -356,16 +430,19 @@ export function planFuelServings(
 /** Session prescription expressed as counts of the athlete's chosen products. */
 function buildKitPrescription(program: GutTrainingV2Program, durationMinutes: number): SessionPrescription {
   const target = program.currentGPerHour;
-  const hours = durationMinutes / 60;
-  const { servings, totalGrams } = planFuelServings(target, hours, program.fuelKit ?? []);
-
-  const items: SessionIntakeItem[] = servings.map((s) => ({
-    timeLabel: `x${s.count}`,
-    label: `${s.item.brand} ${s.item.name}`,
-    grams: s.grams,
+  const schedule = buildKitSchedule(target, durationMinutes, program.fuelKit ?? []);
+  const items: SessionIntakeItem[] = schedule.map((c) => ({
+    timeLabel: `${Math.floor(c.atMin / 60)}:${String(c.atMin % 60).padStart(2, '0')}`,
+    label: c.label,
+    grams: c.grams,
   }));
-
-  return { weekNumber: program.weekNumber, durationMinutes, targetGPerHour: target, items, totalGrams };
+  return {
+    weekNumber: program.weekNumber,
+    durationMinutes,
+    targetGPerHour: target,
+    items,
+    totalGrams: items.reduce((s, i) => s + i.grams, 0),
+  };
 }
 
 /* --------------------------- weekly loop step --------------------------- */

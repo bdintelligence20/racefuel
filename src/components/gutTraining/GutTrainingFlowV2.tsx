@@ -35,6 +35,7 @@ import {
   computeMilestoneStats,
   buildRaceDayPlan,
   getActiveAlerts,
+  projectWeeklyRamp,
   suggestCarbTarget,
   toGutComfort,
   type GutTrainingV2Program,
@@ -52,12 +53,13 @@ import {
   exportFuelCuesToDevice, raceDayCues, sessionCues, downloadRaceDayPdf, downloadSessionPdf,
 } from '../../services/nutrition/gutTrainingExport';
 import {
-  GoalEventScreen, ToleranceScreen, WeeklySessionScreen, HandoffScreen,
+  GoalEventScreen, ToleranceScreen, GutIntakeScreen, RecommendationScreen, PlanOverviewScreen, WeeklySessionScreen, HandoffScreen,
   PostSessionLogScreen, MilestoneScreen, RaceDayScreen, AlertsScreen,
+  type GutFeel,
 } from './GutTrainingScreens';
 
 type ScreenId =
-  | 'goal-event' | 'tolerance' | 'weekly-prescription' | 'handoff'
+  | 'intake' | 'goal-event' | 'tolerance' | 'recommendation' | 'plan-overview' | 'weekly-prescription' | 'handoff'
   | 'post-session-log' | 'milestone' | 'race-day' | 'alerts';
 
 const outcomeCopy: Record<'advance' | 'hold' | 'back-off', (g: number) => string> = {
@@ -80,13 +82,21 @@ function weeksBetween(isoDate: string): number {
 
 export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
   const { userProfile } = useApp();
-  const gutTolerance = userProfile.gutTolerance ?? 'trained';
+  // Q4 sets the gut ceiling we train TOWARD, not a cap on current ability —
+  // the point of the program is to raise a struggling gut to the race's
+  // demand. Rock-solid unlocks the elite band (up to 120 g/hr); everyone else
+  // targets the trained band (up to 90) and ramps up from their current
+  // tolerance (Q3), with the realism note flagging a too-short runway. We
+  // never pass 'beginner' here, so the recommendation is never capped down to
+  // what the athlete can already do.
+  const [gutFeel, setGutFeel] = useState<GutFeel>('occasional');
+  const gutTolerance: 'trained' | 'elite' = gutFeel === 'rockSolid' ? 'elite' : 'trained';
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [program, setProgram] = useState<GutTrainingV2Program | null>(null);
   const [sessions, setSessions] = useState<GutTrainingSession[]>([]);
-  const [screen, setScreen] = useState<ScreenId>('goal-event');
+  const [screen, setScreen] = useState<ScreenId>('intake');
   // Explicit beta consent. Separate from the program's `optedInAt` (which only
   // fires after full setup) — the flow shows a lightweight consent screen
   // first and won't proceed until the opt-in doc is written. Fails closed:
@@ -148,7 +158,7 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       setProgram(p);
       setSessions(s);
       if (p?.deviceId) setDeviceId(p.deviceId);
-      setScreen(!p ? 'goal-event' : p.status === 'completed' ? 'milestone' : 'weekly-prescription');
+      setScreen(!p ? 'intake' : p.status === 'completed' ? 'milestone' : 'plan-overview');
       // Whether the athlete has already accepted the beta. Read separately so
       // a returning opted-in user skips the consent screen.
       try {
@@ -208,6 +218,8 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
   );
 
   const alerts = useMemo(() => (program ? getActiveAlerts(program, sessions) : []), [program, sessions]);
+
+  const ramp = useMemo(() => (program ? projectWeeklyRamp(program) : []), [program]);
 
   if (!isOpen) return null;
 
@@ -281,7 +293,10 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       setProgram(next);
       setSessions([]);
       toast.success('Your plan is ready');
-      setScreen('weekly-prescription');
+      setScreen('plan-overview');
+      // Product choice is upfront: pull up the fuel picker so the plan's cue
+      // timing is built from the athlete's real products, not a fixed cadence.
+      if (!next.fuelKit || next.fuelKit.length === 0) setFuelPickerOpen(true);
     } catch {
       toast.error("Couldn't build the plan");
     } finally {
@@ -398,7 +413,7 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
       setStartGPerHour(60);
       setGutHistory([]);
       setExportedHint(null);
-      setScreen('goal-event');
+      setScreen('intake');
     } catch {
       toast.error("Couldn't reset");
     } finally {
@@ -444,6 +459,38 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     }
 
     switch (screen) {
+      case 'intake':
+        return (
+          <GutIntakeScreen
+            raceQuery={raceQuery}
+            onChangeRaceQuery={setRaceQuery}
+            raceResults={raceResults}
+            selectedRace={selectedRace}
+            onSelectRace={selectRace}
+            onClearRace={clearRace}
+            manualMode={manualMode}
+            onToggleManual={() => setManualMode((v) => !v)}
+            eventName={eventName}
+            onChangeName={setEventName}
+            eventDate={eventDate}
+            onChangeDate={setEventDate}
+            durationMinutes={expectedDurationMinutes}
+            onChangeDuration={setExpectedDurationMinutes}
+            effortLevel={effortLevel}
+            onChangeEffort={setEffortLevel}
+            startGPerHour={startGPerHour}
+            onChangeStart={setStartGPerHour}
+            gutFeel={gutFeel}
+            onChangeGutFeel={(v) => {
+              setGutFeel(v);
+              setGutHistory(v === 'rockSolid' ? ['all-fine'] : v === 'frequent' ? ['nausea', 'cramps'] : []);
+            }}
+            weeksToEvent={weeksToEvent}
+            onChangeWeeks={setWeeksToEvent}
+            canProceed={canProceedGoal}
+            onComplete={() => setScreen('recommendation')}
+          />
+        );
       case 'goal-event':
         return (
           <GoalEventScreen
@@ -483,8 +530,49 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
             weeksToEvent={weeksToEvent}
             onChangeWeeks={setWeeksToEvent}
             realism={realism}
-            onBuildPlan={handleBuildPlan}
+            onBuildPlan={() => setScreen('recommendation')}
             saving={saving}
+          />
+        );
+      case 'recommendation':
+        return (
+          <RecommendationScreen
+            recommended={targetGPerHour}
+            startGPerHour={startGPerHour}
+            weeksToEvent={weeksToEvent}
+            durationHours={expectedDurationHours}
+            effortLabel={effortLevel <= 4 ? 'easy' : effortLevel <= 7 ? 'moderate' : 'hard'}
+            eventName={eventName.trim() || (selectedRace?.name ?? 'your race')}
+            rationale={suggestion?.rationale ?? ''}
+            realism={realism}
+            onBuild={handleBuildPlan}
+            onEdit={() => setScreen('intake')}
+            saving={saving}
+          />
+        );
+      case 'plan-overview':
+        if (!program) return null;
+        return (
+          <PlanOverviewScreen
+            program={program}
+            ramp={ramp}
+            hasFuelKit={(program.fuelKit?.length ?? 0) > 0}
+            onChooseFuel={() => setFuelPickerOpen(true)}
+            onStart={() => setScreen('weekly-prescription')}
+            runDurationMinutes={durationMinutes}
+            onChangeRunDuration={setDurationMinutes}
+            onChangeTarget={(v) => {
+              const t = Math.max(program.startGPerHour, v);
+              const next = { ...program, targetGPerHour: t, currentGPerHour: Math.min(program.currentGPerHour, t) };
+              setProgram(next);
+              void persistProgram(next);
+            }}
+            onChangeWeeks={(v) => {
+              const next = { ...program, weeksToEvent: v };
+              setProgram(next);
+              void persistProgram(next);
+            }}
+            onChangeRace={() => setScreen('intake')}
           />
         );
       case 'weekly-prescription':
@@ -580,7 +668,7 @@ export function GutTrainingFlowV2({ isOpen, onClose }: GutTrainingFlowV2Props) {
     }
   })();
 
-  const showRestart = consented && program && !pendingSession && screen !== 'goal-event' && screen !== 'tolerance';
+  const showRestart = consented && program && !pendingSession && screen !== 'intake' && screen !== 'goal-event' && screen !== 'tolerance' && screen !== 'recommendation';
 
   return createPortal(
     <div className="fixed inset-0 z-50 bg-background flex flex-col safe-top safe-bottom">
