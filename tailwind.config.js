@@ -8,6 +8,28 @@ export default {
   theme: {
     extend: {
       colors: {
+        paper: 'var(--color-paper)',
+        pine: {
+          50: 'var(--color-pine-50)',
+          100: 'var(--color-pine-100)',
+          200: 'var(--color-pine-200)',
+          500: 'var(--color-pine-500)',
+          600: 'var(--color-pine-600)',
+          700: 'var(--color-pine-700)',
+        },
+        plum: 'var(--color-plum)',
+        ink: 'var(--color-ink)',
+        mute: 'var(--color-mute)',
+        line: 'var(--color-line)',
+        'line-2': 'var(--color-line-2)',
+        warning: 'var(--color-warning)',
+        'warning-bg': 'var(--color-warning-bg)',
+        success: 'var(--color-success)',
+        'success-bg': 'var(--color-success-bg)',
+        error: 'var(--color-error)',
+        'error-bg': 'var(--color-error-bg)',
+        info: 'var(--color-info)',
+        'info-bg': 'var(--color-info-bg)',
         background: 'var(--color-background)',
         surface: 'var(--color-surface)',
         surfaceHighlight: 'var(--color-surfaceHighlight)',
@@ -34,8 +56,9 @@ export default {
         }
       },
       fontFamily: {
-        display: ['"Montserrat"', 'system-ui', 'sans-serif'],
+        display: ['"Lora"', 'Georgia', 'serif'],
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
       },
       backgroundImage: {
         'terrain-gradient': 'linear-gradient(180deg, #FFCD6B 0%, #F5A020 25%, #E8671A 50%, #C94A1A 75%, #3D2152 100%)',

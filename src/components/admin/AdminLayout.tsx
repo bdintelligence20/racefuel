@@ -70,8 +70,8 @@ export function AdminLayout() {
 
   if (authLoading || gateLoading) {
     return (
-      <div className="min-h-screen bg-[#FFF9F0] flex items-center justify-center font-sans">
-        <Loader2 className="w-6 h-6 animate-spin text-[#F5A020]" />
+      <div className="min-h-screen bg-white flex items-center justify-center font-sans">
+        <Loader2 className="w-6 h-6 animate-spin text-[#2F5D50]" />
       </div>
     );
   }
@@ -83,19 +83,19 @@ export function AdminLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FFF9F0] font-sans">
-      <header className="bg-white border-b border-[#3D2152]/10 sticky z-30" style={{ top: 'var(--banner-h, 0px)' }}>
+    <div className="min-h-screen bg-white font-sans">
+      <header className="bg-white border-b border-[#EAE5DA] sticky z-30" style={{ top: 'var(--banner-h, 0px)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-3">
           <a
             href="/app"
-            className="w-9 h-9 flex items-center justify-center rounded-lg hover:bg-[#FFF5E8] text-[#6B5A7A] transition-colors"
+            className="w-11 h-11 flex items-center justify-center rounded-lg hover:bg-[#EEF4F1] text-[#6B7772] transition-colors"
             title="Back to app"
             aria-label="Back to app"
           >
             <ArrowLeft className="w-4 h-4" />
           </a>
           <img src="/logo.png" alt="fuelcue" className="h-7 w-auto" />
-          <span className="text-[10px] font-display uppercase tracking-[0.28em] font-bold text-[#F5A020] hidden sm:block">
+          <span className="text-[10px] font-mono uppercase tracking-[0.2em] font-bold text-[#2F5D50] hidden sm:block">
             Admin
           </span>
           <div className="ml-auto text-[11px] text-[#A0929E] truncate hidden md:block">
@@ -109,10 +109,10 @@ export function AdminLayout() {
               <button
                 key={id}
                 onClick={() => navigateTab(id)}
-                className={`flex items-center gap-1.5 px-3 py-2.5 text-[12px] font-display font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-2.5 text-[12px] font-sans font-semibold whitespace-nowrap border-b-2 transition-colors ${
                   active
-                    ? 'border-[#F5A020] text-[#3D2152]'
-                    : 'border-transparent text-[#6B5A7A] hover:text-[#3D2152]'
+                    ? 'border-[#2F5D50] text-[#264C42]'
+                    : 'border-transparent text-[#6B7772] hover:text-[#264C42]'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -132,13 +132,13 @@ export function AdminLayout() {
 
 function Gate({ message }: { message: string }) {
   return (
-    <div className="min-h-screen bg-[#FFF9F0] flex items-center justify-center font-sans">
-      <div className="bg-white border border-[#3D2152]/10 rounded-2xl p-8 max-w-sm text-center">
-        <h1 className="text-lg font-display font-black text-[#3D2152] mb-2">Restricted</h1>
-        <p className="text-[13px] text-[#6B5A7A] mb-4">{message}</p>
+    <div className="min-h-screen bg-white flex items-center justify-center font-sans">
+      <div className="bg-white border border-[#EAE5DA] rounded-lg p-8 max-w-sm text-center">
+        <h1 className="text-lg font-sans font-bold text-[#1B2320] mb-2">Restricted</h1>
+        <p className="text-[15px] text-[#6B7772] mb-4">{message}</p>
         <a
           href="/app"
-          className="inline-block px-4 py-2 rounded-lg bg-[#3D2152] text-white text-[12px] font-display font-bold hover:bg-[#3D2152]/90 transition-colors"
+          className="inline-flex min-h-14 items-center px-4 rounded-[14px] bg-[#2F5D50] text-white text-[12px] font-sans font-bold hover:bg-[#264C42] transition-colors"
         >
           Back to app
         </a>

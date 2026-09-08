@@ -77,7 +77,7 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
     if (!hoverMarkerRef.current) {
       const el = document.createElement('div');
       el.style.cssText =
-        'width:16px;height:16px;border-radius:50%;background:#F5A020;border:3px solid #fff;box-shadow:0 0 0 2px rgba(245,160,32,0.5),0 1px 4px rgba(0,0,0,0.3);pointer-events:none;';
+        'width:16px;height:16px;border-radius:50%;background:#2F5D50;border:3px solid #fff;box-shadow:0 0 0 2px rgba(47,93,80,0.35),0 1px 4px rgba(0,0,0,0.3);pointer-events:none;';
       hoverMarkerRef.current = new mapboxgl.Marker({ element: el }).setLngLat([pos.lng, pos.lat]).addTo(map.current);
     } else {
       hoverMarkerRef.current.setLngLat([pos.lng, pos.lat]);
@@ -239,7 +239,7 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
           'line-cap': 'round',
         },
         paint: {
-          'line-color': '#F5A020',
+          'line-color': '#F3ECDF',
           'line-width': 10,
           'line-opacity': 0.3,
           'line-blur': 6,
@@ -260,9 +260,9 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
             const rng = Math.max(1, maxE - minE);
             const lerp = (a: number, b: number, t: number) => Math.round(a + (b - a) * t);
             const colorAt = (t: number): string => {
-              // 0 (low) = plum #3D2152 → 1 (high) = amber #F5A020
-              const lo = [0x3d, 0x21, 0x52];
-              const hi = [0xf5, 0xa0, 0x20];
+              // 0 (low) = pine tint -> 1 (high) = pine
+              const lo = [0xbc, 0xd5, 0xcb];
+              const hi = [0x2f, 0x5d, 0x50];
               const c = [lerp(lo[0], hi[0], t), lerp(lo[1], hi[1], t), lerp(lo[2], hi[2], t)];
               return `rgb(${c[0]}, ${c[1]}, ${c[2]})`;
             };
@@ -282,9 +282,9 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
         // Default: distance mode.
         return [
           'interpolate', ['linear'], ['line-progress'],
-          0, '#F5A020',
-          0.5, '#E8671A',
-          1, '#3D2152',
+          0, '#BCD5CB',
+          0.5, '#3E7D6C',
+          1, '#1D3B33',
         ] as mapboxgl.Expression;
       };
 
@@ -329,7 +329,7 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
 
       // Add start marker
       const startEl = document.createElement('div');
-      startEl.style.cssText = 'width:16px;height:16px;background:#F5A020;border-radius:50%;border:2px solid #3D2152;';
+      startEl.style.cssText = 'width:16px;height:16px;background:#5F2B57;border-radius:50%;border:2px solid #fff;';
       const startMarker = new mapboxgl.Marker({ element: startEl })
         .setLngLat(coordinates[0])
         .addTo(map.current);
@@ -337,7 +337,7 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
 
       // Add end marker
       const endEl = document.createElement('div');
-      endEl.style.cssText = 'width:16px;height:16px;background:#3D2152;border-radius:50%;border:2px solid #F5A020;';
+      endEl.style.cssText = 'width:16px;height:16px;background:#1D3B33;border-radius:50%;border:2px solid #fff;';
       const endMarker = new mapboxgl.Marker({ element: endEl })
         .setLngLat(coordinates[coordinates.length - 1])
         .addTo(map.current);
@@ -609,7 +609,7 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
         type: 'line',
         source: sourceId,
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#F5A020', 'line-width': 10, 'line-opacity': 0.25, 'line-blur': 4 },
+        paint: { 'line-color': '#F3ECDF', 'line-width': 10, 'line-opacity': 0.8, 'line-blur': 1 },
       });
       // Main line
       map.current.addLayer({
@@ -617,7 +617,7 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
         type: 'line',
         source: sourceId,
         layout: { 'line-join': 'round', 'line-cap': 'round' },
-        paint: { 'line-color': '#F5A020', 'line-width': 4 },
+        paint: { 'line-color': '#3E7D6C', 'line-width': 5 },
       });
     }
   }, [mapReady, drawing.routeLine]);

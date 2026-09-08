@@ -47,13 +47,13 @@ export function BlogIndex() {
             window.history.pushState({}, '', '/');
             window.dispatchEvent(new PopStateEvent('popstate'));
           }}
-          className="inline-flex items-center gap-1.5 text-[12px] font-display font-bold uppercase tracking-wider text-[#A0929E] hover:text-[#3D2152] transition-colors mb-4"
+          className="min-h-11 inline-flex items-center gap-1.5 text-[12px] font-mono font-bold uppercase tracking-wider text-[#6B7772] hover:text-[#264C42] transition-colors mb-4"
         >
           <ArrowLeft className="w-3.5 h-3.5" /> Back to fuelcue
         </button>
         <div className="flex items-center gap-3 mb-2">
-          <Newspaper className="w-7 h-7 text-[#F5A020]" />
-          <h1 className="text-4xl font-display font-black text-[#3D2152] tracking-tight">The Fuel Log</h1>
+          <Newspaper className="w-7 h-7 text-[#2F5D50]" />
+          <h1 className="text-4xl font-display font-semibold text-[#1B2320] tracking-tight">The <span className="text-[#5F2B57]">Fuel Log</span></h1>
         </div>
         <p className="text-[14px] text-[#6B5A7A] max-w-xl">
           Race nutrition, training intel, and product deep-dives from the Fuel Cue team.
@@ -74,10 +74,10 @@ export function BlogIndex() {
             <li key={p.id}>
               <button
                 onClick={() => navigateBlog(p.slug)}
-                className="group block w-full text-left bg-white border border-[#3D2152]/10 rounded-2xl overflow-hidden shadow-[0_2px_8px_-4px_rgba(61,33,82,0.08)] hover:shadow-[0_6px_16px_-8px_rgba(61,33,82,0.18)] hover:border-[#F5A020]/40 transition-all"
+                className="group block w-full text-left bg-white border border-[#EAE5DA] rounded-lg overflow-hidden hover:border-[#2F5D50] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F5D50] transition-colors"
               >
                 {p.coverImageUrl && (
-                  <div className="aspect-[16/9] w-full overflow-hidden bg-[#FFF9F0]">
+                  <div className="aspect-[16/9] w-full overflow-hidden bg-[#EEF4F1]">
                     <img
                       src={p.coverImageUrl}
                       alt={p.title}
@@ -87,7 +87,7 @@ export function BlogIndex() {
                   </div>
                 )}
                 <div className="p-5">
-                  <div className="flex items-center gap-2 text-[10px] font-display font-bold uppercase tracking-[0.18em] text-[#A0929E] mb-2">
+                  <div className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-[#6B7772] mb-2">
                     <span>{formatDate(p.publishedAt)}</span>
                     {p.readingMinutes && (
                       <>
@@ -96,13 +96,13 @@ export function BlogIndex() {
                       </>
                     )}
                   </div>
-                  <h2 className="text-[19px] font-display font-bold text-[#3D2152] mb-2 leading-snug group-hover:text-[#F5A020] transition-colors">
+                  <h2 className="text-[19px] font-sans font-bold text-[#1B2320] mb-2 leading-snug group-hover:text-[#264C42] transition-colors">
                     {p.title}
                   </h2>
                   {p.excerpt && (
-                    <p className="text-[13px] text-[#6B5A7A] leading-relaxed line-clamp-3">{p.excerpt}</p>
+                    <p className="text-[15px] text-[#6B7772] leading-relaxed line-clamp-3">{p.excerpt}</p>
                   )}
-                  <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-display font-bold uppercase tracking-wider text-[#F5A020]">
+                  <div className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-mono font-bold uppercase tracking-wider text-[#2F5D50]">
                     Read post <ArrowRight className="w-3 h-3" />
                   </div>
                 </div>
@@ -117,7 +117,7 @@ export function BlogIndex() {
 
 export function BlogShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-[#FFF9F0] font-sans">
+    <div className="min-h-screen bg-white font-sans">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 sm:py-14">{children}</div>
     </div>
   );
@@ -125,9 +125,9 @@ export function BlogShell({ children }: { children: React.ReactNode }) {
 
 function Placeholder({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-white border border-[#3D2152]/10 rounded-2xl px-6 py-10 text-center">
-      <Newspaper className="w-10 h-10 text-[#A0929E] mx-auto mb-3" />
-      <p className="text-[13px] text-[#6B5A7A] max-w-md mx-auto">{children}</p>
+    <div className="bg-white border border-[#EAE5DA] rounded-lg px-6 py-10 text-center">
+      <Newspaper className="w-10 h-10 text-[#6B7772] mx-auto mb-3" />
+      <p className="text-[15px] text-[#6B7772] max-w-md mx-auto">{children}</p>
     </div>
   );
 }
