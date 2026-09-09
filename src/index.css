@@ -1,5 +1,6 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&family=Lora:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -16,72 +17,78 @@
   --color-pine-700: #1D3B33;
   --color-route: #3E7D6C;
   --color-plum: #5F2B57;
-  --color-plum-tint: #F3E9F0;
-  --color-cream: #F3ECDF;
-  --color-cream-2: #E9DEC9;
   --color-ink: #1B2320;
   --color-mute: #6B7772;
   --color-line: #EAE5DA;
   --color-line-2: #F1EDE4;
-  --color-warning: #9A6208;
-  --color-warning-bg: #FBF0D9;
-  --color-success: #2C7A50;
-  --color-success-bg: #E7F3EC;
-  --color-error: #B23A2C;
-  --color-error-bg: #FBEAE7;
-  --color-info: #2C6494;
-  --color-info-bg: #E7EEF5;
 
-  /* Compatibility aliases for existing components. */
-  --color-background: #FFFFFF;
+  /* Backgrounds */
+  --color-background: #FFF9F0;
   --color-surface: #FFFFFF;
-  --color-surfaceHighlight: #EEF4F1;
+  --color-surfaceHighlight: #FFF5E8;
 
-  --color-accent: #2F5D50;
-  --color-accent-light: #264C42;
-  --color-accent-muted: #1D3B33;
+  /* Primary — Fuelcue Plum */
+  --color-accent: #3D2152;
+  --color-accent-light: #5C2D6E;
+  --color-accent-muted: #2A1639;
 
-  --color-warm: #9A6208;
-  --color-warm-light: #FBF0D9;
-  --color-warm-muted: #9A6208;
+  /* Warm — Route Amber / Terrain Orange */
+  --color-warm: #F5A020;
+  --color-warm-light: #FFCD6B;
+  --color-warm-muted: #E8671A;
 
-  --color-terrain-rust: #B23A2C;
-  --color-terrain-deep: #B23A2C;
-  --color-terrain-orange: #9A6208;
+  /* Terrain */
+  --color-terrain-rust: #C94A1A;
+  --color-terrain-deep: #A63020;
+  --color-terrain-orange: #E8671A;
 
-  --color-golden: #9A6208;
+  /* Golden accent (shoes, highlights) */
+  --color-golden: #F5B830;
 
-  --color-text-primary: #1B2320;
-  --color-text-secondary: #264C42;
-  --color-text-muted: #6B7772;
+  /* Text */
+  --color-text-primary: #2A1639;
+  --color-text-secondary: #6B5A7A;
+  --color-text-muted: #A0929E;
 
-  --color-scrollbar: #BCD5CB;
-  --color-selection: rgba(47, 93, 80, 0.15);
-  --color-border: #EAE5DA;
+  /* Utility */
+  --color-scrollbar: #E0D6CC;
+  --color-selection: rgba(61, 33, 82, 0.15);
+  --color-border: rgba(61, 33, 82, 0.08);
   --mapbox-style: outdoors-v12;
 }
 
 [data-theme="dark"] {
-  --color-background: #FFFFFF;
-  --color-surface: #FFFFFF;
-  --color-surfaceHighlight: #EEF4F1;
-  --color-accent: #2F5D50;
-  --color-accent-light: #264C42;
-  --color-accent-muted: #1D3B33;
-  --color-warm: #9A6208;
-  --color-warm-light: #FBF0D9;
-  --color-warm-muted: #9A6208;
-  --color-terrain-rust: #B23A2C;
-  --color-terrain-deep: #B23A2C;
-  --color-terrain-orange: #9A6208;
-  --color-golden: #9A6208;
-  --color-text-primary: #1B2320;
-  --color-text-secondary: #264C42;
-  --color-text-muted: #6B7772;
-  --color-scrollbar: #BCD5CB;
-  --color-selection: rgba(47, 93, 80, 0.15);
-  --color-border: #EAE5DA;
-  --mapbox-style: outdoors-v12;
+  --color-background: #1A1025;
+  --color-surface: #231430;
+  --color-surfaceHighlight: #2D1C3D;
+
+  /* Keep plum as accent in dark mode — warm and grounded */
+  --color-accent: #D4A0F0;
+  --color-accent-light: #E0B8F5;
+  --color-accent-muted: #A878C8;
+
+  /* Warm tones remain vibrant */
+  --color-warm: #F5A020;
+  --color-warm-light: #FFCD6B;
+  --color-warm-muted: #E8671A;
+
+  /* Terrain stays warm */
+  --color-terrain-rust: #E06030;
+  --color-terrain-deep: #C04828;
+  --color-terrain-orange: #F08030;
+
+  /* Warm text tones, not cold gray */
+  --color-text-primary: #F5EDE6;
+  --color-text-secondary: #C4B0A0;
+  --color-text-muted: #7A6870;
+
+  /* Golden highlight */
+  --color-golden: #FFD050;
+
+  --color-scrollbar: #3D2852;
+  --color-selection: rgba(245, 160, 32, 0.2);
+  --color-border: rgba(245, 184, 48, 0.08);
+  --mapbox-style: dark-v11;
 }
 
 @layer base {
@@ -93,16 +100,6 @@
   body {
     @apply bg-background text-text-primary antialiased;
     font-family: 'Inter', system-ui, sans-serif;
-  }
-
-  :focus-visible {
-    outline: 2px solid var(--color-pine-500);
-    outline-offset: 2px;
-  }
-
-  button:disabled,
-  [aria-disabled='true'] {
-    cursor: not-allowed;
   }
 
   /* Height of the fixed mobile nav — used by offset utilities below.

@@ -47,14 +47,14 @@ export function MapLegend({ colorMode, hasNutritionPoints }: Props) {
       ) : (
         <div
           ref={panelRef}
-          className="bg-white border border-[#EAE5DA] rounded-lg p-3 w-56 max-w-[72vw]"
+          className="bg-surface border border-[var(--color-border)] rounded-xl shadow-xl p-3 w-56 max-w-[72vw]"
         >
           <div className="flex items-center justify-between mb-2">
             <div className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">Legend</div>
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="w-11 h-11 -m-1 lg:w-11 lg:h-11 lg:m-0 rounded-lg hover:bg-[#EEF4F1] text-[#6B7772] hover:text-[#1B2320] flex items-center justify-center transition-colors"
+              className="w-8 h-8 -m-1 lg:w-6 lg:h-6 lg:m-0 rounded-full hover:bg-surfaceHighlight text-text-muted hover:text-text-primary flex items-center justify-center transition-colors"
               aria-label="Hide legend"
             >
               <X className="w-4 h-4 lg:w-3.5 lg:h-3.5" />
@@ -71,8 +71,8 @@ export function MapLegend({ colorMode, hasNutritionPoints }: Props) {
               style={{
                 background:
                   colorMode === 'elevation'
-                    ? 'linear-gradient(to right, #BCD5CB, #3E7D6C, #2F5D50)'
-                    : 'linear-gradient(to right, #BCD5CB, #3E7D6C, #1D3B33)',
+                    ? 'linear-gradient(to right, #3D2152, #8A4B62, #C77633, #F5A020)'
+                    : 'linear-gradient(to right, #F5A020, #E8671A, #3D2152)',
               }}
             />
             <div className="flex justify-between text-[9px] text-text-muted font-display mt-0.5">
@@ -95,12 +95,12 @@ export function MapLegend({ colorMode, hasNutritionPoints }: Props) {
             <div className="mb-3">
               <div className="text-[9px] font-display font-semibold text-text-muted uppercase tracking-wider mb-1">Fuel points</div>
               <div className="flex flex-wrap gap-x-3 gap-y-1">
-                <Swatch color="#2F5D50" label="Gel / bar" />
-                <Swatch color="#5F2B57" label="Drink / mix" />
-                <Swatch color="#9A6208" label="Chew" />
-                <Swatch color="#B23A2C" label="Caffeinated" />
+                <Swatch color="#F5A020" label="Gel / bar" />
+                <Swatch color="#3D2152" label="Drink / mix" />
+                <Swatch color="#E8671A" label="Chew" />
+                <Swatch color="#C94A1A" label="Caffeinated" />
               </div>
-              <p className="text-[9px] text-text-muted mt-1">Marker colour follows the product category.</p>
+              <p className="text-[9px] text-text-muted mt-1 italic">Marker colour follows the brand's accent.</p>
             </div>
           )}
 

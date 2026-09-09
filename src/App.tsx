@@ -116,7 +116,7 @@ function AppContent() {
               background: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
               color: 'var(--color-text-primary)',
-              fontFamily: '"Inter", sans-serif',
+              fontFamily: '"Montserrat", sans-serif',
               fontSize: '13px',
               borderRadius: '12px',
               boxShadow: '0 4px 20px rgba(61, 33, 82, 0.08)',

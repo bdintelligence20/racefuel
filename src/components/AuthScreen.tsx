@@ -65,7 +65,7 @@ export function AuthScreen() {
 
   return (
     <div className="fixed left-0 right-0 bottom-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm overflow-y-auto p-0 sm:p-4" style={{ top: 'var(--banner-h, 0px)' }}>
-      <div className="w-full sm:max-w-md bg-white border-t sm:border border-[#EAE5DA] rounded-t-lg sm:rounded-lg my-auto max-h-[100dvh] sm:max-h-[95dvh] flex flex-col overflow-hidden">
+      <div className="w-full sm:max-w-md bg-surface border-t sm:border border-[var(--color-border)] rounded-t-2xl sm:rounded-2xl shadow-2xl my-auto max-h-[100dvh] sm:max-h-[95dvh] flex flex-col overflow-hidden">
         {/* Hero */}
         <div className="relative h-40 sm:h-48 flex-shrink-0 overflow-hidden">
           <img
@@ -77,7 +77,7 @@ export function AuthScreen() {
         </div>
 
         <div className="px-6 pb-6 pt-4 sm:pt-0 sm:-mt-4 relative z-10 flex-1 overflow-y-auto">
-          <p className="text-center text-[#6B7772] text-[15px] font-sans mb-6">
+          <p className="text-center text-text-muted text-sm font-display mb-6">
             {mode === 'signin' && 'Sign in to your account'}
             {mode === 'signup' && 'Create your account'}
             {mode === 'reset' && 'Reset your password'}
@@ -88,7 +88,7 @@ export function AuthScreen() {
               <button
                 onClick={handleGoogle}
                 disabled={submitting}
-                className="w-full min-h-14 flex items-center justify-center gap-3 rounded-[14px] bg-white border border-[#2F5D50] text-[#264C42] font-sans font-semibold text-sm hover:bg-[#EEF4F1] focus-visible:ring-2 focus-visible:ring-[#2F5D50] transition-colors disabled:opacity-50"
+                className="w-full h-12 flex items-center justify-center gap-3 rounded-xl bg-surface border border-[var(--color-border)] text-text-primary font-display font-semibold text-sm hover:bg-surfaceHighlight active:scale-[0.98] transition-all disabled:opacity-50"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
@@ -125,7 +125,7 @@ export function AuthScreen() {
                         key={opt.value}
                         type="button"
                         onClick={() => setRole(opt.value)}
-                        className={`min-h-14 flex flex-col items-center justify-center gap-1.5 py-3 px-2 rounded-[14px] border text-center transition-colors ${
+                        className={`flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl border text-center transition-all ${
                           active
                             ? 'border-accent bg-accent/[0.06] text-text-primary'
                             : 'border-[var(--color-border)] bg-surfaceHighlight text-text-secondary hover:border-accent/40'
@@ -150,7 +150,7 @@ export function AuthScreen() {
                   onChange={(e) => { setName(e.target.value); clearError(); }}
                   autoComplete="name"
                   autoCapitalize="words"
-                  className="w-full h-12 pl-10 pr-4 rounded-lg bg-[#EEF4F1] border border-[#DCE9E3] text-[#1B2320] text-sm font-sans focus:border-[#2F5D50] focus:ring-2 focus:ring-[#2F5D50]/20 focus:outline-none placeholder:text-[#6B7772] transition-colors"
+                  className="w-full h-12 pl-10 pr-4 rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-primary text-sm font-display focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none placeholder:text-text-muted transition-all"
                 />
               </div>
             )}
@@ -165,7 +165,7 @@ export function AuthScreen() {
                 autoCapitalize="off"
                 autoCorrect="off"
                 inputMode="email"
-                className="w-full h-12 pl-10 pr-4 rounded-lg bg-[#EEF4F1] border border-[#DCE9E3] text-[#1B2320] text-sm font-sans focus:border-[#2F5D50] focus:ring-2 focus:ring-[#2F5D50]/20 focus:outline-none placeholder:text-[#6B7772] transition-colors"
+                className="w-full h-12 pl-10 pr-4 rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-primary text-sm font-display focus:border-accent focus:ring-1 focus:ring-accent/20 focus:outline-none placeholder:text-text-muted transition-all"
                 required
               />
             </div>
@@ -210,7 +210,7 @@ export function AuthScreen() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full min-h-14 flex items-center justify-center gap-2 rounded-[14px] bg-[#2F5D50] text-white font-sans font-bold text-sm uppercase tracking-wider hover:bg-[#264C42] focus-visible:ring-2 focus-visible:ring-[#2F5D50] focus-visible:ring-offset-2 transition-colors disabled:opacity-50"
+              className="w-full h-12 flex items-center justify-center gap-2 rounded-xl bg-accent text-white font-display font-bold text-sm uppercase tracking-wider hover:bg-accent-light active:scale-[0.98] transition-all disabled:opacity-50"
             >
               {submitting
                 ? 'Please wait...'

@@ -56,7 +56,7 @@ export function BlogPost({ slug }: { slug: string }) {
     <BlogShell>
       <button
         onClick={navigateBlogIndex}
-        className="min-h-11 inline-flex items-center gap-1.5 text-[12px] font-mono font-bold uppercase tracking-wider text-[#6B7772] hover:text-[#264C42] transition-colors mb-6"
+        className="inline-flex items-center gap-1.5 text-[12px] font-display font-bold uppercase tracking-wider text-[#A0929E] hover:text-[#3D2152] transition-colors mb-6"
       >
         <ArrowLeft className="w-3.5 h-3.5" /> All posts
       </button>
@@ -68,19 +68,19 @@ export function BlogPost({ slug }: { slug: string }) {
       )}
 
       {post === null && (
-        <div className="bg-white border border-[#EAE5DA] rounded-lg px-6 py-10 text-center">
-          <AlertCircle className="w-10 h-10 text-[#B23A2C] mx-auto mb-3" />
-          <h1 className="text-[18px] font-sans font-bold text-[#1B2320] mb-2">Post not found</h1>
-          <p className="text-[15px] text-[#6B7772] max-w-md mx-auto">
+        <div className="bg-white border border-[#3D2152]/10 rounded-2xl px-6 py-10 text-center">
+          <AlertCircle className="w-10 h-10 text-[#E8671A] mx-auto mb-3" />
+          <h1 className="text-[18px] font-display font-bold text-[#3D2152] mb-2">Post not found</h1>
+          <p className="text-[13px] text-[#6B5A7A] max-w-md mx-auto">
             {error ?? `We couldn't find a post with slug "${slug}".`}
           </p>
         </div>
       )}
 
       {post && (
-        <article className="bg-white border border-[#EAE5DA] rounded-lg overflow-hidden">
+        <article className="bg-white border border-[#3D2152]/10 rounded-2xl shadow-[0_2px_8px_-4px_rgba(61,33,82,0.08)] overflow-hidden">
           {post.coverImageUrl && (
-            <div className="aspect-[16/8] w-full overflow-hidden bg-[#EEF4F1]">
+            <div className="aspect-[16/8] w-full overflow-hidden bg-[#FFF9F0]">
               <img
                 src={post.coverImageUrl}
                 alt={post.title}
@@ -89,7 +89,7 @@ export function BlogPost({ slug }: { slug: string }) {
             </div>
           )}
           <div className="px-6 sm:px-10 py-8 sm:py-10">
-            <div className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-[#6B7772] mb-3">
+            <div className="flex items-center gap-2 text-[10px] font-display font-bold uppercase tracking-[0.18em] text-[#A0929E] mb-3">
               <span>{formatDate(post.publishedAt)}</span>
               {post.readingMinutes && (
                 <>
@@ -104,11 +104,11 @@ export function BlogPost({ slug }: { slug: string }) {
                 </>
               )}
             </div>
-            <h1 className="text-3xl sm:text-4xl font-display font-semibold text-[#1B2320] tracking-tight leading-tight mb-4">
+            <h1 className="text-3xl sm:text-4xl font-display font-black text-[#3D2152] tracking-tight leading-tight mb-4">
               {post.title}
             </h1>
             {post.excerpt && (
-              <p className="text-[16px] text-[#6B7772] leading-relaxed mb-6 border-l-4 border-[#2F5D50] pl-4">
+              <p className="text-[16px] text-[#6B5A7A] leading-relaxed mb-6 border-l-4 border-[#F5A020] pl-4 italic">
                 {post.excerpt}
               </p>
             )}
@@ -117,11 +117,11 @@ export function BlogPost({ slug }: { slug: string }) {
             </div>
 
             {post.tags && post.tags.length > 0 && (
-              <div className="mt-8 pt-6 border-t border-[#EAE5DA] flex flex-wrap gap-1.5">
+              <div className="mt-8 pt-6 border-t border-[#3D2152]/10 flex flex-wrap gap-1.5">
                 {post.tags.map((t) => (
                   <span
                     key={t}
-                    className="text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-[#EEF4F1] text-[#264C42] border border-[#BCD5CB]"
+                    className="text-[10px] font-display font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#FFF5E8] text-[#F5A020] border border-[#F5A020]/20"
                   >
                     {t}
                   </span>

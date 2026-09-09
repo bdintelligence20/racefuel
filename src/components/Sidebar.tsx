@@ -24,7 +24,7 @@ export function Sidebar() {
   const [eventSearchOpen, setEventSearchOpen] = useState(false);
 
   return (
-    <aside className="w-[min(18rem,85vw)] bg-white border-r border-[#EAE5DA] flex flex-col h-full z-30 safe-left">
+    <aside className="w-[min(18rem,85vw)] bg-surface border-r border-[var(--color-border)] flex flex-col h-full z-30 safe-left">
       {/* Header — brand logo (hidden on mobile since MobileNav already shows it) */}
       <div className="hidden lg:flex p-3 pb-2 justify-center">
         <img
@@ -37,7 +37,7 @@ export function Sidebar() {
       {/* Strava Connection */}
       <div className="px-3 pb-3 pt-mobile-nav lg:pt-0">
         {strava.isConnected ? (
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-[#EEF4F1] border border-[#DCE9E3]">
+          <div className="flex items-center gap-2 p-2 rounded-lg bg-surfaceHighlight border border-[var(--color-border)]">
             <div className="w-6 h-6 rounded-md bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
               <Activity className="w-3 h-3 text-white" />
             </div>
@@ -60,7 +60,7 @@ export function Sidebar() {
           <button
             onClick={connectStrava}
             disabled={strava.isLoading}
-              className="w-full min-h-11 flex items-center gap-2 p-2 rounded-lg bg-[#EEF4F1] border border-[#DCE9E3] hover:border-[#2F5D50] transition-colors cursor-pointer group"
+            className="w-full flex items-center gap-2 p-2 rounded-lg bg-surfaceHighlight border border-[var(--color-border)] hover:border-[#FC4C02]/40 transition-all cursor-pointer group"
           >
             <div className="w-6 h-6 rounded-md bg-[#FC4C02] flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
               <Activity className="w-3 h-3 text-white" />
@@ -89,7 +89,7 @@ export function Sidebar() {
           <h2 className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">
             Athlete Profile
           </h2>
-          <span className="text-[9px] text-[#6B7772] font-mono uppercase tracking-wider">tap to edit</span>
+          <span className="text-[9px] text-text-muted/70 font-display italic">tap any row to edit</span>
         </div>
 
         {/* Body basics — every row is tap-to-edit inline */}
@@ -276,7 +276,7 @@ export function Sidebar() {
                 toast.error('Failed to save');
               }
             }}
-            className="w-full min-h-14 flex items-center justify-center gap-1.5 rounded-[14px] bg-[#2F5D50] text-white hover:bg-[#264C42] focus-visible:ring-2 focus-visible:ring-[#2F5D50] focus-visible:ring-offset-2 transition-colors text-[11px] font-sans font-bold uppercase tracking-wider"
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-md bg-accent text-white hover:bg-accent-light transition-colors text-[11px] font-display font-bold uppercase tracking-wider"
           >
             <Save className="w-3 h-3" />
             {routeData.nutritionPoints.length > 0 ? 'Save Plan' : 'Save Route'}
@@ -290,7 +290,7 @@ export function Sidebar() {
           <button
             key={label}
             onClick={onClick}
-            className="w-full min-h-11 flex items-center gap-2.5 px-2.5 rounded-lg border-b border-[#EAE5DA] text-[#264C42] hover:bg-[#EEF4F1] transition-colors text-[11px] font-mono font-medium"
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md bg-surfaceHighlight border border-[var(--color-border)] text-text-secondary hover:bg-accent/[0.06] hover:text-text-primary active:scale-[0.98] transition-all text-[11px] font-display font-medium"
           >
             <Icon className="w-3.5 h-3.5 text-text-muted" />
             {label}

@@ -59,7 +59,7 @@ export function ActionBar() {
 
   return (
     <>
-      <div className="bg-white border-t border-[#EAE5DA] px-2 sm:px-4 py-3 lg:px-5 lg:py-3 flex flex-col gap-2 safe-bottom">
+      <div className="bg-surface border-t border-[var(--color-border)] px-2 sm:px-4 py-3 lg:px-5 lg:py-3 flex flex-col gap-2 safe-bottom">
         {/* Warning pills used to live here, but they duplicated the content of
             the Score popover and ate scarce mobile vertical real estate. The
             Score (i) popover is now the single home for plan warnings. */}
@@ -74,9 +74,9 @@ export function ActionBar() {
         <div className="flex items-start gap-2 overflow-x-auto no-scrollbar">
           <div className="flex items-start gap-x-5 sm:gap-x-6 lg:gap-x-8 flex-shrink-0">
             {[
-              { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-[#1D3B33]', hint: 'Route distance · number of fuel points placed', tip: false },
+              { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-text-primary', hint: 'Route distance · number of fuel points placed', tip: false },
               { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : carbsPerHour > 90 ? 'text-terrain-rust' : 'text-warm', hint: 'How many grams of carbohydrate the plan gives you each hour. For efforts over two hours, 60–90 g/h is the sweet spot.', tip: true },
-              { label: 'Total', value: totalCarbs + 'g', color: 'text-[#264C42]', hint: 'Total grams of carbs across every fuel point in the plan.', tip: false },
+              { label: 'Total', value: totalCarbs + 'g', color: 'text-warm', hint: 'Total grams of carbs across every fuel point in the plan.', tip: false },
             ].map((stat) => (
               <div key={stat.label} className="flex-shrink-0" title={stat.hint}>
                 <div className="text-[9px] text-text-muted uppercase tracking-wider font-display flex items-center gap-1">
@@ -123,7 +123,7 @@ export function ActionBar() {
           <div className="flex items-center gap-2">
             <button
               onClick={primary.onClick}
-              className="flex-1 min-h-14 rounded-[14px] bg-[#2F5D50] text-white font-sans font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 hover:bg-[#264C42] focus-visible:ring-2 focus-visible:ring-[#2F5D50] focus-visible:ring-offset-2 transition-colors"
+              className="flex-1 h-12 rounded-xl bg-accent text-white font-display font-bold uppercase tracking-wider text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(61,33,82,0.15)]"
             >
               {primary.icon}
               {primary.label}
@@ -132,7 +132,7 @@ export function ActionBar() {
             <button
               onClick={() => setMenuOpen(true)}
               aria-label="More actions"
-              className="w-14 min-h-14 flex-shrink-0 rounded-[14px] bg-white border border-[#2F5D50] text-[#264C42] flex flex-col items-center justify-center gap-0.5 hover:bg-[#EEF4F1] focus-visible:ring-2 focus-visible:ring-[#2F5D50] transition-colors"
+              className="w-14 h-12 flex-shrink-0 rounded-xl bg-surfaceHighlight border border-[var(--color-border)] text-text-secondary flex flex-col items-center justify-center gap-0.5 active:scale-95 transition-all"
             >
               <MoreHorizontal className="w-4 h-4" />
               <span className="text-[9px] font-display font-semibold uppercase tracking-wider">More</span>
@@ -141,7 +141,7 @@ export function ActionBar() {
           {!hasPlan && (
             <button
               onClick={openManualAdd}
-              className="w-full min-h-11 text-[12px] font-sans font-semibold text-[#264C42] hover:text-[#1D3B33] transition-colors flex items-center justify-center gap-1.5"
+              className="w-full py-1.5 text-[12px] font-display font-semibold text-text-secondary hover:text-text-primary transition-colors flex items-center justify-center gap-1.5"
             >
               <MapPin className="w-3.5 h-3.5" />
               Prefer to build it yourself? Add fuel manually
