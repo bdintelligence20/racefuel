@@ -7,6 +7,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthScreen } from './components/AuthScreen';
 import { Sidebar } from './components/Sidebar';
 import { NutritionPanel } from './components/NutritionPanel';
+import { PlanView } from './components/PlanView';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ActionBar } from './components/ActionBar';
 import { FlowStepIndicator } from './components/FlowStepIndicator';
@@ -83,6 +84,9 @@ function AppContent() {
   const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan, routeData } = useApp();
   const { mode } = useCoachStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Loaded state defaults to the clean answer-first PlanView; the map (for
+  // editing stops) is one tap away and flips this on.
+  const [showMap, setShowMap] = useState(false);
   const actionBarRef = useRef<HTMLDivElement>(null);
 
   // The mobile ActionBar's height varies by state (stats row appears with a
@@ -159,7 +163,7 @@ function AppContent() {
           (lg+) has its own ActionBar copy inside the Map column. Hidden
           while the sidebar drawer is open so its z-40 doesn't cover the
           sidebar's footer (sign-out / theme / reset). */}
-      <div ref={actionBarRef} className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-auto ${sidebarOpen ? 'hidden' : ''}`}>
+      <div ref={actionBarRef} className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-auto ${sidebarOpen || (routeData.loaded && !showMap) ? 'hidden' : ''}`}>
         <ActionBar />
       </div>
 
@@ -180,23 +184,39 @@ function AppContent() {
         </div>
         {/* Step indicator now lives inline in the top nav (MobileNav), so the
             old standalone band here is gone — one less stacked bar. */}
-        <ErrorBoundary>
-          <Suspense fallback={<MapLoadingFallback />}>
-            <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-              <MapCanvas />
+        {routeData.loaded && !showMap ? (
+          <ErrorBoundary>
+            <PlanView onShowMap={() => setShowMap(true)} />
+          </ErrorBoundary>
+        ) : (
+          <>
+            <ErrorBoundary>
+              <Suspense fallback={<MapLoadingFallback />}>
+                <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
+                  <MapCanvas />
+                  {routeData.loaded && showMap && (
+                    <button
+                      onClick={() => setShowMap(false)}
+                      className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface border border-[var(--color-border)] text-text-primary text-xs font-display font-bold shadow-md hover:border-accent/40 transition-colors"
+                    >
+                      ← Back to plan
+                    </button>
+                  )}
+                </div>
+              </Suspense>
+            </ErrorBoundary>
+            {/* Desktop-only ActionBar inside the column. */}
+            <div className="hidden lg:block flex-shrink-0">
+              <ActionBar />
             </div>
-          </Suspense>
-        </ErrorBoundary>
-        {/* Desktop-only ActionBar inside the column. */}
-        <div className="hidden lg:block flex-shrink-0">
-          <ActionBar />
-        </div>
+          </>
+        )}
       </div>
 
       {/* Fuel column — desktop only, and only once a plan exists. On an empty
           start the guided single-column entry (GpxDropZone) stands alone, so a
           new athlete isn't met with a dense, zeroed-out product panel. */}
-      {routeData.loaded && (
+      {routeData.loaded && showMap && (
         <div className="hidden lg:flex lg:relative lg:top-0 lg:left-auto bottom-0 z-30 flex-col">
           <ErrorBoundary>
             <div className="flex-1 min-h-0 overflow-hidden">

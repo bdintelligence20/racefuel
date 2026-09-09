@@ -762,10 +762,12 @@ export function MapView({ drawing, colorMode = 'distance' }: { drawing: DrawingA
   // Show error state
   if (mapError) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-surface">
-        <div className="text-center p-6 bg-red-900/20 border border-red-500/50 rounded">
-          <p className="text-red-400 mb-2">Map Error</p>
-          <p className="text-xs text-red-300">{mapError}</p>
+      <div className="absolute inset-0 flex items-center justify-center bg-surface p-6">
+        <div className="max-w-xs text-center">
+          <div className="text-sm font-display font-bold text-text-primary">Map unavailable</div>
+          <p className="text-xs text-text-muted font-display mt-1.5 leading-relaxed">
+            Your plan and fuel stops are all here — the map just needs a Mapbox token to draw the route. Everything else works as normal.
+          </p>
         </div>
       </div>
     );

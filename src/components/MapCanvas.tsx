@@ -300,11 +300,11 @@ function ElevationProfile() {
           style={{ touchAction: draggingPointId ? 'none' : undefined }}
         >
           <defs>
-            {/* Terrain-inspired gradient for elevation fill */}
+            {/* Single-hue pine fade — elegant, on-system. */}
             <linearGradient id="elevGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#F5A020" stopOpacity="0.5" />
-              <stop offset="40%" stopColor="#E8671A" stopOpacity="0.3" />
-              <stop offset="100%" stopColor="#3D2152" stopOpacity="0.08" />
+              <stop offset="0%" stopColor="#2F5D50" stopOpacity="0.22" />
+              <stop offset="55%" stopColor="#2F5D50" stopOpacity="0.08" />
+              <stop offset="100%" stopColor="#2F5D50" stopOpacity="0" />
             </linearGradient>
           </defs>
 
@@ -321,8 +321,7 @@ function ElevationProfile() {
           {segments.map((seg, i) => {
             const x1 = (seg.startKm / routeData.distanceKm) * 1000;
             const x2 = (seg.endKm / routeData.distanceKm) * 1000;
-            const color = seg.type === 'climb' ? 'rgba(245,160,32,0.12)' :
-                         seg.type === 'descent' ? 'rgba(61,33,82,0.06)' : 'transparent';
+            const color = seg.type === 'climb' ? 'rgba(47,93,80,0.06)' : 'transparent';
             return (
               <rect key={i} x={x1} y="0" width={x2 - x1} height="150" fill={color} />
             );
@@ -332,7 +331,7 @@ function ElevationProfile() {
           <path d={areaD} fill="url(#elevGradient)" />
 
           {/* Elevation line */}
-          <path d={pathD} fill="none" stroke="#E8671A" strokeWidth="2.5" />
+          <path d={pathD} fill="none" stroke="#2F5D50" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
 
           {/* Hover crosshair */}
           {hover && (
@@ -341,7 +340,7 @@ function ElevationProfile() {
                 x1={hover.x} y1="0" x2={hover.x} y2="150"
                 stroke="var(--color-accent)" strokeOpacity="0.3" strokeWidth="1" strokeDasharray="4 4"
               />
-              <circle cx={hover.x} cy={elevationToY(hover.elev, minElev, maxElev)} r="4" fill="#F5A020" stroke="#3D2152" strokeWidth="2" />
+              <circle cx={hover.x} cy={elevationToY(hover.elev, minElev, maxElev)} r="4" fill="#2F5D50" stroke="#FFFFFF" strokeWidth="2" />
             </>
           )}
 
@@ -386,13 +385,13 @@ function ElevationProfile() {
             Close button (w-9 mobile, w-auto labelled pill desktop) which
             also sits at top-2 right-3 with z-30 above us. */}
         <div className="absolute top-2 right-14 lg:right-32 flex items-center gap-2 z-10">
-          <div className="flex items-center gap-1 bg-surface border border-warm/20 rounded-md px-2 py-1 shadow-sm">
+          <div className="flex items-center gap-1.5 bg-surface border border-[var(--color-border)] rounded-md px-2 py-1 shadow-sm">
             <span className="text-[9px] font-display text-text-muted uppercase tracking-wider">Gain</span>
-            <span className="text-[11px] font-display font-bold text-warm tabular-nums">+{totalGain}m</span>
+            <span className="text-[11px] font-display font-bold text-accent tabular-nums">+{totalGain} m</span>
           </div>
-          <div className="flex items-center gap-1 bg-surface border border-accent/15 rounded-md px-2 py-1 shadow-sm">
+          <div className="flex items-center gap-1.5 bg-surface border border-[var(--color-border)] rounded-md px-2 py-1 shadow-sm">
             <span className="text-[9px] font-display text-text-muted uppercase tracking-wider">Loss</span>
-            <span className="text-[11px] font-display font-bold text-accent tabular-nums">-{totalLoss}m</span>
+            <span className="text-[11px] font-display font-bold text-text-muted tabular-nums">-{totalLoss} m</span>
           </div>
         </div>
         </>
@@ -402,7 +401,7 @@ function ElevationProfile() {
           {Array.from({ length: 40 }, (_, i) => (
             <div
               key={i}
-              className="flex-1 rounded-t bg-warm/10 hover:bg-warm/30 transition-colors duration-300"
+              className="flex-1 rounded-t bg-accent/10 hover:bg-accent/20 transition-colors duration-300"
               style={{ height: `${20 + Math.random() * 60}%` }}
             />
           ))}
@@ -417,7 +416,7 @@ function ElevationProfile() {
         >
           <div className="bg-surface border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 text-center shadow-lg">
             <div className="text-xs font-display font-bold text-text-primary">{hover.km.toFixed(1)}km</div>
-            <div className="text-[10px] font-display font-semibold text-warm">{Math.round(hover.elev)}m</div>
+            <div className="text-[10px] font-display font-semibold text-accent">{Math.round(hover.elev)}m</div>
           </div>
         </div>
       )}

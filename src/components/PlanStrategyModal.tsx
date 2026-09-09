@@ -1,5 +1,5 @@
 import { useModalBehavior } from '../hooks/useModalBehavior';
-import { Zap, Droplets, Coffee, X, Thermometer, Gauge, Clock, RefreshCw, CalendarPlus } from 'lucide-react';
+import { Droplets, Coffee, X, Thermometer, Gauge, Clock, RefreshCw, CalendarPlus } from 'lucide-react';
 import { GeneratedPlan } from '../services/nutrition/planGenerator';
 import { calculatePlanCost } from '../services/nutrition/costCalculator';
 
@@ -98,7 +98,7 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
               </>
             ) : null}
             , we suggest{' '}
-            <strong className="text-warm">{carbsPerHour} g/h carbs</strong>{' '}
+            <strong className="text-accent">{carbsPerHour} g/h carbs</strong>{' '}
             and <strong className="text-accent">{sodiumPerHour} mg/h sodium</strong>.
           </p>
 
@@ -118,11 +118,11 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
               can't drift apart. */}
           <div className="grid grid-cols-2 gap-2">
             <TargetCard
-              icon={Zap}
+              icon={Gauge}
               label="Carbs"
               value={`${carbsPerHour} g/h`}
               sub={`Plan: ${planCarbsPerHour} g/h · ${planCarbs}g`}
-              accent="warm"
+              accent="accent"
             />
             <TargetCard
               icon={Droplets}
@@ -143,7 +143,7 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
               label="Caffeine"
               value={caffeineStrategy.timing === 'none' ? 'None' : `${caffeineTotal} mg`}
               sub={caffeineStrategy.timing === 'none' ? 'short effort' : `plan: ${planCaffeineTotal} mg`}
-              accent="warm"
+              accent="accent"
             />
           </div>
 
@@ -193,7 +193,7 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
           </button>
           <button
             onClick={onApply}
-            className="flex-1 py-3 rounded-lg bg-warm text-white text-xs font-display font-bold uppercase tracking-wider hover:bg-warm-light transition-colors shadow-[0_0_15px_rgba(245,160,32,0.25)]"
+            className="flex-1 py-3 rounded-lg bg-accent text-white text-xs font-display font-bold uppercase tracking-wider hover:bg-accent-light transition-colors shadow-sm"
           >
             View plan on map
           </button>
