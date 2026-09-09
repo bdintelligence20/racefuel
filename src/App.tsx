@@ -49,22 +49,30 @@ function MobileNav({
   sidebarOpen,
   setSidebarOpen,
   showSteps,
+  showMenu,
 }: {
   sidebarOpen: boolean;
   setSidebarOpen: (o: boolean) => void;
   showSteps: boolean;
+  /** The hamburger only makes sense once the sidebar exists (route loaded).
+   *  Before that the top bar is just the centered logo. */
+  showMenu: boolean;
 }) {
   return (
     <div className="lg:hidden fixed left-0 right-0 z-50 bg-surface border-b border-[var(--color-border)] safe-top" style={{ top: 'var(--banner-h, 0px)' }}>
       <div className="flex items-center gap-2 px-2 py-1.5">
-        {/* Hamburger */}
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
-          className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl hover:bg-accent/[0.06] active:bg-accent/[0.08] transition-colors text-text-primary"
-        >
-          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+        {/* Hamburger — only when there's a sidebar to open */}
+        {showMenu ? (
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
+            className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl hover:bg-accent/[0.06] active:bg-accent/[0.08] transition-colors text-text-primary"
+          >
+            {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        ) : (
+          <span className="w-10 h-10 flex-shrink-0" aria-hidden="true" />
+        )}
 
         {/* Step progress, inline — merges the old separate step band into the
             nav so there's one top bar, not two. Only meaningful once a route
@@ -73,8 +81,13 @@ function MobileNav({
           {showSteps ? <FlowStepIndicator embedded /> : <img src="/logo.png" alt="fuelcue" className="h-7 w-auto object-contain" />}
         </div>
 
-        {/* Logo, small, right — kept for brand anchor when steps are showing. */}
-        {showSteps && <img src="/logo.png" alt="fuelcue" className="h-7 w-auto object-contain flex-shrink-0" />}
+        {/* Right spacer keeps the logo centered; a small logo anchors it here
+            once the steps take the middle. */}
+        {showSteps ? (
+          <img src="/logo.png" alt="fuelcue" className="h-7 w-auto object-contain flex-shrink-0" />
+        ) : (
+          <span className="w-10 h-10 flex-shrink-0" aria-hidden="true" />
+        )}
       </div>
     </div>
   );
@@ -139,16 +152,22 @@ function AppContent() {
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         showSteps={routeData.loaded}
+        showMenu={routeData.loaded}
       />
 
-      <div className={`
-        fixed lg:relative z-40 h-full transition-transform duration-300
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
-        <Sidebar />
-      </div>
+      {/* The left panel only appears once there's a route to work on. The
+          first screen is just the full-bleed "build your fuel plan" hero, no
+          chrome, so a brand-new athlete has one thing to do. */}
+      {routeData.loaded && (
+        <div className={`
+          fixed lg:relative z-40 h-full transition-transform duration-300
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}>
+          <Sidebar />
+        </div>
+      )}
 
-      {sidebarOpen && (
+      {sidebarOpen && routeData.loaded && (
         <div
           className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
