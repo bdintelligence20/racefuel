@@ -49,19 +49,20 @@ function RouteTrail({ scrollYProgress }: { scrollYProgress: MotionValue<number> 
       >
         <defs>
           <linearGradient id="routeGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#3E7D6C" />
-            <stop offset="100%" stopColor="#2F5D50" />
+            <stop offset="0%"   stopColor="#F5A020" />
+            <stop offset="50%"  stopColor="#E8671A" />
+            <stop offset="100%" stopColor="#3D2152" />
           </linearGradient>
           <linearGradient id="routeGlowGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stopColor="#3E7D6C" stopOpacity={0.4} />
-            <stop offset="100%" stopColor="#2F5D50" stopOpacity={0.25} />
+            <stop offset="0%"   stopColor="#F5A020" stopOpacity={0.4} />
+            <stop offset="100%" stopColor="#3D2152" stopOpacity={0.25} />
           </linearGradient>
         </defs>
 
         {/* Unwalked path — hairline */}
         <path
           d={ROUTE_PATH}
-          stroke="#EAE5DA"
+          stroke="#3D2152"
           strokeOpacity={0.08}
           strokeWidth={0.8}
           fill="none"
@@ -104,7 +105,7 @@ function ScrollKmBadge({ progress }: { progress: MotionValue<number> }) {
   }, [progress]);
   return (
     <div className="hidden sm:flex items-center gap-2 text-[10px] font-display tracking-[0.2em] text-[#6B5A7A] uppercase">
-      <span className="h-1.5 w-1.5 rounded-full bg-[#2F5D50] animate-pulse" />
+      <span className="h-1.5 w-1.5 rounded-full bg-[#F5A020] animate-pulse" />
       {km.toFixed(1)} km
     </div>
   );
@@ -121,7 +122,7 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0.6]);
 
   return (
-    <div ref={pageRef} className="relative min-h-screen bg-white text-[#1B2320] overflow-x-hidden font-sans selection:bg-[#EEF4F1]">
+    <div ref={pageRef} className="relative min-h-screen bg-[#FFF9F0] text-[#2A1639] overflow-x-hidden font-sans selection:bg-[#F5A020]/20">
 
       {/* Subtle grain overlay for that tactile, premium feel */}
       <div
@@ -133,11 +134,16 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
         }}
       />
 
+      {/* Warm atmospheric glows — live with the page */}
+      <div className="pointer-events-none absolute top-[8%] right-[-10%] w-[420px] lg:w-[620px] h-[420px] lg:h-[620px] rounded-full bg-[#FFCD6B]/25 blur-[160px]" />
+      <div className="pointer-events-none absolute top-[45%] left-[-10%] w-[320px] lg:w-[480px] h-[320px] lg:h-[480px] rounded-full bg-[#F5A020]/15 blur-[140px]" />
+      <div className="pointer-events-none absolute bottom-[5%] right-[-8%] w-[380px] lg:w-[520px] h-[380px] lg:h-[520px] rounded-full bg-[#3D2152]/10 blur-[160px]" />
+
       {/* ── THE ROUTE — behind everything ── */}
       <RouteTrail scrollYProgress={scrollYProgress} />
 
       {/* ── NAV ── */}
-      <nav className="fixed left-0 right-0 z-50 px-4 sm:px-6 lg:px-14 py-3 flex items-center justify-between bg-white/90 backdrop-blur-xl border-b border-[#EAE5DA]" style={{ top: 'var(--banner-h, 0px)' }}>
+      <nav className="fixed left-0 right-0 z-50 px-4 sm:px-6 lg:px-14 py-3 flex items-center justify-between bg-[#FFF9F0]/80 backdrop-blur-xl border-b border-[#3D2152]/[0.06]" style={{ top: 'var(--banner-h, 0px)' }}>
         <img src="/logo.png" alt="fuelcue" className="h-11 sm:h-12 w-auto object-contain" />
         <div className="hidden md:flex items-center gap-8 text-[13px] text-[#6B5A7A] font-medium">
           <a href="#features" className="hover:text-[#3D2152] transition-colors">Features</a>
@@ -151,13 +157,13 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
               blog needs its own entry point next to Open App. */}
           <a
             href="/blog"
-            className="md:hidden min-h-11 px-2.5 py-2 text-[13px] font-medium text-[#6B7772] hover:text-[#264C42] transition-colors"
+            className="md:hidden px-2.5 py-2 text-[13px] font-medium text-[#6B5A7A] hover:text-[#3D2152] transition-colors"
           >
             Blog
           </a>
           <button
             onClick={onOpenApp}
-            className="group flex min-h-11 items-center gap-1.5 px-4 sm:px-5 rounded-[14px] bg-[#2F5D50] text-white text-xs sm:text-[13px] font-bold hover:bg-[#264C42] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F5D50] focus-visible:ring-offset-2 transition-colors"
+            className="group flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-xl bg-[#3D2152] text-white text-xs sm:text-[13px] font-bold hover:bg-[#5C2D6E] transition-colors"
           >
             Open App
             <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
@@ -168,7 +174,7 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
       {/* Top scroll progress bar */}
       <motion.div
         style={{ scaleX: scrollYProgress, transformOrigin: '0% 50%' }}
-        className="fixed top-[54px] sm:top-[60px] left-0 right-0 h-[2px] z-50 bg-[#2F5D50]"
+        className="fixed top-[54px] sm:top-[60px] left-0 right-0 h-[2px] z-50 bg-gradient-to-r from-[#F5A020] via-[#E8671A] to-[#3D2152]"
       />
 
       {/* ═══ HERO ═══ */}
@@ -183,14 +189,14 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
               transition={{ duration: 0.6, delay: 0.1 }}
               className="flex items-center gap-3 mb-8"
             >
-              <div className="h-px w-12 bg-[#2F5D50]" />
-              <span className="text-[11px] font-mono uppercase tracking-[0.2em] font-semibold text-[#2F5D50]">
+              <div className="h-px w-12 bg-[#F5A020]" />
+              <span className="text-[11px] font-display uppercase tracking-[0.28em] font-semibold text-[#F5A020]">
                 Route Aware Nutrition
               </span>
             </motion.div>
 
             <h1
-              className="font-display font-semibold leading-[0.98] text-[#1B2320]"
+              className="font-display font-black leading-[0.95] tracking-[-0.03em] text-[#3D2152]"
               style={{ fontSize: 'clamp(2.25rem, 5.2vw, 4.25rem)' }}
             >
               <motion.span
@@ -199,7 +205,7 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.15, ease: [0.25, 1, 0.5, 1] }}
               >
-                Know what to <span className="text-[#5F2B57]">fuel</span>,
+                Know what to <span className="italic font-light text-[#F5A020]">fuel</span>,
               </motion.span>
               <motion.span
                 className="block"
@@ -207,12 +213,12 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7, delay: 0.28, ease: [0.25, 1, 0.5, 1] }}
               >
-                when &amp; where.
+                when <span className="italic font-light text-[#E8671A]">&amp; where</span>.
               </motion.span>
             </h1>
 
             <motion.p
-              className="mt-8 max-w-[520px] text-base sm:text-lg text-[#6B7772] leading-relaxed"
+              className="mt-8 max-w-[520px] text-base sm:text-lg text-[#6B5A7A] leading-relaxed"
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.55 }}
@@ -229,8 +235,9 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
             >
               <button
                 onClick={onOpenApp}
-                className="group relative flex min-h-14 items-center gap-2.5 px-7 rounded-[14px] bg-[#2F5D50] text-white font-bold text-[13px] uppercase tracking-wider overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F5D50] focus-visible:ring-offset-2"
+                className="group relative flex items-center gap-2.5 px-7 py-4 rounded-2xl bg-[#3D2152] text-white font-bold text-[13px] uppercase tracking-wider overflow-hidden"
               >
+                <span className="absolute inset-0 bg-gradient-to-r from-[#F5A020] to-[#E8671A] opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 <span className="relative flex items-center gap-2.5">
                   Open App
                   <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
@@ -239,7 +246,7 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
             </motion.div>
 
             <motion.div
-              className="mt-10 flex flex-wrap items-center gap-5 text-[11px] font-mono uppercase tracking-[0.15em] text-[#6B7772]"
+              className="mt-10 flex flex-wrap items-center gap-5 text-[11px] font-display uppercase tracking-[0.15em] text-[#6B5A7A]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.8, delay: 0.9 }}
@@ -256,27 +263,27 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
             transition={{ duration: 0.9, delay: 0.5, ease: [0.25, 1, 0.5, 1] }}
             className="lg:col-span-5 relative"
           >
-            <div className="relative rounded-lg bg-white border border-[#EAE5DA] p-6 lg:p-7">
+            <div className="relative rounded-[2rem] bg-white/70 backdrop-blur-xl border border-[#3D2152]/10 p-6 lg:p-7 shadow-[0_40px_80px_-30px_rgba(61,33,82,0.25)]">
               {/* Corner meta */}
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-[#2F5D50] animate-pulse" />
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#264C42]">
+                  <span className="h-2 w-2 rounded-full bg-[#F5A020] animate-pulse" />
+                  <span className="text-[10px] font-display font-bold uppercase tracking-[0.2em] text-[#3D2152]">
                     Live Plan
                   </span>
                 </div>
-                <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#6B7772]">
+                <span className="text-[10px] font-display uppercase tracking-[0.2em] text-[#A0929E]">
                   42.2 km
                 </span>
               </div>
 
               {/* Mini elevation profile */}
-              <div className="relative h-28 lg:h-32 rounded-lg bg-[#EEF4F1] overflow-hidden border border-[#DCE9E3]">
+              <div className="relative h-28 lg:h-32 rounded-xl bg-[#FFF5E8]/60 overflow-hidden border border-[#3D2152]/[0.06]">
                 <svg viewBox="0 0 400 100" className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
                   <defs>
                     <linearGradient id="miniFill" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#3E7D6C" stopOpacity={0.35} />
-                      <stop offset="100%" stopColor="#2F5D50" stopOpacity={0.05} />
+                      <stop offset="0%" stopColor="#F5A020" stopOpacity={0.45} />
+                      <stop offset="100%" stopColor="#3D2152" stopOpacity={0.05} />
                     </linearGradient>
                   </defs>
                   <path
@@ -286,28 +293,28 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
                   <path
                     d="M0,65 C40,50 70,75 110,55 C150,30 180,62 220,40 C260,20 300,48 340,30 C370,18 385,25 400,35"
                     fill="none"
-                    stroke="#3E7D6C"
+                    stroke="#E8671A"
                     strokeWidth={2}
                     strokeLinecap="round"
                   />
                   {/* Fuel dots on the profile */}
                   {[
-                    { x: 65,  y: 62, c: '#2F5D50' },
-                    { x: 155, y: 45, c: '#2F5D50' },
-                    { x: 240, y: 33, c: '#2F5D50' },
-                    { x: 330, y: 28, c: '#2F5D50' },
+                    { x: 65,  y: 62, c: '#F5A020' },
+                    { x: 155, y: 45, c: '#3D2152' },
+                    { x: 240, y: 33, c: '#E8671A' },
+                    { x: 330, y: 28, c: '#5C2D6E' },
                   ].map((d, i) => (
                     <g key={i}>
                       <circle cx={d.x} cy={d.y} r={6} fill={d.c} opacity={0.22} />
-                      <circle cx={d.x} cy={d.y} r={3.2} fill={d.c} stroke="#FFFFFF" strokeWidth={1} />
+                      <circle cx={d.x} cy={d.y} r={3.2} fill={d.c} stroke="#FFF9F0" strokeWidth={1} />
                     </g>
                   ))}
                 </svg>
 
-                <div className="absolute top-2 left-3 text-[9px] font-mono uppercase tracking-widest text-[#6B7772]">
+                <div className="absolute top-2 left-3 text-[9px] font-display uppercase tracking-widest text-[#6B5A7A]">
                   Elevation · 420m
                 </div>
-                <div className="absolute bottom-2 right-3 text-[9px] font-mono uppercase tracking-widest text-[#6B7772]">
+                <div className="absolute bottom-2 right-3 text-[9px] font-display uppercase tracking-widest text-[#6B5A7A]">
                   4 fuel points
                 </div>
               </div>
@@ -315,37 +322,37 @@ export function LandingPage({ onOpenApp }: { onOpenApp: () => void }) {
               {/* Cue list */}
               <div className="mt-4 space-y-1.5">
                 {[
-                  { k: '5.2 km',  p: '226ERS High Fructose', g: '30g', c: '#2F5D50' },
-                  { k: '12.0 km', p: 'Styrkr MIX90 Bottle',  g: '90g', c: '#2F5D50' },
-                  { k: '21.1 km', p: '32Gi Endure Chews',    g: '25g', c: '#2F5D50' },
-                  { k: '32.0 km', p: 'NeverSecond C30+CAF',  g: '30g', c: '#2F5D50' },
+                  { k: '5.2 km',  p: '226ERS High Fructose', g: '30g', c: '#F5A020' },
+                  { k: '12.0 km', p: 'Styrkr MIX90 Bottle',  g: '90g', c: '#3D2152' },
+                  { k: '21.1 km', p: '32Gi Endure Chews',    g: '25g', c: '#E8671A' },
+                  { k: '32.0 km', p: 'NeverSecond C30+CAF',  g: '30g', c: '#5C2D6E' },
                 ].map((row, i) => (
                   <div
                     key={row.k}
-                    className="flex items-center gap-3 px-3 py-2 border-b border-[#F1EDE4] hover:bg-[#EEF4F1] transition-colors"
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-[#FFF9F0]/70 hover:bg-[#FFF9F0] transition-colors"
                     style={{ animationDelay: `${0.9 + i * 0.12}s` }}
                   >
                     <span className="h-2 w-2 rounded-full" style={{ background: row.c }} />
-                    <span className="text-[11px] font-sans font-bold tracking-wide text-[#1D3B33] w-14">{row.k}</span>
-                    <span className="text-[12px] text-[#1B2320] flex-1 truncate">{row.p}</span>
-                    <span className="text-[10px] font-mono font-bold text-[#6B7772]">{row.g}</span>
+                    <span className="text-[11px] font-display font-bold tracking-wide text-[#3D2152] w-14">{row.k}</span>
+                    <span className="text-[12px] text-[#3D2152] flex-1 truncate">{row.p}</span>
+                    <span className="text-[10px] font-display font-bold text-[#6B5A7A]">{row.g}</span>
                   </div>
                 ))}
               </div>
 
               {/* Footer summary */}
-              <div className="mt-5 pt-4 border-t border-[#EAE5DA] grid grid-cols-3 text-center">
+              <div className="mt-5 pt-4 border-t border-[#3D2152]/[0.08] grid grid-cols-3 text-center">
                 <div>
-                  <div className="text-[9px] font-mono uppercase tracking-widest text-[#6B7772]">Carbs</div>
-                  <div className="text-sm font-sans font-extrabold text-[#1D3B33]">175g</div>
+                  <div className="text-[9px] font-display uppercase tracking-widest text-[#A0929E]">Carbs</div>
+                  <div className="text-sm font-display font-black text-[#3D2152]">175g</div>
                 </div>
                 <div className="border-x border-[#3D2152]/[0.08]">
-                  <div className="text-[9px] font-mono uppercase tracking-widest text-[#6B7772]">Sodium</div>
-                  <div className="text-sm font-sans font-extrabold text-[#1D3B33]">2.1g</div>
+                  <div className="text-[9px] font-display uppercase tracking-widest text-[#A0929E]">Sodium</div>
+                  <div className="text-sm font-display font-black text-[#3D2152]">2.1g</div>
                 </div>
                 <div>
-                  <div className="text-[9px] font-mono uppercase tracking-widest text-[#6B7772]">Caffeine</div>
-                  <div className="text-sm font-sans font-extrabold text-[#1D3B33]">75mg</div>
+                  <div className="text-[9px] font-display uppercase tracking-widest text-[#A0929E]">Caffeine</div>
+                  <div className="text-sm font-display font-black text-[#3D2152]">75mg</div>
                 </div>
               </div>
             </div>

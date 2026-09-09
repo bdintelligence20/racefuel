@@ -8,20 +8,6 @@
 
 /* Fuelcue Brand Theme — warm, terrain-inspired */
 :root {
-  --color-paper: #FFFFFF;
-  --color-pine-50: #EEF4F1;
-  --color-pine-100: #DCE9E3;
-  --color-pine-200: #BCD5CB;
-  --color-pine-500: #2F5D50;
-  --color-pine-600: #264C42;
-  --color-pine-700: #1D3B33;
-  --color-route: #3E7D6C;
-  --color-plum: #5F2B57;
-  --color-ink: #1B2320;
-  --color-mute: #6B7772;
-  --color-line: #EAE5DA;
-  --color-line-2: #F1EDE4;
-
   /* Backgrounds */
   --color-background: #FFF9F0;
   --color-surface: #FFFFFF;
