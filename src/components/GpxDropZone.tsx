@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Upload, Play, Activity, Pencil } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { StravaActivityList } from './strava/StravaActivityList';
+import { TrailBackdrop } from './TrailBackdrop';
 import { toast } from 'sonner';
 
 export function GpxDropZone({ onDrawRoute }: { onDrawRoute?: () => void }) {
@@ -69,12 +70,15 @@ export function GpxDropZone({ onDrawRoute }: { onDrawRoute?: () => void }) {
           headline, one primary action. Covers the map area so a brand-new
           athlete sees a calm "here's how to begin", not a dashboard. */}
       <div
-        className="absolute inset-0 z-10 flex items-center justify-center bg-surface p-6 overflow-y-auto"
+        className="absolute inset-0 z-10 flex items-center justify-center bg-background p-6 overflow-y-auto"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="w-full max-w-md">
+        {/* Same horizon as the plan surface, so the very first screen reads as
+            the same product rather than a blank white form. */}
+        <TrailBackdrop className="pointer-events-none absolute inset-0 h-full w-full" />
+        <div className="relative w-full max-w-md">
           {isLoading ? (
             <div className="flex flex-col items-center text-center py-12">
               <div className="w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin mb-4" />
