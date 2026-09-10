@@ -11,7 +11,16 @@
  * whatever the pane size, and fades to transparent up top so the paper ground
  * carries the upper half.
  */
-export function TrailBackdrop({ className = '' }: { className?: string }) {
+export function TrailBackdrop({
+  className = '',
+  showRoute = true,
+}: {
+  className?: string;
+  /** The dashed route trace is right for open hero screens, but it crosses
+   *  dense content (e.g. the fuel spine's rows and numbers). Set false there
+   *  to keep only the ridges. */
+  showRoute?: boolean;
+}) {
   return (
     <svg
       className={className}
@@ -58,18 +67,23 @@ export function TrailBackdrop({ className = '' }: { className?: string }) {
       />
 
       {/* The route — a winding line climbing into the hills, dashed like a
-          course trace. This is the brand's "route aware" idea as texture. */}
-      <path
-        d="M690,900 C672,824 748,792 712,724 C676,656 604,632 664,566 C712,514 806,506 770,440 C742,388 786,352 828,332"
-        fill="none"
-        stroke="var(--color-accent)"
-        strokeOpacity="0.22"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeDasharray="1 12"
-      />
-      {/* A single marker where the route crests the near ridge */}
-      <circle cx="828" cy="332" r="4.5" fill="var(--color-accent)" fillOpacity="0.30" />
+          course trace. This is the brand's "route aware" idea as texture.
+          Hidden behind dense content so it never crosses rows or numbers. */}
+      {showRoute && (
+        <>
+          <path
+            d="M690,900 C672,824 748,792 712,724 C676,656 604,632 664,566 C712,514 806,506 770,440 C742,388 786,352 828,332"
+            fill="none"
+            stroke="var(--color-accent)"
+            strokeOpacity="0.22"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeDasharray="1 12"
+          />
+          {/* A single marker where the route crests the near ridge */}
+          <circle cx="828" cy="332" r="4.5" fill="var(--color-accent)" fillOpacity="0.30" />
+        </>
+      )}
     </svg>
   );
 }

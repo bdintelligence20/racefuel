@@ -40,8 +40,10 @@ export function PlanView({ onShowMap }: { onShowMap: () => void }) {
 
   return (
     <div className="relative flex-1 min-h-0 bg-background">
-      {/* Atmosphere — anchored to the pane, content scrolls over it */}
-      <TrailBackdrop className="pointer-events-none absolute inset-0 h-full w-full" />
+      {/* Atmosphere — anchored to the pane, content scrolls over it. Once a
+          plan exists the dense spine fills the screen, so drop the dashed route
+          trace (it would cross the rows and numbers) and keep only the ridges. */}
+      <TrailBackdrop className="pointer-events-none absolute inset-0 h-full w-full" showRoute={!hasPlan} />
 
       <div className="absolute inset-0 overflow-y-auto">
         <div className="relative max-w-2xl mx-auto w-full px-5 py-6">
@@ -96,7 +98,10 @@ export function PlanView({ onShowMap }: { onShowMap: () => void }) {
 
               {/* The spine — when to take what */}
               <div className="relative mt-5">
-                <div className="absolute left-[46px] top-3 bottom-3 w-px bg-[var(--color-border)]" />
+                {/* Vertical connector threads the node dots (dot centers sit at
+                    ~70px: 52px km column + 12px gap + 6px half-dot), clearing
+                    the km numbers to its left. */}
+                <div className="absolute left-[70px] top-3 bottom-3 w-px bg-[var(--color-border)]" />
                 {stops.map((p) => {
                   const elapsed = totalMin > 0 ? (p.distanceKm / totalKm) * totalMin : 0;
                   return (
