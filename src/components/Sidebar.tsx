@@ -1,54 +1,35 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Activity, User, Wind, Zap, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings, ShieldCheck, Users, TrendingUp, ChevronDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useCoachStore } from '../services/coach/coachStore';
 import { useCoachPlanning } from '../services/coach/useCoachPlanning';
 import { useAuth } from '../context/AuthContext';
 import { useAdminGate } from '../hooks/useAdminGate';
-import { useEntitlements } from '../hooks/useEntitlements';
 import { EditableStatRow } from './EditableStatRow';
 import { SavedPlansModal } from './SavedPlansModal';
 import { HistoryView } from './HistoryView';
 import { EventSearchModal } from './EventSearchModal';
-import { GutTrainingFlowV2 } from './gutTraining/GutTrainingFlowV2';
-import { onOpenGutTraining } from '../services/gutTrainingOpen';
+import { requestOpenGutTraining } from '../services/gutTrainingOpen';
+import { useGutTrainingAccess } from '../hooks/useGutTrainingAccess';
 import { ThemeToggle } from './ThemeToggle';
 import { NutritionStatsCard } from './NutritionStatsCard';
 import { saveOrUpdatePlan } from '../persistence/db';
 import { toast } from 'sonner';
 
-// Build-time exclusion ONLY, for local work — set VITE_GUT_TRAINING_V2=false
-// to compile the beta out of a dev build. It is NOT the per-user gate and NOT
-// the kill switch: production access is decided at runtime by the
-// server-authoritative entitlement (useEntitlements → getMyAccess), which is
-// itself ANDed with the admin-toggled kill switch. See functions
-// entitlements.ts.
-const GUT_TRAINING_BUILD_ENABLED = import.meta.env.VITE_GUT_TRAINING_V2 !== 'false';
-
 export function Sidebar() {
   const { userProfile, updateProfile, routeData, strava, connectStrava, disconnectStrava, resetAll } = useApp();
   const { user, logout } = useAuth();
   const { isAdmin } = useAdminGate();
-  // Fail-closed: hidden while loading and whenever the gate is false, so the
-  // entry never flashes in for an ineligible user.
-  const { betaGutTraining } = useEntitlements();
-  // In production this is server-authoritative (betaGutTraining). In local
-  // dev there's no backend, so the entitlement fails closed — surface the
-  // beta entry in dev anyway so the flow is testable. The flow's own consent
-  // gate still applies. `import.meta.env.DEV` is false in prod builds.
-  const showGutTraining = GUT_TRAINING_BUILD_ENABLED && (betaGutTraining || import.meta.env.DEV);
+  // Only shown for eligible users. The entry opens the shell-level flow via the
+  // signal bus (requestOpenGutTraining), so it no longer needs to own the flow
+  // or subscribe here — App hosts it so it also opens from the route-entry
+  // screen, where the sidebar isn't mounted.
+  const showGutTraining = useGutTrainingAccess();
 
-  // The opt-in banner (app-shell level, outside this provider) asks the flow
-  // to open via a signal bus. Only honour it for eligible users.
-  useEffect(() => {
-    if (!showGutTraining) return;
-    return onOpenGutTraining(() => setGutTrainingOpen(true));
-  }, [showGutTraining]);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [savedPlansOpen, setSavedPlansOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [eventSearchOpen, setEventSearchOpen] = useState(false);
-  const [gutTrainingOpen, setGutTrainingOpen] = useState(false);
 
   return (
     <aside className="w-[min(18rem,85vw)] bg-surface border-r border-[var(--color-border)] flex flex-col h-full z-30 safe-left">
@@ -333,7 +314,7 @@ export function Sidebar() {
           // eligible accounts (see showGutTraining). Opening it still routes
           // through the flow's own consent gate.
           ...(showGutTraining
-            ? [{ onClick: () => setGutTrainingOpen(true), icon: TrendingUp, label: 'Gut Training', beta: true }]
+            ? [{ onClick: () => requestOpenGutTraining(), icon: TrendingUp, label: 'Gut Training', beta: true }]
             : []),
         ].map(({ onClick, icon: Icon, label, beta }) => (
           <button
@@ -419,15 +400,6 @@ export function Sidebar() {
         isOpen={eventSearchOpen}
         onClose={() => setEventSearchOpen(false)}
       />
-      {/* Rendered only for eligible users — a defensive second gate so an
-          ineligible account can't reach the flow even if gutTrainingOpen were
-          set some other way. */}
-      {showGutTraining && (
-        <GutTrainingFlowV2
-          isOpen={gutTrainingOpen}
-          onClose={() => setGutTrainingOpen(false)}
-        />
-      )}
     </aside>
   );
 }

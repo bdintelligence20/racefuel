@@ -1,12 +1,15 @@
 import { useState } from 'react';
-import { Upload, Play, Activity, Pencil } from 'lucide-react';
+import { Upload, Play, Activity, Pencil, TrendingUp, ArrowRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { StravaActivityList } from './strava/StravaActivityList';
 import { TrailBackdrop } from './TrailBackdrop';
+import { requestOpenGutTraining } from '../services/gutTrainingOpen';
+import { useGutTrainingAccess } from '../hooks/useGutTrainingAccess';
 import { toast } from 'sonner';
 
 export function GpxDropZone({ onDrawRoute }: { onDrawRoute?: () => void }) {
   const { loadRoute, strava, connectStrava } = useApp();
+  const showGutTraining = useGutTrainingAccess();
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showStravaModal, setShowStravaModal] = useState(false);
@@ -142,6 +145,32 @@ export function GpxDropZone({ onDrawRoute }: { onDrawRoute?: () => void }) {
                   </button>
                 )}
               </div>
+
+              {/* Gut training — the parallel journey (build carb tolerance for
+                  race day), given a large, distinct entry on the first screen.
+                  Opens the shell-level flow via the signal bus. */}
+              {showGutTraining && (
+                <div className="mt-7 pt-6 border-t border-[var(--color-border)]">
+                  <button
+                    onClick={() => requestOpenGutTraining()}
+                    className="group w-full flex items-center gap-3.5 rounded-2xl border border-accent/25 bg-accent/[0.04] p-4 text-left hover:bg-accent/[0.07] hover:border-accent/40 active:scale-[0.99] transition-all"
+                  >
+                    <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center flex-shrink-0 group-hover:bg-accent/[0.14] transition-colors">
+                      <TrendingUp className="w-6 h-6 text-accent" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[15px] font-display font-bold text-text-primary">Train your gut</span>
+                        <span className="px-1.5 py-0.5 rounded-full bg-accent/10 text-accent text-[9px] font-display font-bold uppercase tracking-wider">Beta</span>
+                      </div>
+                      <p className="text-[12px] text-text-muted leading-snug mt-0.5">
+                        A multi-week plan to build carb tolerance for race day
+                      </p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-text-muted flex-shrink-0 group-hover:text-accent group-hover:translate-x-0.5 transition-all" />
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>

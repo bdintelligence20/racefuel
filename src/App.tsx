@@ -24,6 +24,9 @@ import { AdminLayout } from './components/admin/AdminLayout';
 import { SiteFeedbackBanner } from './components/SiteFeedbackBanner';
 import { GutTrainingBetaBanner } from './components/GutTrainingBetaBanner';
 import { useGutBetaBanner } from './hooks/useGutBetaBanner';
+import { GutTrainingFlowV2 } from './components/gutTraining/GutTrainingFlowV2';
+import { onOpenGutTraining } from './services/gutTrainingOpen';
+import { useGutTrainingAccess } from './hooks/useGutTrainingAccess';
 import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
 import { TermsOfService } from './components/legal/TermsOfService';
 import { CookiesPolicy } from './components/legal/CookiesPolicy';
@@ -101,6 +104,17 @@ function AppContent() {
   // editing stops) is one tap away and flips this on.
   const [showMap, setShowMap] = useState(false);
   const actionBarRef = useRef<HTMLDivElement>(null);
+
+  // The gut-training flow lives here, at the always-mounted shell level, rather
+  // than inside the Sidebar — the sidebar is hidden until a route loads, so a
+  // sidebar-owned flow couldn't be opened from the route-entry screen (or the
+  // opt-in banner) before then. Every surface opens it through the signal bus.
+  const showGutTraining = useGutTrainingAccess();
+  const [gutTrainingOpen, setGutTrainingOpen] = useState(false);
+  useEffect(() => {
+    if (!showGutTraining) return;
+    return onOpenGutTraining(() => setGutTrainingOpen(true));
+  }, [showGutTraining]);
 
   // The mobile ActionBar's height varies by state (stats row appears with a
   // plan, the manual-add hint only without one). Publish the measured height
@@ -259,6 +273,16 @@ function AppContent() {
         onRegenerate={regeneratePendingPlan}
         onClose={dismissPendingPlan}
       />
+
+      {/* Gut-training beta — mounted at the shell so it opens from anywhere
+          (route-entry button, sidebar entry, opt-in banner) via the signal
+          bus. Only for eligible users; the flow's own consent gate applies. */}
+      {showGutTraining && (
+        <GutTrainingFlowV2
+          isOpen={gutTrainingOpen}
+          onClose={() => setGutTrainingOpen(false)}
+        />
+      )}
 
 
       <Toaster
