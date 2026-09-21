@@ -5,15 +5,15 @@ import { StravaActivityList } from './strava/StravaActivityList';
 import { TrailBackdrop } from './TrailBackdrop';
 import { requestOpenGutTraining } from '../services/gutTrainingOpen';
 import { requestOpenCoach } from '../services/coachOpen';
+import { isCoachEnabled } from '../services/coachAI/coachRecommender';
 import { useGutTrainingAccess } from '../hooks/useGutTrainingAccess';
 import { toast } from 'sonner';
 
 export function GpxDropZone({ onDrawRoute }: { onDrawRoute?: () => void }) {
   const { loadRoute, strava, connectStrava } = useApp();
   const showGutTraining = useGutTrainingAccess();
-  // Dev-gated for now so the in-progress coach doesn't ship to prod athletes.
-  // Flip to an entitlement (like gut training) when ready to release.
-  const showCoach = import.meta.env.DEV;
+  // Live for all athletes now (config kill switch VITE_AI_COACH_ENABLED).
+  const showCoach = isCoachEnabled();
   const [isDragging, setIsDragging] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showStravaModal, setShowStravaModal] = useState(false);

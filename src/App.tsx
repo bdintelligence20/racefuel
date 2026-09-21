@@ -29,6 +29,7 @@ import { onOpenGutTraining } from './services/gutTrainingOpen';
 import { useGutTrainingAccess } from './hooks/useGutTrainingAccess';
 import { CoachFlow } from './components/coachAI/CoachFlow';
 import { onOpenCoach } from './services/coachOpen';
+import { isCoachEnabled } from './services/coachAI/coachRecommender';
 import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
 import { TermsOfService } from './components/legal/TermsOfService';
 import { CookiesPolicy } from './components/legal/CookiesPolicy';
@@ -118,8 +119,9 @@ function AppContent() {
     return onOpenGutTraining(() => setGutTrainingOpen(true));
   }, [showGutTraining]);
 
-  // AI coach, same shell-mounted pattern. Dev-gated for now (see GpxDropZone).
-  const showCoach = import.meta.env.DEV;
+  // AI coach, same shell-mounted pattern. On for all athletes (config kill
+  // switch VITE_AI_COACH_ENABLED); works via rules even if the AI path is off.
+  const showCoach = isCoachEnabled();
   const [coachOpen, setCoachOpen] = useState(false);
   useEffect(() => {
     if (!showCoach) return;

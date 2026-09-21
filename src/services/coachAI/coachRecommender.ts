@@ -45,11 +45,20 @@ export interface CoachResult {
   generatedAt: string;
 }
 
-/** Kill switch, independent of the planner's, so the coach can be toggled off
- *  via config without a code change. Also honours the planner's own switch. */
-export function isCoachAIEnabled(): boolean {
+/** Whether the coach is shown to athletes at all. On by default; set
+ *  VITE_AI_COACH_ENABLED="false" to hide the entry entirely (config kill
+ *  switch, no code change). Unlike isCoachAIEnabled this does NOT require the
+ *  AI path — the coach still works via the deterministic rules fallback, so a
+ *  disabled or unreachable model must not hide the feature. */
+export function isCoachEnabled(): boolean {
   const env = (import.meta as unknown as { env: Record<string, string | undefined> }).env;
-  return env?.VITE_AI_COACH_ENABLED !== 'false' && isGeminiEnabled();
+  return env?.VITE_AI_COACH_ENABLED !== 'false';
+}
+
+/** Whether the AI (LLM) path is used. Falls back to rules when false. Honours
+ *  the coach kill switch above and the planner's own Gemini switch. */
+export function isCoachAIEnabled(): boolean {
+  return isCoachEnabled() && isGeminiEnabled();
 }
 
 const VALID_CATEGORIES: CoachCategory[] = ['carbs', 'hydration', 'products', 'gut-training', 'execution'];
