@@ -184,6 +184,14 @@ export async function getProductRatings(productId: string): Promise<(FirestoreRa
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as FirestoreRating & { id: string }));
 }
 
+/** Every rating the athlete has left, across all products — the AI coach reads
+ *  these to learn product-level taste and gut-comfort preferences. */
+export async function getAllRatings(): Promise<(FirestoreRating & { id: string })[]> {
+  const q = query(userCollection('ratings'), orderBy('createdAt', 'desc'));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as FirestoreRating & { id: string }));
+}
+
 export async function deleteRating(ratingId: string): Promise<void> {
   await deleteDoc(userDoc(`ratings/${ratingId}`));
 }

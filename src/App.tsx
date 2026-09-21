@@ -27,6 +27,8 @@ import { useGutBetaBanner } from './hooks/useGutBetaBanner';
 import { GutTrainingFlowV2 } from './components/gutTraining/GutTrainingFlowV2';
 import { onOpenGutTraining } from './services/gutTrainingOpen';
 import { useGutTrainingAccess } from './hooks/useGutTrainingAccess';
+import { CoachFlow } from './components/coachAI/CoachFlow';
+import { onOpenCoach } from './services/coachOpen';
 import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
 import { TermsOfService } from './components/legal/TermsOfService';
 import { CookiesPolicy } from './components/legal/CookiesPolicy';
@@ -115,6 +117,14 @@ function AppContent() {
     if (!showGutTraining) return;
     return onOpenGutTraining(() => setGutTrainingOpen(true));
   }, [showGutTraining]);
+
+  // AI coach, same shell-mounted pattern. Dev-gated for now (see GpxDropZone).
+  const showCoach = import.meta.env.DEV;
+  const [coachOpen, setCoachOpen] = useState(false);
+  useEffect(() => {
+    if (!showCoach) return;
+    return onOpenCoach(() => setCoachOpen(true));
+  }, [showCoach]);
 
   // The mobile ActionBar's height varies by state (stats row appears with a
   // plan, the manual-add hint only without one). Publish the measured height
@@ -282,6 +292,12 @@ function AppContent() {
           isOpen={gutTrainingOpen}
           onClose={() => setGutTrainingOpen(false)}
         />
+      )}
+
+      {/* AI coach — athlete-facing, shell-mounted so it opens from the
+          route-entry card (and future entries) via the signal bus. */}
+      {showCoach && (
+        <CoachFlow isOpen={coachOpen} onClose={() => setCoachOpen(false)} />
       )}
 
 
