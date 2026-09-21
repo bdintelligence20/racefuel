@@ -25,9 +25,10 @@ import { NutritionPoint, UserProfile, GpsPoint } from '../../context/AppContext'
 import { ProductProps } from '../../components/NutritionCard';
 import { products } from '../../data/products';
 import { RouteAnalysis } from '../route/routeAnalyzer';
-import { calculateCarbTarget, CarbTarget } from './carbCalculator';
-import { calculateHydration, HydrationTarget } from './hydrationCalculator';
-import { calculateCaffeineStrategy, CaffeineRecommendation } from './caffeineStrategy';
+import { CarbTarget } from './carbCalculator';
+import { HydrationTarget } from './hydrationCalculator';
+import { CaffeineRecommendation } from './caffeineStrategy';
+import { computeFuelingTargets } from './fuelingCore';
 import { isSingleServe } from './planGenerator';
 
 // AI runs through Firebase AI Logic (App Check–gated) — there is NO Gemini
@@ -415,7 +416,6 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
 
   const { distanceKm, durationHours, profile, isCompetition, temperatureCelsius, humidity } = input;
   const sport = profile.sport ?? 'running';
-  const gutTolerance = profile.gutTolerance ?? 'trained';
   const elevationGainM = input.elevationGainM ?? 0;
   const intensityPercent = input.effortLevel != null
     ? effortToIntensity(input.effortLevel)
@@ -423,33 +423,12 @@ export async function generatePlanWithGemini(input: GeminiPlanInput): Promise<Ge
   const intensityBucket: 'easy' | 'moderate' | 'hard' =
     intensityPercent < 0.65 ? 'easy' : intensityPercent < 0.80 ? 'moderate' : 'hard';
 
-  const carbTarget = calculateCarbTarget({
+  const { carbTarget, hydrationTarget, caffeineStrategy } = computeFuelingTargets(
     durationHours,
     intensityPercent,
-    gutTolerance,
-    isCompetition,
-    bodyWeightKg: profile.weight,
-    userOverrideGPerHour: profile.carbTargetGPerHour,
-  });
-  const hydrationTarget = calculateHydration({
-    bodyWeightKg: profile.weight,
-    durationHours,
-    temperatureCelsius,
-    humidity,
-    intensityPercent,
-    sweatRate: profile.sweatRate,
-    sport,
-    sweatSodiumBucket: profile.sweatSodiumBucket ?? 'unknown',
-    heatAcclimatised: profile.heatAcclimatised ?? false,
-    earlySeasonHeat: profile.earlySeasonHeat ?? false,
-  });
-  const caffeineStrategy = calculateCaffeineStrategy({
-    bodyWeightKg: profile.weight,
-    durationHours,
-    distanceKm,
-    isRegularConsumer: true,
-    targetMgPerKg: isCompetition ? 4 : 3,
-  });
+    profile,
+    { temperatureCelsius, humidity, isCompetition, distanceKm },
+  );
 
   if (carbTarget.target === 0 || durationHours < 1) {
     return {

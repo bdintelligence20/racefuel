@@ -1,5 +1,5 @@
 import { useModalBehavior } from '../hooks/useModalBehavior';
-import { Zap, Droplets, Coffee, X, Thermometer, Gauge, Clock, RefreshCw, CalendarPlus } from 'lucide-react';
+import { X, RefreshCw } from 'lucide-react';
 import { GeneratedPlan } from '../services/nutrition/planGenerator';
 import { calculatePlanCost } from '../services/nutrition/costCalculator';
 
@@ -8,7 +8,7 @@ export interface PlanStrategyContext {
   temperatureCelsius: number;
   humidity: number;
   /** True when temp/humidity came from a forecast (user picked a date).
-   *  Drives whether the weather pill and lede sentence reference conditions. */
+   *  Drives whether the weather line references conditions. */
   weatherFromForecast: boolean;
   intensityBucket: 'easy' | 'moderate' | 'hard';
   rationale?: string;
@@ -36,192 +36,165 @@ export function PlanStrategyModal({ plan, context, onApply, onRegenerate, onClos
 
   const { carbTarget, hydrationTarget, caffeineStrategy } = plan;
   const carbsPerHour = carbTarget.target;
-  // Derive everything below from the placements themselves rather than the
+  const carbInRange = carbsPerHour >= carbTarget.min && carbsPerHour <= carbTarget.max;
+  // The engine can collapse the band to a single value (e.g. gut-capped at
+  // 90), which would render as an odd "within 90–90". Say "at target" then.
+  const carbStatus =
+    carbTarget.min === carbTarget.max
+      ? 'At target'
+      : carbInRange
+      ? `Within ${carbTarget.min}–${carbTarget.max} g/h`
+      : `Target ${carbTarget.min}–${carbTarget.max} g/h`;
+
+  // Derive everything from the placements themselves rather than the
   // pre-computed metrics object. plan.metrics is built once at generation time
-  // and can drift from plan.nutritionPoints if those ever get edited (or if the
-  // metrics calc has a rounding bug). Summing here means the headline, the
-  // sub-line, and the footer can never disagree.
+  // and can drift from plan.nutritionPoints if those ever get edited. Summing
+  // here means the headline and the sub-lines can never disagree.
   const planCarbs = plan.nutritionPoints.reduce((s, p) => s + p.product.carbs, 0);
-  const planSodium = plan.nutritionPoints.reduce((s, p) => s + p.product.sodium, 0);
   const planCaffeineTotal = plan.nutritionPoints.reduce((s, p) => s + p.product.caffeine, 0);
-  const planCarbsPerHour = context.durationHours > 0 ? Math.round(planCarbs / context.durationHours) : 0;
-  const planSodiumPerHour = context.durationHours > 0 ? Math.round(planSodium / context.durationHours) : 0;
   const sodiumPerHour = hydrationTarget.sodiumMgPerHour;
   const fluidPerHour = hydrationTarget.fluidMlPerHour;
   const caffeineTotal = caffeineStrategy.totalCaffeineMg;
+  const points = plan.nutritionPoints.length;
 
   const caffeineLine =
     caffeineStrategy.timing === 'none'
-      ? 'No caffeine — effort is short enough that mouth rinse or none is fine.'
+      ? 'No caffeine — the effort is short enough that a mouth rinse, or nothing, is fine.'
       : caffeineStrategy.timing === 'late-only'
-      ? `~${caffeineTotal}mg caffeine — a single dose near the 40% mark.`
-      : `~${caffeineTotal}mg caffeine distributed across the final 45%.`;
+      ? `A single caffeine dose near the 40% mark.`
+      : `Caffeine spread across the final 45% of the effort.`;
 
-  // Combine the carb-target rationale (tier + intensity band) with the
-  // agent's strategic narrative (terrain awareness, dual-transporter
-  // logic). Showing both addresses the "why this g/h?" question
-  // separately from "why these placements?" — feedback BS#4 ("carbs/hr
-  // seems inconsistent — is this based on route difficulty?") needs the
-  // tier/intensity line specifically, which the agent rationale doesn't
-  // mention.
+  // Combine the carb-target rationale (tier + intensity band) with the agent's
+  // strategic narrative (terrain, dual-transporter logic). Showing both keeps
+  // "why this g/h?" separate from "why these placements?".
   const agentRationale = (plan as GeneratedPlan & { rationale?: string; source?: string }).rationale;
   const rationale =
     agentRationale && agentRationale.length > 0
       ? `${carbTarget.rationale}\n\n${agentRationale}`
       : carbTarget.rationale;
 
+  const eyebrow = 'text-[10px] font-display font-semibold text-text-muted uppercase tracking-[0.14em]';
+  const cost = calculatePlanCost(plan.nutritionPoints);
+  const hasPackInflation = cost.totalCostZAR > cost.runCostZAR + 1;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-surface border border-[var(--color-border)] rounded-2xl shadow-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-surfaceHighlight">
-          <div>
-            <div className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">FuelCue Strategy</div>
-            <h2 className="text-lg font-display font-bold text-text-primary">Your plan at a glance</h2>
-          </div>
-          <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full hover:bg-surface flex items-center justify-center text-text-muted hover:text-text-primary transition-colors">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
 
-        {/* Lede */}
-        <div className="p-4 space-y-4">
-          <p className="text-sm text-text-secondary leading-relaxed">
-            Based on <strong className="text-text-primary">{formatHours(context.durationHours)}</strong> at{' '}
-            <strong className="text-text-primary">{context.intensityBucket}</strong> intensity
-            {context.weatherFromForecast ? (
-              <>
-                ,{' '}
-                <strong className="text-text-primary">{context.temperatureCelsius}°C</strong> /{' '}
-                <strong className="text-text-primary">{context.humidity}%</strong> humidity
-              </>
-            ) : null}
-            , we suggest{' '}
-            <strong className="text-warm">{carbsPerHour} g/h carbs</strong>{' '}
-            and <strong className="text-accent">{sodiumPerHour} mg/h sodium</strong>.
-          </p>
-
-          {/* Context pills */}
-          <div className="flex flex-wrap gap-1.5">
-            <Pill icon={Clock}>{formatHours(context.durationHours)}</Pill>
-            <Pill icon={Gauge}>{context.intensityBucket}</Pill>
-            {context.weatherFromForecast ? (
-              <Pill icon={Thermometer}>{context.temperatureCelsius}°C / {context.humidity}%</Pill>
-            ) : (
-              <Pill icon={CalendarPlus}>add a date for weather-aware sodium</Pill>
-            )}
+      {/* A clean white card — no horizon, no table. Hierarchy and whitespace
+          carry it: one big answer, an airy ledger, then quiet reasoning. */}
+      <div className="relative bg-surface rounded-3xl shadow-2xl w-full max-w-md max-h-[90dvh] overflow-hidden ring-1 ring-[var(--color-border)]">
+        <div className="max-h-[90dvh] overflow-y-auto">
+          {/* Header */}
+          <div className="flex items-start justify-between px-7 pt-7">
+            <div>
+              <div className={eyebrow}>FuelCue strategy</div>
+              <h2 className="text-xl font-display font-black text-text-primary tracking-tight mt-1">Your plan at a glance</h2>
+            </div>
+            <button onClick={onClose} aria-label="Close" className="-mr-2 -mt-1 w-9 h-9 rounded-full hover:bg-accent/[0.06] flex items-center justify-center text-text-muted hover:text-text-primary transition-colors">
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
-          {/* Target grid — each card shows TARGET as the headline and what the
-              plan actually delivers as the sub, so the top and bottom numbers
-              can't drift apart. */}
-          <div className="grid grid-cols-2 gap-2">
-            <TargetCard
-              icon={Zap}
-              label="Carbs"
-              value={`${carbsPerHour} g/h`}
-              sub={`Plan: ${planCarbsPerHour} g/h · ${planCarbs}g`}
-              accent="warm"
-            />
-            <TargetCard
-              icon={Droplets}
-              label="Sodium"
-              value={`${sodiumPerHour} mg/h`}
-              sub={`Plan: ${planSodiumPerHour} mg/h · ${planSodium}mg`}
-              accent="accent"
-            />
-            <TargetCard
-              icon={Droplets}
-              label="Fluid"
-              value={`${fluidPerHour} ml/h`}
-              sub={`~${Math.round(hydrationTarget.sweatRateLPerHour * 100) / 100} L/h sweat, ${Math.round(hydrationTarget.replacementFraction * 100)}% replace`}
-              accent="accent"
-            />
-            <TargetCard
-              icon={Coffee}
+          {/* The answer — the one number everything else supports */}
+          <div className="px-7 pt-6">
+            <div className="flex items-end gap-2.5">
+              <span className="text-[4.25rem] leading-[0.85] font-display font-black text-accent tabular-nums">{carbsPerHour}</span>
+              <span className="text-xl font-display font-bold text-text-muted pb-1.5">g/h carbs</span>
+            </div>
+            <div className="mt-3">
+              <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-display font-bold uppercase tracking-wider ${carbInRange ? 'bg-accent/[0.08] text-accent' : 'bg-warm/[0.1] text-warm'}`}>
+                {carbStatus}
+              </span>
+            </div>
+            <p className="mt-4 text-sm text-text-secondary leading-relaxed">
+              Based on <strong className="text-text-primary font-semibold">{formatHours(context.durationHours)}</strong> at{' '}
+              <strong className="text-text-primary font-semibold">{context.intensityBucket}</strong> intensity
+              {context.weatherFromForecast ? (
+                <>
+                  {' '}in <strong className="text-text-primary font-semibold">{context.temperatureCelsius}°C</strong> /{' '}
+                  <strong className="text-text-primary font-semibold">{context.humidity}%</strong> humidity
+                </>
+              ) : null}
+              , here's what to take each hour to finish strong.
+            </p>
+          </div>
+
+          {/* Supporting numbers — an airy ledger, not a grid of cards */}
+          <div className="px-7 mt-6">
+            <LedgerRow label="Sodium" value={String(sodiumPerHour)} unit="mg/h" note={`${(plan.nutritionPoints.reduce((s, p) => s + p.product.sodium, 0) / 1000).toFixed(1)} g over the route`} first />
+            <LedgerRow label="Fluid" value={String(fluidPerHour)} unit="ml/h" note={`~${Math.round(hydrationTarget.sweatRateLPerHour * 100) / 100} L/h sweat · ${Math.round(hydrationTarget.replacementFraction * 100)}% replaced`} />
+            <LedgerRow
               label="Caffeine"
-              value={caffeineStrategy.timing === 'none' ? 'None' : `${caffeineTotal} mg`}
-              sub={caffeineStrategy.timing === 'none' ? 'short effort' : `plan: ${planCaffeineTotal} mg`}
-              accent="warm"
+              value={caffeineStrategy.timing === 'none' ? '—' : String(caffeineTotal)}
+              unit={caffeineStrategy.timing === 'none' ? '' : 'mg'}
+              note={caffeineStrategy.timing === 'none' ? 'Not needed for this effort' : `${planCaffeineTotal} mg placed in the plan`}
             />
           </div>
 
-          {/* Rationale */}
+          {/* Why this plan — prose, no box */}
           {rationale && (
-            <div className="bg-surfaceHighlight rounded-lg p-3 border border-[var(--color-border)]">
-              <div className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider mb-1">Why this plan</div>
-              <p className="text-xs text-text-secondary leading-relaxed">{rationale}</p>
+            <div className="px-7 mt-6 pt-6 border-t border-[var(--color-border)]">
+              <div className={`${eyebrow} mb-2`}>Why this plan</div>
+              <p className="text-[13px] text-text-secondary leading-relaxed whitespace-pre-line">{rationale}</p>
             </div>
           )}
 
-          {/* Caffeine guidance line */}
-          <p className="text-[11px] text-text-muted italic">{caffeineLine}</p>
+          {/* Quiet footnotes */}
+          <div className="px-7 mt-5 pb-7 space-y-1 text-[11px] text-text-muted leading-relaxed">
+            <p>{caffeineLine}</p>
+            <p>
+              {points} fuel point{points === 1 ? '' : 's'} · {planCarbs}g carbs · <span className="text-text-secondary">R{cost.runCostZAR.toFixed(0)} this run</span>
+              {hasPackInflation && <span className="text-text-muted"> (R{cost.totalCostZAR.toFixed(0)} to buy full packs)</span>}
+            </p>
+          </div>
 
-          {/* Placement + cost teaser — show both figures so the tub-price
-              inflation doesn't confuse the athlete. */}
-          {(() => {
-            const cost = calculatePlanCost(plan.nutritionPoints);
-            const hasPackInflation = cost.totalCostZAR > cost.runCostZAR + 1;
-            return (
-              <div className="text-[11px] text-text-muted space-y-0.5">
-                <div>
-                  {plan.nutritionPoints.length} fuel point{plan.nutritionPoints.length === 1 ? '' : 's'} placed · {planCarbs}g total carbs
-                </div>
-                <div>
-                  <span className="text-text-secondary">Cost of this run:</span> R{cost.runCostZAR.toFixed(0)}
-                  {hasPackInflation && (
-                    <>
-                      {' '}<span className="text-text-muted/70">·</span>{' '}
-                      <span className="text-text-secondary">Total to buy:</span> R{cost.totalCostZAR.toFixed(0)}
-                      <span className="text-text-muted/70"> (full packs)</span>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-
-        {/* Actions */}
-        <div className="p-4 border-t border-[var(--color-border)] bg-surfaceHighlight flex gap-2">
-          <button
-            onClick={onRegenerate}
-            className="flex items-center justify-center gap-1.5 px-3 py-3 rounded-lg bg-surface border border-[var(--color-border)] text-text-primary text-xs font-display font-bold uppercase tracking-wider hover:bg-accent/[0.08] transition-colors"
-          >
-            <RefreshCw className="w-3 h-3" /> Regenerate
-          </button>
-          <button
-            onClick={onApply}
-            className="flex-1 py-3 rounded-lg bg-warm text-white text-xs font-display font-bold uppercase tracking-wider hover:bg-warm-light transition-colors shadow-[0_0_15px_rgba(245,160,32,0.25)]"
-          >
-            View plan on map
-          </button>
+          {/* Actions */}
+          <div className="sticky bottom-0 px-7 py-5 bg-surface/90 backdrop-blur-sm border-t border-[var(--color-border)] flex gap-2.5">
+            <button
+              onClick={onRegenerate}
+              className="flex items-center justify-center gap-1.5 px-4 py-3 rounded-xl text-text-secondary text-xs font-display font-bold uppercase tracking-wider hover:bg-accent/[0.06] hover:text-text-primary transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Regenerate
+            </button>
+            <button
+              onClick={onApply}
+              className="flex-1 py-3 rounded-xl bg-accent text-white text-xs font-display font-bold uppercase tracking-wider hover:bg-accent-light transition-colors shadow-sm"
+            >
+              View plan on map
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-function Pill({ icon: Icon, children }: { icon: React.ElementType; children: React.ReactNode }) {
+/** One line of the supporting ledger: name + optional note on the left, the
+ *  number right-aligned. A hairline separates rows (none above the first). */
+function LedgerRow({
+  label,
+  value,
+  unit,
+  note,
+  first,
+}: {
+  label: string;
+  value: string;
+  unit: string;
+  note: string;
+  first?: boolean;
+}) {
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-surfaceHighlight border border-[var(--color-border)] text-[10px] font-display font-semibold text-text-secondary">
-      <Icon className="w-3 h-3" />
-      {children}
-    </span>
-  );
-}
-
-function TargetCard({ icon: Icon, label, value, sub, accent }: { icon: React.ElementType; label: string; value: string; sub: string; accent: 'warm' | 'accent' }) {
-  const accentClass = accent === 'warm' ? 'text-warm' : 'text-accent';
-  return (
-    <div className="p-3 rounded-lg bg-surfaceHighlight border border-[var(--color-border)]">
-      <div className="flex items-center gap-1.5 text-text-muted mb-1">
-        <Icon className="w-3 h-3" />
-        <span className="text-[9px] font-display font-semibold uppercase tracking-wider">{label}</span>
+    <div className={`flex items-baseline justify-between gap-4 py-3.5 ${first ? '' : 'border-t border-[var(--color-border)]'}`}>
+      <div className="min-w-0">
+        <div className="text-[13px] font-display font-semibold text-text-primary">{label}</div>
+        <div className="text-[11px] text-text-muted leading-tight mt-0.5">{note}</div>
       </div>
-      <div className={`text-lg font-display font-black tabular-nums ${accentClass}`}>{value}</div>
-      <div className="text-[10px] font-display text-text-muted leading-tight">{sub}</div>
+      <div className="flex-shrink-0 text-right">
+        <span className="text-2xl font-display font-black text-accent tabular-nums">{value}</span>
+        {unit && <span className="text-xs text-text-muted ml-1 font-semibold">{unit}</span>}
+      </div>
     </div>
   );
 }

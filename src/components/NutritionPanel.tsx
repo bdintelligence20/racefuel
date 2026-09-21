@@ -89,7 +89,7 @@ export function NutritionPanel() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setBundlePickerOpen(true)}
-              className="relative text-[10px] text-warm hover:text-warm-muted transition-colors flex items-center gap-1 font-display font-medium"
+              className="relative text-[10px] text-accent hover:text-accent-light transition-colors flex items-center gap-1 font-display font-medium"
             >
               <Package className="w-3 h-3" /> Bundles
               {selectedBundleId && (
@@ -177,7 +177,7 @@ export function NutritionPanel() {
           {/* Progress */}
           <div
             className={`h-full transition-all duration-500 z-10 relative rounded-full ${
-              carbsPerHour > targetMax ? 'bg-terrain-rust' :
+              carbsPerHour > targetMax ? 'bg-warm-muted' :
               carbsPerHour < targetMin ? 'bg-warm' : 'bg-accent'
             }`}
             style={{
@@ -197,17 +197,17 @@ export function NutritionPanel() {
           <>
             <div className="grid grid-cols-3 gap-2 mt-3 pt-3 border-t border-[var(--color-border)]">
               <div className="text-center">
-                <Droplets className="w-3 h-3 text-terrain-orange mx-auto mb-0.5" />
+                <Droplets className="w-3 h-3 text-text-muted mx-auto mb-0.5" />
                 <div className="text-xs font-display font-bold text-text-primary">{totalSodium}mg</div>
                 <div className="text-[9px] text-text-muted font-display">Sodium</div>
               </div>
               <div className="text-center">
-                <Coffee className="w-3 h-3 text-warm mx-auto mb-0.5" />
+                <Coffee className="w-3 h-3 text-text-muted mx-auto mb-0.5" />
                 <div className="text-xs font-display font-bold text-text-primary">{totalCaffeine}mg</div>
                 <div className="text-[9px] text-text-muted font-display">Caffeine</div>
               </div>
               <div className="text-center">
-                <Zap className="w-3 h-3 text-warm mx-auto mb-0.5" />
+                <Zap className="w-3 h-3 text-text-muted mx-auto mb-0.5" />
                 <div className="text-xs font-display font-bold text-text-primary">
                   {routeData.nutritionPoints.reduce((sum, p) => sum + p.product.calories, 0)}
                 </div>

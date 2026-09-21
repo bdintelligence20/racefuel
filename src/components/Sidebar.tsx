@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Activity, User, Wind, Zap, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings, ShieldCheck, Users } from 'lucide-react';
+import { Activity, User, Wind, Zap, LogOut, RotateCcw, FolderOpen, Save, History, Cloud, Gauge, Thermometer, Droplets, Ruler, Settings, ShieldCheck, Users, TrendingUp, ChevronDown } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { useCoachStore } from '../services/coach/coachStore';
 import { useCoachPlanning } from '../services/coach/useCoachPlanning';
@@ -9,16 +9,24 @@ import { EditableStatRow } from './EditableStatRow';
 import { SavedPlansModal } from './SavedPlansModal';
 import { HistoryView } from './HistoryView';
 import { EventSearchModal } from './EventSearchModal';
+import { requestOpenGutTraining } from '../services/gutTrainingOpen';
+import { useGutTrainingAccess } from '../hooks/useGutTrainingAccess';
 import { ThemeToggle } from './ThemeToggle';
 import { NutritionStatsCard } from './NutritionStatsCard';
 import { saveOrUpdatePlan } from '../persistence/db';
 import { toast } from 'sonner';
 
-
 export function Sidebar() {
   const { userProfile, updateProfile, routeData, strava, connectStrava, disconnectStrava, resetAll } = useApp();
   const { user, logout } = useAuth();
   const { isAdmin } = useAdminGate();
+  // Only shown for eligible users. The entry opens the shell-level flow via the
+  // signal bus (requestOpenGutTraining), so it no longer needs to own the flow
+  // or subscribe here — App hosts it so it also opens from the route-entry
+  // screen, where the sidebar isn't mounted.
+  const showGutTraining = useGutTrainingAccess();
+
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [savedPlansOpen, setSavedPlansOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [eventSearchOpen, setEventSearchOpen] = useState(false);
@@ -34,22 +42,22 @@ export function Sidebar() {
         />
       </div>
 
-      {/* Strava Connection */}
-      <div className="px-3 pb-3 pt-mobile-nav lg:pt-0">
+      {/* Strava Connection — a clean row, not a boxed card */}
+      <div className="px-2 pb-2 pt-mobile-nav lg:pt-0">
         {strava.isConnected ? (
-          <div className="flex items-center gap-2 p-2 rounded-lg bg-surfaceHighlight border border-[var(--color-border)]">
-            <div className="w-6 h-6 rounded-md bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
-              <Activity className="w-3 h-3 text-white" />
+          <div className="flex items-center gap-2.5 px-2 py-2 rounded-lg">
+            <div className="w-7 h-7 rounded-lg bg-[#FC4C02] flex items-center justify-center flex-shrink-0">
+              <Activity className="w-3.5 h-3.5 text-white" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[9px] text-text-muted uppercase tracking-wider font-display">Strava</div>
-              <div className="text-xs font-display font-semibold text-text-primary truncate">
+              <div className="text-[13px] font-display font-semibold text-text-primary truncate">
                 {strava.athlete?.firstname} {strava.athlete?.lastname}
               </div>
             </div>
             <button
               onClick={disconnectStrava}
-              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-md hover:bg-red-500/10 active:bg-red-500/15 transition-colors text-text-muted hover:text-red-400"
+              className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg hover:bg-red-500/10 active:bg-red-500/15 transition-colors text-text-muted hover:text-red-400"
               title="Disconnect"
               aria-label="Disconnect Strava"
             >
@@ -60,22 +68,22 @@ export function Sidebar() {
           <button
             onClick={connectStrava}
             disabled={strava.isLoading}
-            className="w-full flex items-center gap-2 p-2 rounded-lg bg-surfaceHighlight border border-[var(--color-border)] hover:border-[#FC4C02]/40 transition-all cursor-pointer group"
+            className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-accent/[0.05] transition-colors cursor-pointer group"
           >
-            <div className="w-6 h-6 rounded-md bg-[#FC4C02] flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
-              <Activity className="w-3 h-3 text-white" />
+            <div className="w-7 h-7 rounded-lg bg-[#FC4C02] flex items-center justify-center group-hover:scale-105 transition-transform flex-shrink-0">
+              <Activity className="w-3.5 h-3.5 text-white" />
             </div>
             <div className="text-left min-w-0">
               <div className="text-[9px] text-text-muted uppercase tracking-wider font-display">
                 {strava.isLoading ? 'Connecting…' : 'Connect to'}
               </div>
-              <div className="text-xs font-display font-semibold text-text-primary">Strava</div>
+              <div className="text-[13px] font-display font-semibold text-text-primary">Strava</div>
             </div>
           </button>
         )}
 
         {strava.error && (
-          <p className="mt-1.5 text-[10px] text-red-500 font-display">{strava.error}</p>
+          <p className="mt-1.5 px-2 text-[10px] text-red-500 font-display">{strava.error}</p>
         )}
       </div>
 
@@ -85,12 +93,25 @@ export function Sidebar() {
           so there's no modal hop. Header subtitle makes the interaction
           discoverable on first use. */}
       <div className="flex-1 p-3 overflow-y-auto overscroll-contain">
-        <div className="flex items-baseline justify-between mb-1.5 px-1">
-          <h2 className="text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">
-            Athlete Profile
-          </h2>
-          <span className="text-[9px] text-text-muted/70 font-display italic">tap any row to edit</span>
-        </div>
+        {/* Your details — collapsed by default (progressive disclosure, §5b).
+            Specifics (weight, sweat, gut, climate) live one tap away so the
+            sidebar leads with the plan, not a form of numbers. */}
+        <button
+          type="button"
+          onClick={() => setDetailsOpen((v) => !v)}
+          aria-expanded={detailsOpen}
+          className="w-full flex items-center gap-2 mb-2 px-2 py-1.5 rounded-md hover:bg-accent/[0.05] transition-colors text-left"
+        >
+          <span className="flex-1 min-w-0">
+            <span className="block text-[10px] font-display font-semibold text-text-muted uppercase tracking-wider">Your details</span>
+            {!detailsOpen && (
+              <span className="block text-[10px] text-text-muted font-display truncate">{userProfile.weight} kg · {(userProfile.sport ?? 'running').replace(/^./, (c) => c.toUpperCase())} · {userProfile.sweatRate === 'light' ? 'Low' : userProfile.sweatRate === 'moderate' ? 'Med' : 'High'} sweat</span>
+            )}
+          </span>
+          <ChevronDown className={`w-4 h-4 text-text-muted flex-shrink-0 transition-transform ${detailsOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {detailsOpen && (
+        <div className="space-y-1">
 
         {/* Body basics — every row is tap-to-edit inline */}
         <div className="space-y-px mb-2.5">
@@ -250,6 +271,8 @@ export function Sidebar() {
             />
           </div>
         </div>
+        </div>
+        )}
 
         <div className="h-px bg-[var(--color-border)] my-2.5" />
 
@@ -282,29 +305,42 @@ export function Sidebar() {
             {routeData.nutritionPoints.length > 0 ? 'Save Plan' : 'Save Route'}
           </button>
         )}
+        <nav className="space-y-0.5">
         {[
           { onClick: () => setSavedPlansOpen(true), icon: FolderOpen, label: 'Saved Plans' },
           { onClick: () => setHistoryOpen(true), icon: History, label: 'History' },
           { onClick: () => setEventSearchOpen(true), icon: Cloud, label: 'Race Weather' },
-        ].map(({ onClick, icon: Icon, label }) => (
+          // Gut Training is beta-gated per user — the entry only appears for
+          // eligible accounts (see showGutTraining). Opening it still routes
+          // through the flow's own consent gate.
+          ...(showGutTraining
+            ? [{ onClick: () => requestOpenGutTraining(), icon: TrendingUp, label: 'Gut Training', beta: true }]
+            : []),
+        ].map(({ onClick, icon: Icon, label, beta }) => (
           <button
             key={label}
             onClick={onClick}
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md bg-surfaceHighlight border border-[var(--color-border)] text-text-secondary hover:bg-accent/[0.06] hover:text-text-primary active:scale-[0.98] transition-all text-[11px] font-display font-medium"
+            className="group w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-text-secondary hover:bg-accent/[0.05] hover:text-text-primary active:scale-[0.99] transition-all text-left"
           >
-            <Icon className="w-3.5 h-3.5 text-text-muted" />
-            {label}
+            <Icon className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors flex-shrink-0" />
+            <span className="text-[13px] font-display font-medium">{label}</span>
+            {beta && (
+              <span className="ml-auto px-1.5 py-0.5 rounded-full bg-accent/10 text-accent text-[9px] font-display font-bold uppercase tracking-wider">
+                Beta
+              </span>
+            )}
           </button>
         ))}
         {isAdmin && (
           <a
             href="/admin"
-            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md bg-[#F5A020]/10 border border-[#F5A020]/30 text-[#F5A020] hover:bg-[#F5A020]/15 active:scale-[0.98] transition-all text-[11px] font-display font-bold"
+            className="group w-full flex items-center gap-3 px-2 py-2.5 rounded-lg text-warm hover:bg-warm/[0.08] active:scale-[0.99] transition-all text-[13px] font-display font-semibold"
           >
-            <ShieldCheck className="w-3.5 h-3.5" />
+            <ShieldCheck className="w-4 h-4 flex-shrink-0" />
             Admin Dashboard
           </a>
         )}
+        </nav>
         </div>
       </div>
 

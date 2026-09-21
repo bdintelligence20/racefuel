@@ -8,7 +8,7 @@ import { logger } from 'firebase-functions';
 // without a manual seed step. Anyone added via `adminAddAdmin` joins the
 // allowlist alongside this baseline. Seed admins can't be removed from the
 // Settings tab — change this list and redeploy if that's needed.
-const SEED_ADMINS: ReadonlySet<string> = new Set([
+export const SEED_ADMINS: ReadonlySet<string> = new Set([
   'nicholasflemmer@gmail.com',
   'mullin.scott1@gmail.com',
   'spiesbradley@gmail.com',
@@ -36,13 +36,13 @@ function requireEmail(request: CallableRequest<unknown>): ContextEmail {
   return { uid: auth.uid, email };
 }
 
-async function isAdmin(email: string): Promise<boolean> {
+export async function isAdmin(email: string): Promise<boolean> {
   if (SEED_ADMINS.has(email)) return true;
   const snap = await getFirestore().collection('admins').doc(email).get();
   return snap.exists;
 }
 
-async function assertAdmin(request: CallableRequest<unknown>): Promise<ContextEmail> {
+export async function assertAdmin(request: CallableRequest<unknown>): Promise<ContextEmail> {
   const ctx = requireEmail(request);
   if (!(await isAdmin(ctx.email))) {
     throw new HttpsError('permission-denied', 'Admin access required.');
@@ -538,6 +538,75 @@ export const adminListEarlyAccess = onCall({ region: REGION }, async (request) =
   const nextCursor = matched.length > limit && last?.createdAt != null ? last.createdAt : null;
 
   return { rows: page, sportCounts, nextCursor, total: matched.length };
+});
+
+/* ------------------------ adminListGutTrainingV2 -------------------- */
+// Gut Training v2 (beta) opt-in list + progress — this IS the "record of
+// who has opted in" the beta requires. Each opted-in athlete has a
+// `users/{uid}/gutTrainingV2Program/data` doc (client writes it once setup
+// completes — see gutTrainingV2Program in src/services/firebase/firestore.ts);
+// a collectionGroup query here reads across every user the same way
+// adminListUsers/adminGetUser already read plans/feedback/ratings.
+
+interface ListGutTrainingV2Args {
+  cursor?: number | null;
+  limit?: number;
+  search?: string;
+}
+
+export const adminListGutTrainingV2 = onCall({ region: REGION }, async (request) => {
+  await assertAdmin(request);
+  const args = (request.data ?? {}) as ListGutTrainingV2Args;
+  const limit = Math.max(1, Math.min(500, args.limit ?? 50));
+  const search = args.search?.trim().toLowerCase() ?? '';
+  const db = getFirestore();
+
+  const progSnap = await safeQuery('gutTrainingV2-programs', () => db.collectionGroup('gutTrainingV2Program').get(), emptySnap());
+
+  const rows = await Promise.all(progSnap.docs.map(async (d) => {
+    const uid = d.ref.parent.parent?.id ?? '';
+    const data = d.data() as {
+      event?: { name?: string; date?: string; durationHours?: number; distanceKm?: number };
+      startGPerHour?: number;
+      targetGPerHour?: number;
+      currentGPerHour?: number;
+      weekNumber?: number;
+      status?: string;
+      optedInAt?: string;
+      updatedAt?: Timestamp;
+    };
+    const sessionsCount = uid
+      ? await safeQuery(`gutTrainingV2-sessions-${uid}`, () => db.collection('users').doc(uid).collection('gutTrainingV2Sessions').count().get(), emptyCount())
+      : emptyCount();
+    return {
+      uid,
+      event: data.event ?? null,
+      startGPerHour: data.startGPerHour ?? null,
+      targetGPerHour: data.targetGPerHour ?? null,
+      currentGPerHour: data.currentGPerHour ?? null,
+      weekNumber: data.weekNumber ?? null,
+      status: data.status ?? null,
+      optedInAt: data.optedInAt ?? null,
+      updatedAt: tsToMillis(data.updatedAt),
+      sessionsCount: sessionsCount.data().count,
+    };
+  }));
+
+  const authUsers = await safeQuery('gutTrainingV2-auth', () => listAllAuthUsers(), [] as UserRecord[]);
+  const emailByUid = new Map(authUsers.map((u) => [u.uid, (u.email ?? '').toLowerCase()]));
+  const enriched = rows.map((r) => ({ ...r, email: emailByUid.get(r.uid) ?? '' }));
+
+  const matched = search
+    ? enriched.filter((r) => [r.email, r.event?.name].filter(Boolean).join(' ').toLowerCase().includes(search))
+    : enriched;
+
+  matched.sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
+
+  const offset = args.cursor ?? 0;
+  const page = matched.slice(offset, offset + limit);
+  const nextCursor = matched.length > offset + limit ? offset + limit : null;
+
+  return { rows: page, nextCursor, total: matched.length };
 });
 
 /* ----------------------- adminListSiteFeedback --------------------- */

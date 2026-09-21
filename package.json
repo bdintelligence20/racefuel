@@ -16,6 +16,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@garmin/fitsdk": "^21.214.0",
     "@google/generative-ai": "^0.24.1",
     "dexie": "^4.3.0",
     "embla-carousel-react": "^8.6.0",

@@ -90,7 +90,9 @@ function pickWithinTier(tier: Tier, intensity: IntensityBucket): number {
   return Math.round((tier.min + tier.max) / 2);
 }
 
-function gutCeilingFor(gut: GutTolerance): number {
+/** Exported so other features (e.g. the gut training program) can default
+ *  their targets against the same beginner/trained/elite ceilings. */
+export function gutCeilingFor(gut: GutTolerance): number {
   // Spec §2.3 / Matrix: conservative default 60 g/h for untrained guts.
   if (gut === 'beginner') return 60;
   if (gut === 'trained') return 90;

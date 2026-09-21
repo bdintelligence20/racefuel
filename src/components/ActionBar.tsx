@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Download, Undo2, Redo2, Info, Share2, Zap, Trash2, ShoppingCart, MoreHorizontal, Watch, X, ArrowRight, MapPin } from 'lucide-react';
+import { Download, Undo2, Redo2, Info, Share2, Trash2, ShoppingCart, MoreHorizontal, Watch, X, ArrowRight, MapPin } from 'lucide-react';
 import { ExportModal } from './export/ExportModal';
 import { FlyoverExportModal } from './export/FlyoverExportModal';
 import { ScorePopover } from './ScorePopover';
@@ -48,7 +48,7 @@ export function ActionBar() {
   // of the way (the brief's "everything else one tap away").
   const primary = hasPlan
     ? { label: 'Export to watch', icon: <Watch className="w-5 h-5" />, onClick: () => setExportOpen(true) }
-    : { label: 'Build my plan', icon: <Zap className="w-5 h-5 fill-current" />, onClick: autoGeneratePlan };
+    : { label: 'Build my plan', icon: <ArrowRight className="w-5 h-5" />, onClick: autoGeneratePlan };
 
   const totalCarbs = routeData.nutritionPoints.reduce((sum, point) => {
     return sum + point.product.carbs;
@@ -75,8 +75,8 @@ export function ActionBar() {
           <div className="flex items-start gap-x-5 sm:gap-x-6 lg:gap-x-8 flex-shrink-0">
             {[
               { label: routeData.distanceKm.toFixed(1) + 'km', value: routeData.nutritionPoints.length + ' pts', color: 'text-text-primary', hint: 'Route distance · number of fuel points placed', tip: false },
-              { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : carbsPerHour > 90 ? 'text-terrain-rust' : 'text-warm', hint: 'How many grams of carbohydrate the plan gives you each hour. For efforts over two hours, 60–90 g/h is the sweet spot.', tip: true },
-              { label: 'Total', value: totalCarbs + 'g', color: 'text-warm', hint: 'Total grams of carbs across every fuel point in the plan.', tip: false },
+              { label: 'Carbs/hr', value: carbsPerHour + 'g', color: carbsPerHour >= 60 && carbsPerHour <= 90 ? 'text-accent' : 'text-warm', hint: 'How many grams of carbohydrate the plan gives you each hour. For efforts over two hours, 60–90 g/h is the sweet spot.', tip: true },
+              { label: 'Total', value: totalCarbs + 'g', color: 'text-accent-muted', hint: 'Total grams of carbs across every fuel point in the plan.', tip: false },
             ].map((stat) => (
               <div key={stat.label} className="flex-shrink-0" title={stat.hint}>
                 <div className="text-[9px] text-text-muted uppercase tracking-wider font-display flex items-center gap-1">
@@ -104,7 +104,7 @@ export function ActionBar() {
               <button
                 type="button"
                 onClick={() => setScoreOpen((v) => !v)}
-                className={`text-sm font-display font-bold ${planValidation.score >= 80 ? 'text-accent' : planValidation.score >= 50 ? 'text-warm' : 'text-terrain-rust'} cursor-pointer`}
+                className={`text-sm font-display font-bold ${planValidation.score >= 80 ? 'text-accent' : 'text-warm'} cursor-pointer`}
               >
                 {planValidation.score}
               </button>
@@ -191,7 +191,7 @@ export function ActionBar() {
           <ActionButton
             mobileLabel="Auto"
             desktopLabel="Auto"
-            icon={<Zap className="w-[18px] h-[18px] fill-current" />}
+            icon={<ArrowRight className="w-[18px] h-[18px]" />}
             onClick={autoGeneratePlan}
             tone="warm-filled"
             mobileOnly
@@ -236,7 +236,7 @@ export function ActionBar() {
             <div className="flex justify-center pt-1 pb-2"><div className="w-10 h-1 rounded-full bg-[var(--color-border)]" /></div>
             <div className="grid grid-cols-3 gap-2">
               <SheetItem icon={<MapPin className="w-5 h-5" />} label="Add fuel" onClick={openManualAdd} />
-              <SheetItem icon={<Zap className="w-5 h-5 fill-current" />} label="Auto plan" onClick={() => { setMenuOpen(false); autoGeneratePlan(); }} />
+              <SheetItem icon={<ArrowRight className="w-5 h-5" />} label="Auto plan" onClick={() => { setMenuOpen(false); autoGeneratePlan(); }} />
               {hasPlan && <SheetItem icon={<ShoppingCart className="w-5 h-5" />} label="Buy fuel" onClick={() => { setMenuOpen(false); setCartOpen(true); }} />}
               {hasPlan && <SheetItem icon={<Share2 className="w-5 h-5" />} label="Share" onClick={() => { setMenuOpen(false); setShareOpen(true); }} />}
               {hasPlan && <SheetItem icon={<Download className="w-5 h-5" />} label="Export" onClick={() => { setMenuOpen(false); setExportOpen(true); }} />}
@@ -318,14 +318,14 @@ const TONE_CLASSES: Record<ButtonTone, { bg: string; mobileText: string; desktop
     desktopText: 'text-white',
   },
   'warm-filled': {
-    bg: 'bg-warm hover:bg-warm-light sm:shadow-[0_0_12px_rgba(245,160,32,0.25)]',
+    bg: 'bg-accent hover:bg-accent-light shadow-sm',
     mobileText: 'text-white',
     desktopText: 'text-white',
   },
   'warm-outline': {
-    bg: 'bg-surfaceHighlight border-0 sm:border sm:border-warm/30 sm:hover:border-warm hover:bg-warm/[0.08]',
-    mobileText: 'text-warm',
-    desktopText: 'text-warm',
+    bg: 'bg-surfaceHighlight border-0 sm:border sm:border-accent/30 sm:hover:border-accent hover:bg-accent/[0.08]',
+    mobileText: 'text-accent',
+    desktopText: 'text-accent',
   },
 };
 

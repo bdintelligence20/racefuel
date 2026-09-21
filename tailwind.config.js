@@ -27,6 +27,13 @@ export default {
           deep: 'var(--color-terrain-deep)',
           orange: 'var(--color-terrain-orange)',
         },
+        // v2 alert tones — Gut Training beta. Alerts only, never decorative.
+        alert: {
+          amber: 'var(--color-alert-amber)',
+          amberTint: 'var(--color-alert-amber-tint)',
+          brick: 'var(--color-alert-brick)',
+          brickTint: 'var(--color-alert-brick-tint)',
+        },
         text: {
           primary: 'var(--color-text-primary)',
           secondary: 'var(--color-text-secondary)',

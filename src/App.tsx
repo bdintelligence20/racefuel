@@ -7,6 +7,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { AuthScreen } from './components/AuthScreen';
 import { Sidebar } from './components/Sidebar';
 import { NutritionPanel } from './components/NutritionPanel';
+import { PlanView } from './components/PlanView';
 import { OnboardingModal } from './components/OnboardingModal';
 import { ActionBar } from './components/ActionBar';
 import { FlowStepIndicator } from './components/FlowStepIndicator';
@@ -21,6 +22,13 @@ import { CheckoutTest } from './components/CheckoutTest';
 import { PaymentCallback } from './components/PaymentCallback';
 import { AdminLayout } from './components/admin/AdminLayout';
 import { SiteFeedbackBanner } from './components/SiteFeedbackBanner';
+import { GutTrainingBetaBanner } from './components/GutTrainingBetaBanner';
+import { useGutBetaBanner } from './hooks/useGutBetaBanner';
+import { GutTrainingFlowV2 } from './components/gutTraining/GutTrainingFlowV2';
+import { onOpenGutTraining } from './services/gutTrainingOpen';
+import { useGutTrainingAccess } from './hooks/useGutTrainingAccess';
+import { CoachFlow } from './components/coachAI/CoachFlow';
+import { onOpenCoach } from './services/coachOpen';
 import { PrivacyPolicy } from './components/legal/PrivacyPolicy';
 import { TermsOfService } from './components/legal/TermsOfService';
 import { CookiesPolicy } from './components/legal/CookiesPolicy';
@@ -46,22 +54,30 @@ function MobileNav({
   sidebarOpen,
   setSidebarOpen,
   showSteps,
+  showMenu,
 }: {
   sidebarOpen: boolean;
   setSidebarOpen: (o: boolean) => void;
   showSteps: boolean;
+  /** The hamburger only makes sense once the sidebar exists (route loaded).
+   *  Before that the top bar is just the centered logo. */
+  showMenu: boolean;
 }) {
   return (
     <div className="lg:hidden fixed left-0 right-0 z-50 bg-surface border-b border-[var(--color-border)] safe-top" style={{ top: 'var(--banner-h, 0px)' }}>
       <div className="flex items-center gap-2 px-2 py-1.5">
-        {/* Hamburger */}
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
-          className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl hover:bg-accent/[0.06] active:bg-accent/[0.08] transition-colors text-text-primary"
-        >
-          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+        {/* Hamburger — only when there's a sidebar to open */}
+        {showMenu ? (
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
+            className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-xl hover:bg-accent/[0.06] active:bg-accent/[0.08] transition-colors text-text-primary"
+          >
+            {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        ) : (
+          <span className="w-10 h-10 flex-shrink-0" aria-hidden="true" />
+        )}
 
         {/* Step progress, inline — merges the old separate step band into the
             nav so there's one top bar, not two. Only meaningful once a route
@@ -70,8 +86,13 @@ function MobileNav({
           {showSteps ? <FlowStepIndicator embedded /> : <img src="/logo.png" alt="fuelcue" className="h-7 w-auto object-contain" />}
         </div>
 
-        {/* Logo, small, right — kept for brand anchor when steps are showing. */}
-        {showSteps && <img src="/logo.png" alt="fuelcue" className="h-7 w-auto object-contain flex-shrink-0" />}
+        {/* Right spacer keeps the logo centered; a small logo anchors it here
+            once the steps take the middle. */}
+        {showSteps ? (
+          <img src="/logo.png" alt="fuelcue" className="h-7 w-auto object-contain flex-shrink-0" />
+        ) : (
+          <span className="w-10 h-10 flex-shrink-0" aria-hidden="true" />
+        )}
       </div>
     </div>
   );
@@ -81,7 +102,29 @@ function AppContent() {
   const { onboardingComplete, autoGenStatus, pendingPlan, applyPendingPlan, regeneratePendingPlan, dismissPendingPlan, routeData } = useApp();
   const { mode } = useCoachStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Loaded state defaults to the clean answer-first PlanView; the map (for
+  // editing stops) is one tap away and flips this on.
+  const [showMap, setShowMap] = useState(false);
   const actionBarRef = useRef<HTMLDivElement>(null);
+
+  // The gut-training flow lives here, at the always-mounted shell level, rather
+  // than inside the Sidebar — the sidebar is hidden until a route loads, so a
+  // sidebar-owned flow couldn't be opened from the route-entry screen (or the
+  // opt-in banner) before then. Every surface opens it through the signal bus.
+  const showGutTraining = useGutTrainingAccess();
+  const [gutTrainingOpen, setGutTrainingOpen] = useState(false);
+  useEffect(() => {
+    if (!showGutTraining) return;
+    return onOpenGutTraining(() => setGutTrainingOpen(true));
+  }, [showGutTraining]);
+
+  // AI coach, same shell-mounted pattern. Dev-gated for now (see GpxDropZone).
+  const showCoach = import.meta.env.DEV;
+  const [coachOpen, setCoachOpen] = useState(false);
+  useEffect(() => {
+    if (!showCoach) return;
+    return onOpenCoach(() => setCoachOpen(true));
+  }, [showCoach]);
 
   // The mobile ActionBar's height varies by state (stats row appears with a
   // plan, the manual-add hint only without one). Publish the measured height
@@ -133,16 +176,22 @@ function AppContent() {
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
         showSteps={routeData.loaded}
+        showMenu={routeData.loaded}
       />
 
-      <div className={`
-        fixed lg:relative z-40 h-full transition-transform duration-300
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
-        <Sidebar />
-      </div>
+      {/* The left panel only appears once there's a route to work on. The
+          first screen is just the full-bleed "build your fuel plan" hero, no
+          chrome, so a brand-new athlete has one thing to do. */}
+      {routeData.loaded && (
+        <div className={`
+          fixed lg:relative z-40 h-full transition-transform duration-300
+          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}>
+          <Sidebar />
+        </div>
+      )}
 
-      {sidebarOpen && (
+      {sidebarOpen && routeData.loaded && (
         <div
           className="fixed inset-0 z-30 bg-black/30 backdrop-blur-sm lg:hidden"
           onClick={() => setSidebarOpen(false)}
@@ -157,7 +206,7 @@ function AppContent() {
           (lg+) has its own ActionBar copy inside the Map column. Hidden
           while the sidebar drawer is open so its z-40 doesn't cover the
           sidebar's footer (sign-out / theme / reset). */}
-      <div ref={actionBarRef} className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-auto ${sidebarOpen ? 'hidden' : ''}`}>
+      <div ref={actionBarRef} className={`lg:hidden fixed bottom-0 left-0 right-0 z-40 pointer-events-auto ${sidebarOpen || (routeData.loaded && !showMap) ? 'hidden' : ''}`}>
         <ActionBar />
       </div>
 
@@ -178,28 +227,47 @@ function AppContent() {
         </div>
         {/* Step indicator now lives inline in the top nav (MobileNav), so the
             old standalone band here is gone — one less stacked bar. */}
-        <ErrorBoundary>
-          <Suspense fallback={<MapLoadingFallback />}>
-            <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
-              <MapCanvas />
+        {routeData.loaded && !showMap ? (
+          <ErrorBoundary>
+            <PlanView onShowMap={() => setShowMap(true)} />
+          </ErrorBoundary>
+        ) : (
+          <>
+            <ErrorBoundary>
+              <Suspense fallback={<MapLoadingFallback />}>
+                <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden relative">
+                  <MapCanvas />
+                  {routeData.loaded && showMap && (
+                    <button
+                      onClick={() => setShowMap(false)}
+                      className="absolute top-3 left-3 z-20 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-surface border border-[var(--color-border)] text-text-primary text-xs font-display font-bold shadow-md hover:border-accent/40 transition-colors"
+                    >
+                      ← Back to plan
+                    </button>
+                  )}
+                </div>
+              </Suspense>
+            </ErrorBoundary>
+            {/* Desktop-only ActionBar inside the column. */}
+            <div className="hidden lg:block flex-shrink-0">
+              <ActionBar />
             </div>
-          </Suspense>
-        </ErrorBoundary>
-        {/* Desktop-only ActionBar inside the column. */}
-        <div className="hidden lg:block flex-shrink-0">
-          <ActionBar />
-        </div>
+          </>
+        )}
       </div>
 
-      {/* Fuel column — desktop only. Mobile gets all the same affordances
-          via the on-map fuel strip + ActionBar's View Kit button. */}
-      <div className="hidden lg:flex lg:relative lg:top-0 lg:left-auto bottom-0 z-30 flex-col">
-        <ErrorBoundary>
-          <div className="flex-1 min-h-0 overflow-hidden">
-            <NutritionPanel />
-          </div>
-        </ErrorBoundary>
-      </div>
+      {/* Fuel column — desktop only, and only once a plan exists. On an empty
+          start the guided single-column entry (GpxDropZone) stands alone, so a
+          new athlete isn't met with a dense, zeroed-out product panel. */}
+      {routeData.loaded && showMap && (
+        <div className="hidden lg:flex lg:relative lg:top-0 lg:left-auto bottom-0 z-30 flex-col">
+          <ErrorBoundary>
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <NutritionPanel />
+            </div>
+          </ErrorBoundary>
+        </div>
+      )}
 
       {!onboardingComplete && <OnboardingModal />}
 
@@ -215,6 +283,22 @@ function AppContent() {
         onRegenerate={regeneratePendingPlan}
         onClose={dismissPendingPlan}
       />
+
+      {/* Gut-training beta — mounted at the shell so it opens from anywhere
+          (route-entry button, sidebar entry, opt-in banner) via the signal
+          bus. Only for eligible users; the flow's own consent gate applies. */}
+      {showGutTraining && (
+        <GutTrainingFlowV2
+          isOpen={gutTrainingOpen}
+          onClose={() => setGutTrainingOpen(false)}
+        />
+      )}
+
+      {/* AI coach — athlete-facing, shell-mounted so it opens from the
+          route-entry card (and future entries) via the signal bus. */}
+      {showCoach && (
+        <CoachFlow isOpen={coachOpen} onClose={() => setCoachOpen(false)} />
+      )}
 
 
       <Toaster
@@ -384,11 +468,24 @@ function AuthGate() {
   );
 }
 
+/**
+ * Owns the single global top-banner slot. The gut-training beta invite takes
+ * priority for eligible, not-yet-opted-in users; the site-feedback banner
+ * returns otherwise (including while eligibility is still loading, so the beta
+ * banner never flashes in for an ineligible user). Only one is ever mounted,
+ * so only one owns --banner-h at a time.
+ */
+function TopBanners() {
+  const beta = useGutBetaBanner();
+  if (beta.visible) return <GutTrainingBetaBanner state={beta} />;
+  return <SiteFeedbackBanner />;
+}
+
 export function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <SiteFeedbackBanner />
+        <TopBanners />
         <AuthGate />
       </AuthProvider>
     </ErrorBoundary>
